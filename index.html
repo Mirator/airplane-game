@@ -26,11 +26,14 @@ button:disabled{opacity:.4}
 #log div{flex:none}
 #log div:last-child{color:#fff}
 #bar{display:flex;gap:6px;padding:4px 6px calc(6px + env(safe-area-inset-bottom))}
-#bar button{flex:1;min-height:52px;font-size:20px;padding:2px;line-height:1.1}
-#bar button small{display:block;font-size:11px;opacity:.85}
+#bar button,#bar2 button{position:relative}
+#bar button{flex:1;min-width:0;min-height:56px;font-size:20px;padding:2px 1px;line-height:1.05}
+#bar button small,#bar2 button small{display:block;font-size:10px;opacity:.95;white-space:nowrap;margin:0}
+#bar button.dis,#bar2 button.dis{opacity:.4}
+.bd{position:absolute;top:1px;right:2px;min-width:16px;padding:0 4px;border-radius:8px;background:#6a3fb5;font-size:10px;font-weight:700;line-height:16px;color:#fff;text-align:center}
+#helpBtn{min-width:48px;font-size:20px;padding:0}
 #bar2{display:none;gap:6px;padding:2px 6px 0}
 #bar2 button{flex:1;min-height:46px;font-size:18px;padding:2px;line-height:1.1}
-#bar2 button small{font-size:11px;opacity:.9;margin-left:4px}
 button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a inset}
 .tag{display:inline-block;font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:#6a3fb5;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
 .tag.act{background:#b5731f}.tag.syn{background:#2a8a5a}
@@ -50,7 +53,7 @@ button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24
 </style></head><body>
 <div id="app">
  <div id="hud">
-  <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><button id="menuBtn" aria-label="Menu">☰</button></div>
+  <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><button id="helpBtn" aria-label="Controls">?</button><button id="menuBtn" aria-label="Menu">☰</button></div>
   <div id="xpbar"><div id="xpfill"></div></div>
   <div id="stats"></div>
  </div>
@@ -80,7 +83,7 @@ const SHOP=[
  {k:'def',n:'Padded',d:'+1 starting defense',base:60}
 ];
 const SHOPMAX=8;
-let meta={gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0};
+let meta={seenHelp:0,gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0};
 try{const m=JSON.parse(localStorage.getItem(META_KEY));if(m&&typeof m==='object')Object.assign(meta,m);}catch(e){}
 function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
 function cost(s){const l=meta[s.k];return Math.round(s.base*(l+1)*(1+l*0.3));}
@@ -134,7 +137,51 @@ const SYN=[
  {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons its target'},
  {id:'db',a:'dash',b:'arcane',n:'Phase Hunter',d:'Dash cuts Arcane Bolt cooldown by 2'}
 ];
-const ABIL=[{k:'dash',perk:'dash',e:'💨',n:'Dash'},{k:'bolt',perk:'arcane',e:'🔮',n:'Bolt'}];
+const CLS={
+ warrior:{n:'Warrior',e:'🛡',hp:42,atk:3,def:2,crit:0.05,fire:1,d:'42 HP, +2 defense, slow attack growth.',ab:'Shield Bash: hit an adjacent enemy and stun it for 2 turns (cooldown 6).'},
+ mage:{n:'Mage',e:'🧙',hp:22,atk:4,def:0,crit:0.05,fire:2,d:'22 HP. Starts with Arcane Bolt (stronger, faster) and an extra fireball scroll.',ab:'Arcane Bolt: ranged blast at a visible enemy (cooldown 4).'},
+ rogue:{n:'Rogue',e:'🗡',hp:30,atk:4,def:0,crit:0.2,fire:1,d:'30 HP, high crit. Your first attack on an enemy that has not noticed you deals double damage.',ab:'Vanish: enemies lose track of you for 3 turns (cooldown 8). Attacking breaks it.'}
+};
+const LG={warrior:{hp:4,atkE:0},mage:{hp:1,atkE:2},rogue:{hp:2,atkE:2}};
+const TR={
+ cursed:{slot:'weapon',n:'Cursed',dv:3,minF:2,d:'+3 attack, but you lose 1 HP per kill.'},
+ vamp:{slot:'weapon',n:'Vampiric',dv:-2,minF:1,d:'-2 attack, but heal 25% of damage dealt.'},
+ brutal:{slot:'weapon',n:'Brutal',dv:2,minF:2,d:'+2 attack, but -10% crit chance.'},
+ keen:{slot:'weapon',n:'Keen',dv:-1,minF:1,d:'-1 attack, but +15% crit chance.'},
+ heavy:{slot:'armor',n:'Heavy',dv:2,minF:2,d:'+2 defense, but enemies get a free turn every 4th turn.'},
+ spiked:{slot:'armor',n:'Spiked',dv:0,minF:1,d:'Melee attackers take 3 damage, but -1 attack.'},
+ light:{slot:'armor',n:'Light',dv:-1,minF:1,d:'-1 defense, but +12% dodge.'},
+ leaden:{slot:'armor',n:'Leaden',dv:2,minF:3,d:'+2 defense, but potions heal 40% less.'}
+};
+let gearQ=null;
+function clsOf(p){return CLS[p.cls]||CLS.warrior;}
+function gearName(slot,v,tr){
+ const base=slot==='weapon'?WNAMES[Math.min(5,Math.floor(v/2))]:ANAMES[Math.min(5,Math.floor(v))];
+ if(tr&&TR[tr]){if(tr==='vamp')return 'Vampiric Dagger';return TR[tr].n+' '+base;}
+ return base;
+}
+function rollTrait(slot,f){
+ if(Math.random()>=Math.min(0.65,0.2+0.07*f))return null;
+ const pool=Object.keys(TR).filter(k=>TR[k].slot===slot&&TR[k].minF<=f);
+ return pool.length?pick(pool):null;
+}
+function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
+function atkMod(){const p=G.p;return p.at==='spiked'?-1:0;}
+function critChance(){const p=G.p;return Math.max(0,Math.min(1,p.crit+(p.wt==='keen'?0.15:0)+(p.wt==='brutal'?-0.1:0)));}
+function lifeRate(){const p=G.p;return Math.max(0,p.life+(p.wt==='vamp'?0.25:0));}
+function dodgeChance(){const p=G.p;return Math.min(0.75,p.dodge+(p.at==='light'?0.12:0));}
+function thornsDmg(){const p=G.p;return p.thorns+(p.at==='spiked'?3:0);}
+function secondWind(){
+ const p=G.p;
+ if(p.hp<=0&&pc('second')&&!G.swUsed){G.swUsed=1;p.hp=1;msg('Second Wind! You cling to life at 1 HP.');return true;}
+ return false;
+}
+function curseDrain(){
+ const p=G.p;if(p.hp<=0)return;
+ p.hp-=1;floatFx(p.x,p.y,'-1','#c6f');msg('The cursed blade drinks 1 HP.');secondWind();
+}
+function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'No trait.';}
+const ABIL=[{k:'bash',cls:'warrior',e:'🛡',n:'Bash'},{k:'vanish',cls:'rogue',e:'👻',n:'Vanish'},{k:'dash',perk:'dash',e:'💨',n:'Dash'},{k:'bolt',perk:'arcane',e:'🔮',n:'Bolt'}];
 function pc(id){return (G&&G.perks&&G.perks[id])||0;}
 function perkById(id){return PERKS.find(x=>x.id===id);}
 function checkSyn(){
@@ -153,7 +200,10 @@ const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
 function walkable(x,y){return inb(x,y)&&G.map[ix(x,y)]!==0;}
 function enemyAt(x,y){for(const e of G.enemies)if(e.x===x&&e.y===y)return e;return null;}
 function itemAt(x,y){for(const i of G.items)if(i.x===x&&i.y===y)return i;return null;}
-function msg(t){G.log.push(t);if(G.log.length>30)G.log.shift();renderLog();}
+function msg(t){
+ const last=G.log[G.log.length-1],m=last&&last.match(/^(.*) \(x(\d+)\)$/),base=m?m[1]:last;
+ if(base===t){G.log[G.log.length-1]=t+' (x'+((m?+m[2]:1)+1)+')';renderLog();return;}
+ G.log.push(t);if(G.log.length>30)G.log.shift();renderLog();}
 function los(x0,y0,x1,y1){
  let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx-dy,x=x0,y=y0;
  while(!(x===x1&&y===y1)){
@@ -228,11 +278,11 @@ function newFloor(f){
  const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&!(k==='rat'&&f>5));
  for(let i=0;i<n;i++){const r=pick(others),t=free(r);if(t)addEnemy(pick(pool),r,t[0],t[1]);}
  // items
- function addItem(t,v){const r=pick(rooms),pos=free(r);if(pos)G.items.push({x:pos[0],y:pos[1],t,v});}
+ function addItem(t,v,tr){const r=pick(rooms),pos=free(r);if(pos)G.items.push({x:pos[0],y:pos[1],t,v,tr:tr||null});}
  for(let i=0;i<4;i++)addItem('gold',rnd(6,12)+f*3);
  for(let i=0;i<rnd(1,2);i++)addItem('potion',0);
- if(Math.random()<0.5)addItem('weapon',rnd(1,3)+f-1);
- if(Math.random()<0.5)addItem('armor',Math.floor((f+rnd(0,2))/2)+1);
+ if(Math.random()<0.5){const tr=rollTrait('weapon',f);addItem('weapon',applyTrait(rnd(1,3)+f-1,tr),tr);}
+ if(Math.random()<0.5){const tr=rollTrait('armor',f);addItem('armor',applyTrait(Math.floor((f+rnd(0,2))/2)+1,tr),tr);}
  if(Math.random()<0.5)addItem('fire',0);
  if(Math.random()<0.35)addItem('tele',0);
  computeVis();
@@ -250,13 +300,16 @@ function computeVis(){
 }
 
 // ---------- run ----------
-function startRun(){
- const p={x:0,y:0,hp:30+6*meta.hp,mhp:30+6*meta.hp,atk:4+meta.atk,def:meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',
-  xp:0,lvl:1,gold:0,potCap:3,life:0,crit:0.05,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+0.15*meta.goldp};
- G={floor:1,p,inv:{pot:Math.min(1+meta.pot,3),fire:1,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0},syn:{},bl:0,ssUsed:0,swUsed:0};
- armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg('You descend into the Emberfall depths...');
+function startRun(cls){
+ if(!CLS[cls])cls='warrior';const C=CLS[cls];
+ const p={x:0,y:0,cls:cls,hp:C.hp+6*meta.hp,mhp:C.hp+6*meta.hp,atk:C.atk+meta.atk,def:C.def+meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',wt:null,at:null,
+  xp:0,lvl:1,gold:0,potCap:3,life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+0.15*meta.goldp};
+ G={floor:1,p,inv:{pot:Math.min(1+meta.pot,3),fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0,bash:0,vanish:0},syn:{},bl:0,ssUsed:0,swUsed:0,vanish:0};
+ if(cls==='mage')G.perks.arcane=1;
+ gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
+ msg('You descend into the Emberfall depths as a '+C.n+'.');
  hideTitle();closeModal();save();render();
+ if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
 function save(){if(!G||G.over)return;try{localStorage.setItem(RUN_KEY,JSON.stringify(G));}catch(e){}}
 function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}}
@@ -265,24 +318,24 @@ function continueRun(){
  try{
   const g=JSON.parse(localStorage.getItem(RUN_KEY));
   if(!g||!g.p||!g.map||g.map.length!==W*H)throw 0;
-  G=g;G.stopWalk=false;G.perks=G.perks||{};G.cd=G.cd||{dash:0,bolt:0};G.syn=G.syn||{};G.bl=G.bl||0;G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
+  G=g;G.stopWalk=false;G.perks=G.perks||{};G.cd=Object.assign({dash:0,bolt:0,bash:0,vanish:0},G.cd||{});G.vanish=G.vanish||0;G.syn=G.syn||{};if(!CLS[G.p.cls])G.p.cls='warrior';G.p.wt=TR[G.p.wt]?G.p.wt:null;G.p.at=TR[G.p.at]?G.p.at:null;gearQ=null;G.bl=G.bl||0;G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
   if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
 }
 function needXp(l){return 8+l*7;}
 function gainXp(n){
  const p=G.p;p.xp+=Math.round(n*p.xpMul);
- while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;G.pending++;msg('Level up! You are level '+p.lvl+'.');}
+ while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;G.pending++;const lg=LG[p.cls]||LG.warrior;p.mhp+=lg.hp;p.hp+=lg.hp;if(lg.atkE&&p.lvl%lg.atkE===0)p.atk++;msg('Level up! You are level '+p.lvl+'.');}
 }
 function finish(kind){
- G.over=true;armed=null;const p=G.p;walkTok++;
+ G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
  const bonus=kind==='win'?150:0,banked=p.gold+bonus;
  meta.gold+=banked;if(kind==='win')meta.wins++;meta.best=Math.max(meta.best,G.floor);saveMeta();clearSave();
  computeVis();render();
  const dead=kind==='dead';
  showModal((dead?'You Died':kind==='win'?'Victory!':'Run Ended'),
   (kind==='win'?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>The dungeon claims another adventurer.</p>':'<p>You left the dungeon.</p>')+
-  '<p>Floor reached: <b>'+G.floor+'</b><br>Level: <b>'+p.lvl+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Turns: <b>'+G.turn+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. 150 win bonus)':'')+'</span></p>',
+  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b><br>Gear: <b>'+p.wn+'</b>, <b>'+p.an+'</b><br>Floor reached: <b>'+G.floor+'</b><br>Level: <b>'+p.lvl+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Turns: <b>'+G.turn+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. 150 win bonus)':'')+'</span></p>',
   [{label:'Back to title',c:1,fn:function(){closeModal();G=null;showTitle();}}]);
 }
 
@@ -294,6 +347,7 @@ function killEnemy(e,src){
  const d=EN[e.t];msg((src||'You')+' slew the '+d.n+'.');
  gainXp(d.xp+G.floor);
  if(d.boss){G.won=true;return;}
+ if(G.p.wt==='cursed')curseDrain();
  if(Math.random()<0.15)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  else if(Math.random()<0.4)G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(3,7)+G.floor*2});
  if(pc('scav')&&!itemAt(e.x,e.y)&&Math.random()<0.2*pc('scav'))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
@@ -336,19 +390,21 @@ function chainZap(from){
  }finally{inChain=false;}
 }
 function playerDmg(){
- const p=G.p;let d=Math.max(1,p.atk+p.wb+rnd(-1,1));
+ const p=G.p;let d=Math.max(1,p.atk+p.wb+atkMod()+rnd(-1,1));
  if(pc('berserk'))d*=1+0.8*(1-Math.max(0,p.hp)/p.mhp);
  return Math.max(1,Math.round(d));
 }
 function lifeSteal(dmg){
- const p=G.p;if(p.life<=0)return;
- let h=Math.max(1,Math.round(dmg*p.life));
+ const p=G.p,lr=lifeRate();if(lr<=0)return;
+ let h=Math.max(1,Math.round(dmg*lr));
  if(pc('berserk')&&pc('vamp')&&p.hp<p.mhp*0.5)h*=2;
  p.hp=Math.min(p.mhp,p.hp+h);
 }
 function playerAttack(e){
- const p=G.p;let dmg=playerDmg(),crit=Math.random()<p.crit;
+ const p=G.p;let dmg=playerDmg(),crit=Math.random()<critChance();
  if(crit)dmg*=2;
+ if(p.cls==='rogue'&&!e.awake){dmg*=2;msg('Sneak attack!');}
+ if(G.vanish>0){G.vanish=0;msg('You step out of the shadows.');}
  if(G.bl){dmg=Math.round(dmg*1.75);G.bl=0;msg('Bloodlust! Your strike is empowered.');}
  hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a');
  msg((crit?'Critical! ':'')+'You hit the '+EN[e.t].n+' for '+dmg+'.');
@@ -367,22 +423,24 @@ function playerAttack(e){
 }
 function hurtPlayer(e,dmg,melee){
  const p=G.p;
- if(Math.random()<p.dodge){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+EN[e.t].n+'.');return;}
+ if(Math.random()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+EN[e.t].n+'.');return;}
  if(pc('stone')&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Stone Skin negates the '+EN[e.t].n+"'s hit.");return;}
  dmg=Math.max(1,dmg-(p.def+p.ab)+rnd(-1,1));
  if(dmg<1)dmg=1;
  p.hp-=dmg;flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
  msg('The '+EN[e.t].n+(melee?' hits':' blasts')+' you for '+dmg+'.');
- if(p.hp<=0&&pc('second')&&!G.swUsed){G.swUsed=1;p.hp=1;msg('Second Wind! You cling to life at 1 HP.');}
- if(melee&&p.thorns>0&&!e.dead){hurtEnemy(e,p.thorns,'#8f8');settle(e,'Thorns');}
+ secondWind();
+ if(melee&&thornsDmg()>0&&!e.dead){hurtEnemy(e,thornsDmg(),'#8f8');settle(e,'Thorns');}
  if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&Math.random()<0.2*pc('riposte')){
   const d2=playerDmg();hurtEnemy(e,d2,'#fff');msg('Riposte! You counter for '+d2+'.');settle(e);}
 }
-function enemiesAct(){
+function enemiesAct(free){
  const p=G.p,dist=bfsDist(p.x,p.y);
  for(const e of G.enemies.slice()){
   if(p.hp<=0)break;if(e.dead)continue;
-  const d=EN[e.t];if(e.cd>0)e.cd--;
+  const d=EN[e.t];if(!free&&e.cd>0)e.cd--;
+  if(e.stun>0){if(!free)e.stun--;continue;}
+  if(G.vanish>0){e.awake=false;continue;}
   const md=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
   const see=md<=9&&los(e.x,e.y,p.x,p.y);
   if(see)e.awake=true;
@@ -414,10 +472,12 @@ function endTurn(){
  tickPoison();
  if(G.won){finish('win');return;}
  enemiesAct();
+ if(p.at==='heavy'&&G.turn%4===0&&p.hp>0&&!G.won&&G.enemies.some(e=>e.awake)){msg('Your heavy armor slows you: enemies get a free turn.');enemiesAct(true);}
+ if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
  computeVis();save();render();
- if(G.pending>0)showPerk();
+ if(G.pending>0)showPerk();else if(gearQ)showGear();
 }
 function pickup(){
  const p=G.p,it=itemAt(p.x,p.y);if(!it)return;
@@ -427,15 +487,12 @@ function pickup(){
   if(G.inv.pot<p.potCap){G.inv.pot++;msg('You pick up a health potion.');}
   else{msg('Potion belt is full.');take=false;}
  }
- else if(it.t==='weapon'){
-  const nm=WNAMES[Math.min(5,Math.floor(it.v/2))];
-  if(it.v>p.wb){p.wb=it.v;p.wn=nm;msg('Equipped '+nm+' (+'+it.v+' attack).');}
-  else{const g=Math.round((4+G.floor*2)*p.goldMul);p.gold+=g;msg('Weak '+nm+' sold for '+g+' gold.');}
- }
- else if(it.t==='armor'){
-  const nm=ANAMES[Math.min(5,Math.floor(it.v))];
-  if(it.v>p.ab){p.ab=it.v;p.an=nm;msg('Equipped '+nm+' (+'+it.v+' defense).');}
-  else{const g=Math.round((4+G.floor*2)*p.goldMul);p.gold+=g;msg('Weak '+nm+' sold for '+g+' gold.');}
+ else if(it.t==='weapon'||it.t==='armor'){
+  const w=it.t==='weapon',cv=w?p.wb:p.ab,ct=w?p.wt:p.at,nm=gearName(it.t,it.v,it.tr);
+  if(!it.tr&&!ct){
+   if(it.v>cv){if(w){p.wb=it.v;p.wn=nm;}else{p.ab=it.v;p.an=nm;}msg('Equipped '+nm+' (+'+it.v+(w?' attack).':' defense).'));}
+   else{const g=Math.round((4+G.floor*2)*p.goldMul);p.gold+=g;msg('Weak '+nm+' sold for '+g+' gold.');}
+  }else{gearQ=it;take=false;}
  }
  else if(it.t==='fire'){G.inv.fire++;msg('Found a Fireball scroll.');}
  else if(it.t==='tele'){G.inv.tele++;msg('Found a Teleport scroll.');}
@@ -454,7 +511,7 @@ function tryMove(dx,dy){
 function wait(){msg('You wait.');endTurn();}
 function descend(){
  if(!G||G.over)return;
- if(G.map[ix(G.p.x,G.p.y)]!==2){msg('No stairs here.');return;}
+ if(G.map[ix(G.p.x,G.p.y)]!==2){msg('No stairs here. Stand on the ▼ tile first.');return;}
  walkTok++;
  G.stopWalk=false;
  newFloor(G.floor+1);
@@ -466,22 +523,22 @@ function descend(){
 }
 function drink(){
  const p=G.p;
- if(G.inv.pot<=0){msg('No potions.');return;}
+ if(G.inv.pot<=0){msg('No potions. Find them in the dungeon.');return;}
  if(p.hp>=p.mhp){msg('Already at full health.');return;}
- G.inv.pot--;const h=Math.max(12,Math.round(p.mhp*0.4));p.hp=Math.min(p.mhp,p.hp+h);
+ G.inv.pot--;let h=Math.max(12,Math.round(p.mhp*0.4));if(p.at==='leaden')h=Math.max(1,Math.round(h*0.6));p.hp=Math.min(p.mhp,p.hp+h);
  floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');endTurn();
 }
 function fireball(){
- if(G.inv.fire<=0){msg('No fireball scrolls.');return;}
+ if(G.inv.fire<=0){msg('No fireball scrolls. Find them in the dungeon.');return;}
  const t=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
- if(!t.length){msg('No visible enemies.');return;}
+ if(!t.length){msg('No visible enemies - scroll kept.');return;}
  G.inv.fire--;const dmg=Math.round((10+G.floor*3)*G.p.fireMul);
  msg('Fireball! '+dmg+' damage to all in sight.');
  for(const e of t){hurtEnemy(e,dmg,'#ff7a2a');settle(e);}
  endTurn();
 }
 function teleport(){
- if(G.inv.tele<=0){msg('No teleport scrolls.');return;}
+ if(G.inv.tele<=0){msg('No teleport scrolls. Find them in the dungeon.');return;}
  const p=G.p,c=[];
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)
   if(G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!itemAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=8)c.push([x,y]);
@@ -505,11 +562,26 @@ function useDash(tx,ty){
  if(G.map[ix(tx,ty)]===2)msg('Stairs! Tap yourself to descend.');
  endTurn();
 }
+function bashOk(e){return !e.dead&&G.vis[ix(e.x,e.y)]&&Math.abs(e.x-G.p.x)+Math.abs(e.y-G.p.y)===1;}
+function useBash(tx,ty){
+ const e=enemyAt(tx,ty);
+ if(!e||!bashOk(e)){msg('Shield Bash: tap an adjacent enemy.');return;}
+ armed=null;walkTok++;G.cd.bash=7;
+ const dmg=playerDmg();hurtEnemy(e,dmg,'#ffb04a');
+ msg('Shield Bash hits the '+EN[e.t].n+' for '+dmg+'.');lifeSteal(dmg);
+ if(!e.dead&&e.hp>0){e.stun=EN[e.t].boss?1:2;floatFx(e.x,e.y,'stunned','#ffe066');msg('The '+EN[e.t].n+' is stunned.');}
+ settle(e);endTurn();
+}
+function useVanish(){
+ armed=null;walkTok++;G.cd.vanish=9;G.vanish=3;
+ for(const e of G.enemies)e.awake=false;
+ floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish. Enemies lose track of you.');endTurn();
+}
 function useBolt(tx,ty){
  const e=enemyAt(tx,ty);
  if(!e||!boltOk(e)){msg('Arcane Bolt: tap a visible enemy.');return;}
- armed=null;walkTok++;G.cd.bolt=5;
- const dmg=Math.round(playerDmg()*1.5)+3;
+ const mg=G.p.cls==='mage';armed=null;walkTok++;G.cd.bolt=mg?4:5;
+ const dmg=Math.round(playerDmg()*1.5)+3+(mg?3:0);
  hurtEnemy(e,dmg,'#b48cff');msg('Arcane Bolt hits the '+EN[e.t].n+' for '+dmg+'.');
  poison(e);settle(e);
  endTurn();
@@ -518,7 +590,8 @@ function toggleAbility(k){
  walkTok++;if(!G||G.over||modalOpen())return;
  if(armed===k){armed=null;msg('Cancelled.');render();return;}
  if(G.cd[k]>0){msg('Still recharging ('+G.cd[k]+').');return;}
- armed=k;msg(k==='dash'?'Dash armed: tap a highlighted tile.':'Arcane Bolt armed: tap a visible enemy.');render();
+ if(k==='vanish'){useVanish();return;}
+ armed=k;msg(k==='dash'?'Dash armed: tap a highlighted tile.':k==='bash'?'Shield Bash armed: tap an adjacent enemy.':'Arcane Bolt armed: tap a visible enemy.');render();
 }
 
 // ---------- walking ----------
@@ -572,7 +645,7 @@ function explore(){
 }
 function itemName(it){
  return {gold:'Gold pile',potion:'Health potion',fire:'Fireball scroll',tele:'Teleport scroll'}[it.t]||
-  (it.t==='weapon'?WNAMES[Math.min(5,Math.floor(it.v/2))]+' (+'+it.v+' atk)':ANAMES[Math.min(5,Math.floor(it.v))]+' (+'+it.v+' def)');
+  (gearName(it.t,it.v,it.tr)+' (+'+it.v+(it.t==='weapon'?' atk)':' def)')+(it.tr?' - '+TR[it.tr].d:''));
 }
 function onTap(tx,ty){
  walkTok++;
@@ -582,7 +655,7 @@ function onTap(tx,ty){
   if(!inb(tx,ty))return;
   if(tx===p.x&&ty===p.y){armed=null;msg('Cancelled.');render();return;}
   tapMark={x:tx,y:ty,t:performance.now()};
-  if(armed==='dash')useDash(tx,ty);else useBolt(tx,ty);
+  if(armed==='dash')useDash(tx,ty);else if(armed==='bash')useBash(tx,ty);else useBolt(tx,ty);
   render();return;
  }
  if(inb(tx,ty)){tapMark={x:tx,y:ty,t:performance.now()};render();}
@@ -592,7 +665,7 @@ function onTap(tx,ty){
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
   const d=EN[e.t];
-  msg(d.n+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':''));
+  msg(d.n+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':'')+(e.stun>0?' Stunned ('+e.stun+'t).':'')+(e.awake?'':' Unaware.'));
   const path=bfsPath(p.x,p.y,tx,ty);
   if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
   return;
@@ -630,7 +703,7 @@ function showModal(title,html,buttons){
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
   const el=document.createElement('button');if(bt.c)el.className='c';
-  el.innerHTML=bt.html||bt.label;
+  el.innerHTML=bt.html||bt.label;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
   el.addEventListener('click',function(e){e.stopPropagation();bt.fn(el);});
   b.appendChild(el);
  }
@@ -653,11 +726,18 @@ function showPerk(){
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
    addPerk(pk.id);G.pending--;closeModal();save();render();
-   if(G.pending>0)showPerk();
+   if(G.pending>0)showPerk();else if(gearQ)showGear();
   }};}));
 }
+function gearHtml(){
+ const p=G.p,C=clsOf(p);
+ return '<div class="pl"><b>'+C.e+' '+C.n+'</b><br><small>'+C.ab+'</small></div>'+
+  '<div class="pl"><b>⚔️ '+p.wn+' (+'+p.wb+')</b><br><small>'+traitLine(p.wt)+'</small></div>'+
+  '<div class="pl"><b>🛡 '+p.an+' (+'+p.ab+')</b><br><small>'+traitLine(p.at)+'</small></div>';
+}
 function showPerks(back){
- let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
+ let h=gearHtml();const own=PERKS.filter(pk=>pc(pk.id)>0);
+ h+='<p><b>Perks</b></p>';
  if(!own.length)h+='<p>No perks yet. Level up to pick some.</p>';
  for(const pk of own)h+='<div class="pl"><b>'+pk.n+(pk.max>1?' ×'+pc(pk.id):'')+'</b>'+perkTags(pk)+'<br><small>'+pk.d+'</small></div>';
  h+='<p><b>Synergies</b></p>';
@@ -665,29 +745,77 @@ function showPerks(back){
   const on=pc(s.a)&&pc(s.b);
   h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')'+(on?' ACTIVE':'')+'<br>'+s.d+'</small></div>';
  }
- showModal('Perks & synergies',h,[{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
+ showModal('Gear, perks & synergies',h,[{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false};
- showModal('Menu','',[
+ showModal('Menu',gearHtml(),[
   {label:'Resume',c:1,fn:closeModal},
-  {label:'Perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
-  {label:'How to play',c:1,fn:function(){showHelp(showMenu);}},
+  {label:'Gear, perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
+  {label:'Controls',c:1,fn:function(){showHelp(showMenu);}},
   {label:'Abandon run',c:1,fn:function(el){
    if(!arm.v){arm.v=true;el.textContent='Tap again to confirm (gold is banked)';return;}
    closeModal();finish('abandon');}}
  ]);
 }
 function showHelp(back){
- showModal('How to play',
-  '<p><b>Move:</b> tap a floor tile to auto-walk (stops when danger appears). Arrow keys / WASD also work.</p>'+
-  '<p><b>Attack:</b> tap an adjacent enemy. Tap a distant enemy to walk toward it.</p>'+
-  '<p><b>Wait:</b> tap yourself. On stairs, tapping yourself descends.</p>'+
-  '<p>The game is strictly turn-based: enemies move only after you act. 🧭 auto-explores. 🧪 heals, 🔥 burns all visible enemies, 🌀 teleports.</p>'+
-  '<p><b>Abilities:</b> perks like Dash and Arcane Bolt add a button row above the bar. Tap it to arm (highlights targets), then tap a target; tap it again to cancel. Review perks in the menu.</p>'+
-  '<p>Level up to pick perks. Gold you collect is banked when the run ends and buys permanent upgrades on the title screen. Reach floor 8 and slay the dragon to win. Progress autosaves every turn.</p>',
-  [{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
+ const r=(ic,n,d)=>'<div class="pl"><b>'+ic+' '+n+'</b><br><small>'+d+'</small></div>';
+ let h='<p><b>Bottom bar</b></p>'+
+  r('🧪','Potion','Heals about 40% of your max HP (min 12). Takes a turn. The badge shows potions carried.')+
+  r('🔥','Fireball','Damages every enemy you can see. Takes a turn. Not used if no enemy is in sight.')+
+  r('🌀','Teleport','Moves you to a random spot far away. Takes a turn.')+
+  r('🧭','Explore','Auto-walks to unexplored areas, then to the stairs. Stops when an enemy appears.')+
+  r('⏳','Wait','Skips a turn (also: tap yourself).')+
+  r('⬇️','Stairs','Goes down one floor when you stand on the ▼ tile.')+
+  '<p><b>Tap controls</b></p>'+
+  r('👆','Tap a tile','Walk there (stops if danger appears).')+
+  r('⚔️','Tap an adjacent enemy','Attack it. Tap a distant enemy to see its info and walk toward it.')+
+  r('🗺','Tap the minimap','Opens the big map; tap again to close.')+
+  '<p><b>Top bar</b></p>'+
+  r('🏰','Floor','Current floor out of '+MAXF+'. Slay the dragon on the last one.')+
+  r('Lv','Level / XP','Level up to choose a perk.')+
+  r('⚔️','Attack','Your damage bonus. 🛡 is defense, which cuts damage taken. 💰 is gold, banked when the run ends.')+
+  r('?','Controls','This screen. ☰ is the menu with gear and perks.');
+ if(G&&!G.over){
+  const C=clsOf(G.p);h+='<p><b>Your abilities</b></p>'+r(C.e,C.n,C.ab+' Ability buttons appear in a row above the bar: tap to arm, tap a target, tap again to cancel. Costs a turn.');
+  for(const a of ABIL)if(!a.cls&&pc(a.perk)>0){const pk=perkById(a.perk);h+=r(a.e,pk.n,pk.d);}
+ }else h+='<p>Pick a class when you start a run: each has its own ability. Perks like Dash and Arcane Bolt add more buttons.</p>';
+ h+='<p>Gold collected is banked when a run ends and buys permanent upgrades on the title screen. Progress autosaves every turn. The game is strictly turn-based.</p>';
+ showModal('Controls',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+}
+function showGear(){
+ const it=gearQ;gearQ=null;
+ if(!G||G.over||!it||G.items.indexOf(it)<0||it.x!==G.p.x||it.y!==G.p.y)return;
+ walkTok++;
+ const p=G.p,w=it.t==='weapon',cv=w?p.wb:p.ab,ct=w?p.wt:p.at,cn=w?p.wn:p.an,nn=gearName(it.t,it.v,it.tr);
+ const st=w?'attack':'defense',ic=w?'⚔️':'🛡';
+ const mod=(v,tr)=>v+(w&&tr==='spiked'?0:0)+(!w&&tr==='spiked'?0:0);
+ const card=(lab,nm,v,tr,hl)=>'<div class="pl" style="border:2px solid '+(hl?'#ffd24a':'#4b5080')+';border-radius:10px;padding:8px"><small>'+lab+'</small><br><b>'+nm+'</b><br>'+ic+' +'+v+' '+st+'<br><small>'+(tr?'<b>'+TR[tr].n+'</b>: '+TR[tr].d:'No trait.')+'</small></div>';
+ const diff=it.v-cv;
+ const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cn,cv,ct,false)+card('FOUND',nn,it.v,it.tr,true)+'</div>'+
+  '<p style="text-align:center">'+st+' bonus: <b>'+(diff>0?'+':'')+diff+'</b></p>';
+ showModal(w?'Weapon found':'Armor found',html,[
+  {label:'Equip',c:1,big:1,fn:function(){
+   if(G.items.indexOf(it)<0){closeModal();return;}
+   const ov=cv,ot=ct;
+   if(w){p.wb=it.v;p.wn=nn;p.wt=it.tr||null;}else{p.ab=it.v;p.an=nn;p.at=it.tr||null;}
+   if(ov>0||ot){it.v=ov;it.tr=ot||null;msg('Equipped '+nn+'. You drop your '+cn+'.');}
+   else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
+   closeModal();save();render();
+   if(G.pending>0)showPerk();}},
+  {label:'Leave',c:1,big:1,fn:function(){msg('You leave the '+nn+' on the floor.');closeModal();render();}}
+ ]);
+}
+function showClassPicker(){
+ const t=$('titleBox');t.innerHTML='';
+ const h=document.createElement('h1');h.textContent='Choose your class';t.appendChild(h);
+ for(const k of Object.keys(CLS)){
+  const C=CLS[k],b=document.createElement('button');b.style.minHeight='96px';
+  b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+C.d+'</span><span><br><i>'+C.ab+'</i></span>';
+  b.addEventListener('click',function(){startRun(k);});t.appendChild(b);
+ }
+ const bk=document.createElement('button');bk.className='c';bk.textContent='Back';bk.addEventListener('click',showTitle);t.appendChild(bk);
 }
 function hideTitle(){$('title').style.display='none';}
 function showTitle(){
@@ -699,7 +827,7 @@ function showTitle(){
  if(hasSave()){const b=add('button','Continue run','c');b.addEventListener('click',continueRun);}
  const nb=add('button','New run','c');nb.addEventListener('click',function(){
   if(hasSave()&&!nb.dataset.arm){nb.dataset.arm=1;nb.textContent='Overwrite saved run? Tap again';return;}
-  startRun();});
+  showClassPicker();});
  add('h2','Permanent upgrades').style.fontSize='16px';
  for(const s of SHOP){
   const c=cost(s),lv=meta[s.k],maxed=lv>=SHOPMAX;
@@ -707,10 +835,11 @@ function showTitle(){
   b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(meta[s.k]>=SHOPMAX||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showTitle();});
  }
- const hb=add('button','How to play','c');hb.addEventListener('click',function(){showHelp(closeModal);});
+ const hb=add('button','Controls','c');hb.addEventListener('click',function(){showHelp(closeModal);});
  $('title').style.display='flex';
 }
 $('menuBtn').addEventListener('click',showMenu);
+$('helpBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showHelp(closeModal);});
 
 // ---------- bar / hud ----------
 const BTNS=[
@@ -724,29 +853,31 @@ const BTNS=[
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 const ab2=$('bar2');
 for(const a of ABIL){const el=document.createElement('button');el.id='b_'+a.k;el.addEventListener('click',()=>toggleAbility(a.k));ab2.appendChild(el);}
+function bset(id,ic,lab,badge,dis){
+ const el=$(id);el.innerHTML='<span style="font-size:19px;display:block;line-height:1.1">'+ic+'</span><small>'+lab+'</small>'+(badge!==''&&badge!=null?'<i class="bd" style="font-style:normal">'+badge+'</i>':'');
+ el.classList.toggle('dis',!!dis);
+}
 function updateBar(){
  if(!G)return;
  let any=false;
- for(const a of ABIL){const el=$('b_'+a.k),own=pc(a.perk)>0,cd=G.cd[a.k]||0;
+ for(const a of ABIL){const el=$('b_'+a.k),own=a.cls?G.p.cls===a.cls:pc(a.perk)>0,cd=G.cd[a.k]||0;
   if(own)any=true;el.style.display=own?'':'none';
   el.classList.toggle('armed',armed===a.k);
-  el.disabled=cd>0&&armed!==a.k;
-  el.innerHTML=a.e+'<small>'+(armed===a.k?'cancel':cd>0?'cd '+cd:a.n)+'</small>';}
+  bset('b_'+a.k,a.e,armed===a.k?'Cancel':a.n,cd>0&&armed!==a.k?cd:'',cd>0&&armed!==a.k);}
  ab2.style.display=any?'flex':'none';const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
- $('b_pot').innerHTML='🧪<small>'+inv.pot+'/'+G.p.potCap+'</small>';
- $('b_fire').innerHTML='🔥<small>'+inv.fire+'</small>';
- $('b_tele').innerHTML='🌀<small>'+inv.tele+'</small>';
- $('b_exp').innerHTML='🧭<small>explore</small>';
- $('b_wait').innerHTML='⏳<small>wait</small>';
- $('b_down').innerHTML='⬇️<small>stairs</small>';
- $('b_down').disabled=!onS;
+ bset('b_pot','🧪','Potion','×'+inv.pot,inv.pot<=0);
+ bset('b_fire','🔥','Fireball','×'+inv.fire,inv.fire<=0);
+ bset('b_tele','🌀','Teleport','×'+inv.tele,inv.tele<=0);
+ bset('b_exp','🧭','Explore','',false);
+ bset('b_wait','⏳','Wait','',false);
+ bset('b_down','⬇️','Stairs','',!onS);
 }
 function updateHud(){
  if(!G)return;const p=G.p;
  $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
- $('hptxt').textContent='HP '+p.hp+' / '+p.mhp;
+ $('hptxt').textContent=clsOf(p).e+' '+clsOf(p).n+'  HP '+p.hp+' / '+p.mhp;
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+(p.atk+p.wb)+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>'+(G.bl?'<span>🩸 primed</span>':'');
+ $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+Math.max(1,p.atk+p.wb+atkMod())+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>'+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'');
 }
 function renderLog(){
  if(!G)return;const l=G.log.slice(-3);
@@ -813,7 +944,7 @@ function render(){
     ctx.strokeText('▼',px+ts*0.72,py+ts*0.7);ctx.fillStyle='#fff';ctx.fillText('▼',px+ts*0.72,py+ts*0.7);ctx.lineWidth=1;
    }}
   const it=itemAt(x,y);
-  if(it){const em={gold:'💰',potion:'🧪',weapon:'⚔️',armor:'🛡',fire:'📜',tele:'🌀'}[it.t];ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph(em,px+ts/2,py+ts/2+1,ts*0.62);ctx.globalAlpha=1;}
+  if(it){const em={gold:'💰',potion:'🧪',weapon:'⚔️',armor:'🛡',fire:'📜',tele:'🌀'}[it.t];ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph(em,px+ts/2,py+ts/2+1,ts*0.62);if(it.tr)glyph('✨',px+ts*0.8,py+ts*0.22,ts*0.34);ctx.globalAlpha=1;}
  }
  if(dest&&dest.tok===walkTok&&!G.over&&(dest.x!==p.x||dest.y!==p.y)){
   const px=ox+dest.x*ts,py=oy+dest.y*ts;ctx.fillStyle='rgba(80,230,255,0.28)';ctx.fillRect(px,py,ts,ts);
@@ -832,11 +963,12 @@ function render(){
   ctx.fillStyle='#000';ctx.fillRect(bx-1,by-1,bw+2,bh+2);ctx.fillStyle='#3a0d0d';ctx.fillRect(bx,by,bw,bh);
   ctx.fillStyle=fr>0.6?'#4be04b':fr>0.3?'#ffcc33':'#ff4040';ctx.fillRect(bx,by,bw*fr,bh);
   if(e.pois){ctx.fillStyle='#7be04b';ctx.beginPath();ctx.arc(px+ts-7,py+ts-7,5,0,7);ctx.fill();ctx.strokeStyle='#000';ctx.stroke();}
-  if(armed==='bolt'&&boltOk(e)){ctx.strokeStyle='#ff5acd';ctx.lineWidth=3;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
+  if(e.stun>0)glyph('💫',px+ts*0.5,py+ts*0.25,ts*0.4);
+  if((armed==='bolt'&&boltOk(e))||(armed==='bash'&&bashOk(e))){ctx.strokeStyle=armed==='bash'?'#ffb04a':'#ff5acd';ctx.lineWidth=3;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
  }
  {const px=ox+p.x*ts,py=oy+p.y*ts;
-  ctx.fillStyle='rgba(90,160,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();
-  ctx.fillStyle='#fff';glyph('🧙',px+ts/2,py+ts/2+1,ts*0.7);}
+  ctx.fillStyle='rgba(90,160,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();if(G.vanish>0)ctx.globalAlpha=0.5;
+  ctx.fillStyle='#fff';glyph(clsOf(p).e,px+ts/2,py+ts/2+1,ts*0.7);ctx.globalAlpha=1;}
  drawMini(ts);
  let more=more0;
  fx=fx.filter(f=>now-f.t<800);
@@ -853,5 +985,13 @@ showTitle();
 window.__dbg=function(){return G;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
 window.__dbg.perkIds=PERKS.map(p=>p.id);
+window.__dbg.traits=Object.keys(TR);
+window.__dbg.spawnGear=function(slot,tr,v){
+ if(!G)return null;const p=G.p;if(tr&&!TR[tr])return null;
+ for(const [dx,dy] of DIRS){const x=p.x+dx,y=p.y+dy;
+  if(walkable(x,y)&&!enemyAt(x,y)&&!itemAt(x,y)&&G.map[ix(x,y)]===1){
+   G.items.push({x,y,t:slot,v:v!=null?v:applyTrait(slot==='weapon'?4:3,tr||null),tr:tr||null});computeVis();render();return [x,y];}}
+ return null;
+};
 })();
 </script></body></html>
