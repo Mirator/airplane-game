@@ -413,7 +413,7 @@ function startWalk(path){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>G.vis[ix(e.x,e.y)])){msg('Enemies in sight - deal with them first.');render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Awake enemies in sight - deal with them first.');render();return;}
  const prev=new Map();prev.set(ix(p.x,p.y),-1);const q=[[p.x,p.y]];let goal=-1;
  for(let i=0;i<q.length&&goal<0;i++){const [x,y]=q[i];
   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
