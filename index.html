@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Depths of Emberfall</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b0b12;color:#e8e6f0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;touch-action:manipulation;overscroll-behavior:none}
+body{position:fixed;inset:0}
+#app{display:flex;flex-direction:column;height:100%;max-width:900px;margin:0 auto}
+#hud{padding:6px 8px 2px;display:flex;flex-direction:column;gap:4px}
+#hrow{display:flex;gap:8px;align-items:center}
+#hpbar{flex:1;height:22px;background:#2a1418;border-radius:6px;position:relative;overflow:hidden;border:1px solid #522}
+#hpfill{height:100%;background:linear-gradient(#e24b4b,#a82424);width:100%;transition:width .15s}
+#hptxt{position:absolute;inset:0;text-align:center;font-size:13px;line-height:22px;font-weight:700;text-shadow:0 1px 2px #000}
+#xpbar{height:5px;background:#1b2238;border-radius:3px;overflow:hidden}
+#xpfill{height:100%;background:#5aa0ff;width:0}
+#stats{font-size:13px;display:flex;gap:10px;flex-wrap:wrap;color:#cfcde0}
+button{font:inherit;color:#fff;background:#2f3350;border:1px solid #4b5080;border-radius:10px;min-height:48px;min-width:48px;padding:6px 12px;cursor:pointer;touch-action:manipulation}
+button:active{background:#454a78}
+button:disabled{opacity:.4}
+#menuBtn{min-width:48px;font-size:20px;padding:0}
+#cv{flex:1;min-height:0;position:relative}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;background:#000}
+#log{height:56px;padding:4px 10px;font-size:13px;line-height:16px;overflow:hidden;color:#bbb9cc}
+#log div:last-child{color:#fff}
+#bar{display:flex;gap:6px;padding:4px 6px calc(6px + env(safe-area-inset-bottom))}
+#bar button{flex:1;min-height:52px;font-size:20px;padding:2px;line-height:1.1}
+#bar button small{display:block;font-size:11px;opacity:.85}
+.ov{position:fixed;inset:0;background:rgba(5,5,12,.88);display:flex;align-items:center;justify-content:center;z-index:10;padding:12px;overflow:auto}
+.box{background:#171a2b;border:1px solid #4b5080;border-radius:14px;padding:16px;width:100%;max-width:440px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.box h2,.box h1{margin:0;text-align:center}
+.box p{margin:0;font-size:14px;line-height:1.4;color:#d4d2e4}
+.box button{width:100%;text-align:left}
+.box button.c{text-align:center}
+.box button b{display:block}
+.box button span{font-size:13px;opacity:.85}
+#title{background:radial-gradient(#1c1f3a,#07070d);z-index:5}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.gold{color:#ffd24a;font-weight:700}
+</style></head><body>
+<div id="app">
+ <div id="hud">
+  <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><button id="menuBtn" aria-label="Menu">☰</button></div>
+  <div id="xpbar"><div id="xpfill"></div></div>
+  <div id="stats"></div>
+ </div>
+ <div id="cv"><canvas id="c"></canvas></div>
+ <div id="log"></div>
+ <div id="bar"></div>
+</div>
+<div id="title" class="ov"><div class="box" id="titleBox"></div></div>
+<div id="modal" class="ov" style="display:none"><div class="box" id="modalBox"></div></div>
+<script>
+(function(){
+'use strict';
+const W=30,H=30,RUN_KEY='dcr_run_v1',META_KEY='dcr_meta_v1',MAXF=8;
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+let G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,oy:0,cw:300,ch:300,dpr:1},walkTok=0;
+
+// ---------- meta ----------
+const SHOP=[
+ {k:'hp',n:'Hardy',d:'+6 starting HP',base:25},
+ {k:'atk',n:'Sharpened',d:'+1 starting attack',base:45},
+ {k:'pot',n:'Supplies',d:'+1 starting potion',base:35},
+ {k:'goldp',n:'Greed',d:'+15% gold found',base:40},
+ {k:'def',n:'Padded',d:'+1 starting defense',base:60}
+];
+const SHOPMAX=8;
+let meta={gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0};
+try{const m=JSON.parse(localStorage.getItem(META_KEY));if(m&&typeof m==='object')Object.assign(meta,m);}catch(e){}
+function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+function cost(s){const l=meta[s.k];return Math.round(s.base*(l+1)*(1+l*0.3));}
+
+// ---------- defs ----------
+const EN={
+ rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,xp:3,minF:1},
+ goblin:{n:'Goblin',e:'👺',hp:10,atk:3,xp:5,minF:1},
+ archer:{n:'Archer',e:'🏹',hp:8,atk:3,range:6,xp:6,minF:2},
+ skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,xp:8,minF:3},
+ troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,xp:16,minF:4},
+ warlock:{n:'Warlock',e:'🦹',hp:12,atk:6,range:6,xp:12,minF:5},
+ dragon:{n:'Dragon',e:'🐉',hp:160,atk:11,range:5,cdmax:2,xp:100,minF:99,boss:true}
+};
+const WNAMES=['Dagger','Short Sword','Mace','Longsword','Warhammer','Runeblade'];
+const ANAMES=['Rags','Leather','Chainmail','Scale Mail','Plate','Dragon Mail'];
+const PERKS=[
+ {n:'Vitality',d:'+12 max HP and heal 12',f:p=>{p.mhp+=12;p.hp=Math.min(p.mhp,p.hp+12);}},
+ {n:'Might',d:'+2 attack',f:p=>{p.atk+=2;}},
+ {n:'Bulwark',d:'+1 defense',f:p=>{p.def+=1;}},
+ {n:'Vampirism',d:'Heal 10% of damage dealt (min 1)',f:p=>{p.life+=0.1;}},
+ {n:'Keen Eye',d:'+12% critical chance (x2 damage)',f:p=>{p.crit+=0.12;}},
+ {n:'Renewal',d:'Heal 30% HP on each new floor',f:p=>{p.renew+=0.3;}},
+ {n:'Thorns',d:'Melee attackers take 2 damage',f:p=>{p.thorns+=2;}},
+ {n:'Deep Pockets',d:'+2 potion capacity',f:p=>{p.potCap+=2;}},
+ {n:'Evasion',d:'+8% chance to dodge attacks',f:p=>{p.dodge+=0.08;}},
+ {n:'Scholar',d:'+30% XP gained',f:p=>{p.xpMul+=0.3;}},
+ {n:'Pyromancer',d:'Fireball +50% damage, +1 scroll',f:p=>{p.fireMul+=0.5;G.inv.fire++;}},
+ {n:'Regeneration',d:'+1 HP every 5 turns',f:p=>{p.regen+=1;}},
+ {n:'Treasure Hunter',d:'+25% gold found',f:p=>{p.goldMul+=0.25;}}
+];
+
+// ---------- helpers ----------
+const ix=(x,y)=>y*W+x;
+const inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
+const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
+function walkable(x,y){return inb(x,y)&&G.map[ix(x,y)]!==0;}
+function enemyAt(x,y){for(const e of G.enemies)if(e.x===x&&e.y===y)return e;return null;}
+function itemAt(x,y){for(const i of G.items)if(i.x===x&&i.y===y)return i;return null;}
+function msg(t){G.log.push(t);if(G.log.length>30)G.log.shift();renderLog();}
+function los(x0,y0,x1,y1){
+ let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx-dy,x=x0,y=y0;
+ while(!(x===x1&&y===y1)){
+  if(!(x===x0&&y===y0)&&G.map[ix(x,y)]===0)return false;
+  const e2=2*err;
+  if(e2>-dy){err-=dy;x+=sx;}
+  if(e2<dx){err+=dx;y+=sy;}
+ }
+ return true;
+}
+function bfsDist(sx,sy){
+ const d=new Array(W*H).fill(9999);d[ix(sx,sy)]=0;const q=[[sx,sy]];
+ for(let i=0;i<q.length;i++){const [x,y]=q[i];
+  for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy;
+   if(walkable(nx,ny)&&d[ix(nx,ny)]===9999){d[ix(nx,ny)]=d[ix(x,y)]+1;q.push([nx,ny]);}}}
+ return d;
+}
+
+// ---------- level gen ----------
+function genFloor(f){
+ for(let attempt=0;attempt<50;attempt++){
+  const m=new Array(W*H).fill(0),rooms=[];
+  for(let i=0;i<80&&rooms.length<9;i++){
+   const w=rnd(4,8),h=rnd(4,7),x=rnd(1,W-w-1),y=rnd(1,H-h-1);
+   if(rooms.some(r=>x<r.x+r.w+1&&x+w+1>r.x&&y<r.y+r.h+1&&y+h+1>r.y))continue;
+   rooms.push({x,y,w,h,cx:x+(w>>1),cy:y+(h>>1)});
+   for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)m[ix(xx,yy)]=1;
+  }
+  if(rooms.length<5)continue;
+  for(let i=0;i<rooms.length-1;i++){
+   const a=rooms[i],b=rooms[i+1];let x=a.cx,y=a.cy;
+   while(x!==b.cx){m[ix(x,y)]=1;x+=b.cx>x?1:-1;}
+   while(y!==b.cy){m[ix(x,y)]=1;y+=b.cy>y?1:-1;}
+   m[ix(x,y)]=1;
+  }
+  const last=rooms[rooms.length-1];
+  if(f<MAXF)m[ix(last.cx,last.cy)]=2;
+  // verify connectivity
+  const seen=new Array(W*H).fill(false),q=[[rooms[0].cx,rooms[0].cy]];seen[ix(q[0][0],q[0][1])]=true;
+  for(let i=0;i<q.length;i++){const [x,y]=q[i];for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy;
+   if(inb(nx,ny)&&m[ix(nx,ny)]!==0&&!seen[ix(nx,ny)]){seen[ix(nx,ny)]=true;q.push([nx,ny]);}}}
+  if(!seen[ix(last.cx,last.cy)])continue;
+  let ok=true;for(const r of rooms)if(!seen[ix(r.cx,r.cy)])ok=false;
+  if(!ok)continue;
+  return {m,rooms};
+ }
+ // fallback: simple open map
+ const m=new Array(W*H).fill(0);for(let y=2;y<W-2;y++)for(let x=2;x<W-2;x++)m[ix(x,y)]=1;
+ if(f<MAXF)m[ix(W-4,H-4)]=2;
+ return {m,rooms:[{x:2,y:2,w:26,h:26,cx:3,cy:3},{x:2,y:2,w:26,h:26,cx:W-4,cy:H-4}]};
+}
+function newFloor(f){
+ const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];
+ G.seen=new Array(W*H).fill(false);G.exp=new Array(W*H).fill(false);
+ const rooms=g.rooms,p=G.p;p.x=rooms[0].cx;p.y=rooms[0].cy;
+ const taken=new Set([ix(p.x,p.y)]);
+ function free(room){
+  for(let i=0;i<60;i++){
+   const x=rnd(room.x,room.x+room.w-1),y=rnd(room.y,room.y+room.h-1);
+   if(G.map[ix(x,y)]===1&&!taken.has(ix(x,y))){taken.add(ix(x,y));return [x,y];}
+  }
+  return null;
+ }
+ function addEnemy(type,room,x,y){
+  const d=EN[type],s=d.boss?1:1+0.15*(f-1),sa=d.boss?1:1+0.1*(f-1);
+  const hp=Math.round(d.hp*s);
+  G.enemies.push({id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*sa),awake:false,cd:0});
+ }
+ const others=rooms.slice(1);
+ if(f===MAXF){const r=rooms[rooms.length-1];taken.add(ix(r.cx,r.cy));addEnemy('dragon',r,r.cx,r.cy);}
+ const n=3+Math.floor(f*0.8)+rnd(0,2);
+ const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&!(k==='rat'&&f>5));
+ for(let i=0;i<n;i++){const r=pick(others),t=free(r);if(t)addEnemy(pick(pool),r,t[0],t[1]);}
+ // items
+ function addItem(t,v){const r=pick(rooms),pos=free(r);if(pos)G.items.push({x:pos[0],y:pos[1],t,v});}
+ for(let i=0;i<4;i++)addItem('gold',rnd(6,12)+f*3);
+ for(let i=0;i<rnd(1,2);i++)addItem('potion',0);
+ if(Math.random()<0.5)addItem('weapon',rnd(1,3)+f-1);
+ if(Math.random()<0.5)addItem('armor',Math.floor((f+rnd(0,2))/2)+1);
+ if(Math.random()<0.5)addItem('fire',0);
+ if(Math.random()<0.35)addItem('tele',0);
+ computeVis();
+}
+function computeVis(){
+ const p=G.p,R=7;G.vis=new Array(W*H).fill(false);
+ for(let y=p.y-R;y<=p.y+R;y++)for(let x=p.x-R;x<=p.x+R;x++){
+  if(!inb(x,y))continue;
+  if((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y)>R*R+1)continue;
+  if(!los(p.x,p.y,x,y))continue;
+  const i=ix(x,y);G.vis[i]=true;G.seen[i]=true;
+  if(G.map[i]!==0){G.exp[i]=true;
+   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(inb(x+dx,y+dy))G.seen[ix(x+dx,y+dy)]=true;}
+ }
+}
+
+// ---------- run ----------
+function startRun(){
+ const p={x:0,y:0,hp:30+6*meta.hp,mhp:30+6*meta.hp,atk:4+meta.atk,def:meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',
+  xp:0,lvl:1,gold:0,potCap:3,life:0,crit:0.05,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+0.15*meta.goldp};
+ G={floor:1,p,inv:{pot:Math.min(1+meta.pot,3),fire:1,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false};
+ newFloor(1);
+ msg('You descend into the Emberfall depths...');
+ hideTitle();closeModal();save();render();
+}
+function save(){if(!G||G.over)return;try{localStorage.setItem(RUN_KEY,JSON.stringify(G));}catch(e){}}
+function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}}
+function hasSave(){try{return !!localStorage.getItem(RUN_KEY);}catch(e){return false;}}
+function continueRun(){
+ try{
+  const g=JSON.parse(localStorage.getItem(RUN_KEY));
+  if(!g||!g.p||!g.map||g.map.length!==W*H)throw 0;
+  G=g;G.stopWalk=false;computeVis();hideTitle();closeModal();render();
+  if(G.pending>0)showPerk();
+ }catch(e){clearSave();G=null;showTitle();}
+}
+function needXp(l){return 8+l*7;}
+function gainXp(n){
+ const p=G.p;p.xp+=Math.round(n*p.xpMul);
+ while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;G.pending++;msg('Level up! You are level '+p.lvl+'.');}
+}
+function finish(kind){
+ G.over=true;const p=G.p;walkTok++;
+ const bonus=kind==='win'?150:0,banked=p.gold+bonus;
+ meta.gold+=banked;if(kind==='win')meta.wins++;meta.best=Math.max(meta.best,G.floor);saveMeta();clearSave();
+ computeVis();render();
+ const dead=kind==='dead';
+ showModal((dead?'You Died':kind==='win'?'Victory!':'Run Ended'),
+  (kind==='win'?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>The dungeon claims another adventurer.</p>':'<p>You left the dungeon.</p>')+
+  '<p>Floor reached: <b>'+G.floor+'</b><br>Level: <b>'+p.lvl+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Turns: <b>'+G.turn+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. 150 win bonus)':'')+'</span></p>',
+  [{label:'Back to title',c:1,fn:function(){closeModal();G=null;showTitle();}}]);
+}
+
+// ---------- combat ----------
+function floatFx(x,y,text,color){fx.push({x,y,text,color,t:performance.now()});}
+function killEnemy(e,src){
+ e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;
+ const d=EN[e.t];msg((src||'You')+' slew the '+d.n+'.');
+ gainXp(d.xp+G.floor);
+ if(d.boss){G.won=true;return;}
+ if(Math.random()<0.15)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
+ else if(Math.random()<0.4)G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(3,7)+G.floor*2});
+}
+function hurtEnemy(e,dmg,col){
+ e.hp-=dmg;e.awake=true;floatFx(e.x,e.y,'-'+dmg,col||'#ffd24a');
+}
+function playerAttack(e){
+ const p=G.p;let dmg=Math.max(1,p.atk+p.wb+rnd(-1,1)),crit=Math.random()<p.crit;
+ if(crit)dmg*=2;
+ hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a');
+ msg((crit?'Critical! ':'')+'You hit the '+EN[e.t].n+' for '+dmg+'.');
+ if(p.life>0)p.hp=Math.min(p.mhp,p.hp+Math.max(1,Math.round(dmg*p.life)));
+ if(e.hp<=0)killEnemy(e);
+}
+function hurtPlayer(e,dmg,melee){
+ const p=G.p;
+ if(Math.random()<p.dodge){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+EN[e.t].n+'.');return;}
+ dmg=Math.max(1,dmg-(p.def+p.ab)+rnd(-1,1));
+ if(dmg<1)dmg=1;
+ p.hp-=dmg;flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
+ msg('The '+EN[e.t].n+(melee?' hits':' blasts')+' you for '+dmg+'.');
+ if(melee&&p.thorns>0&&!e.dead){hurtEnemy(e,p.thorns,'#8f8');if(e.hp<=0)killEnemy(e,'Thorns');}
+}
+function enemiesAct(){
+ const p=G.p,dist=bfsDist(p.x,p.y);
+ for(const e of G.enemies.slice()){
+  if(p.hp<=0)break;if(e.dead)continue;
+  const d=EN[e.t];if(e.cd>0)e.cd--;
+  const md=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
+  const see=md<=9&&los(e.x,e.y,p.x,p.y);
+  if(see)e.awake=true;
+  if(!e.awake)continue;
+  if(!see&&dist[ix(e.x,e.y)]>14){e.awake=false;continue;}
+  const steps=d.speed||1;
+  for(let s=0;s<steps;s++){
+   const dd=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
+   if(dd===1){hurtPlayer(e,e.atk,true);break;}
+   if(d.range&&see&&dd<=d.range&&e.cd<=0){hurtPlayer(e,d.boss?e.atk-2:e.atk,false);e.cd=d.cdmax||0;break;}
+   if(d.slow&&G.turn%2)break;
+   let best=null,bd=dist[ix(e.x,e.y)];
+   for(const [dx,dy] of DIRS){const nx=e.x+dx,ny=e.y+dy;
+    if(!walkable(nx,ny)||enemyAt(nx,ny)||(nx===p.x&&ny===p.y))continue;
+    if(dist[ix(nx,ny)]<bd){bd=dist[ix(nx,ny)];best=[nx,ny];}}
+   if(best){e.x=best[0];e.y=best[1];}else break;
+  }
+ }
+}
+function endTurn(){
+ const p=G.p;
+ if(G.won){finish('win');return;}
+ G.turn++;
+ if(p.hp<p.mhp){
+  if(p.regen&&G.turn%5===0)p.hp=Math.min(p.mhp,p.hp+p.regen);
+  if(G.turn%8===0)p.hp=Math.min(p.mhp,p.hp+1);
+ }
+ enemiesAct();
+ if(G.won){finish('win');return;}
+ if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
+ computeVis();save();render();
+ if(G.pending>0)showPerk();
+}
+function pickup(){
+ const p=G.p,it=itemAt(p.x,p.y);if(!it)return;
+ let take=true;
+ if(it.t==='gold'){const g=Math.round(it.v*p.goldMul);p.gold+=g;msg('You pick up '+g+' gold.');}
+ else if(it.t==='potion'){
+  if(G.inv.pot<p.potCap){G.inv.pot++;msg('You pick up a health potion.');}
+  else{msg('Potion belt is full.');take=false;}
+ }
+ else if(it.t==='weapon'){
+  const nm=WNAMES[Math.min(5,Math.floor(it.v/2))];
+  if(it.v>p.wb){p.wb=it.v;p.wn=nm;msg('Equipped '+nm+' (+'+it.v+' attack).');}
+  else{const g=Math.round((4+G.floor*2)*p.goldMul);p.gold+=g;msg('Weak '+nm+' sold for '+g+' gold.');}
+ }
+ else if(it.t==='armor'){
+  const nm=ANAMES[Math.min(5,Math.floor(it.v))];
+  if(it.v>p.ab){p.ab=it.v;p.an=nm;msg('Equipped '+nm+' (+'+it.v+' defense).');}
+  else{const g=Math.round((4+G.floor*2)*p.goldMul);p.gold+=g;msg('Weak '+nm+' sold for '+g+' gold.');}
+ }
+ else if(it.t==='fire'){G.inv.fire++;msg('Found a Fireball scroll.');}
+ else if(it.t==='tele'){G.inv.tele++;msg('Found a Teleport scroll.');}
+ if(take)G.items=G.items.filter(o=>o!==it);
+ G.stopWalk=true;
+}
+function tryMove(dx,dy){
+ const p=G.p,nx=p.x+dx,ny=p.y+dy;
+ if(!walkable(nx,ny))return false;
+ const e=enemyAt(nx,ny);
+ if(e){playerAttack(e);endTurn();return true;}
+ p.x=nx;p.y=ny;pickup();
+ if(G.map[ix(nx,ny)]===2){msg('Stairs down. Tap yourself or press the arrow button to descend.');G.stopWalk=true;}
+ endTurn();return true;
+}
+function wait(){msg('You wait.');endTurn();}
+function descend(){
+ if(!G||G.over)return;
+ if(G.map[ix(G.p.x,G.p.y)]!==2){msg('No stairs here.');return;}
+ walkTok++;
+ G.stopWalk=false;
+ newFloor(G.floor+1);
+ const p=G.p;
+ if(p.renew>0){p.hp=Math.min(p.mhp,p.hp+Math.round(p.mhp*p.renew));}
+ meta.best=Math.max(meta.best,G.floor);saveMeta();
+ msg('Floor '+G.floor+(G.floor===MAXF?' - the dragon lairs here!':'.'));
+ save();render();
+}
+function drink(){
+ const p=G.p;
+ if(G.inv.pot<=0){msg('No potions.');return;}
+ if(p.hp>=p.mhp){msg('Already at full health.');return;}
+ G.inv.pot--;const h=Math.max(12,Math.round(p.mhp*0.4));p.hp=Math.min(p.mhp,p.hp+h);
+ floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');endTurn();
+}
+function fireball(){
+ if(G.inv.fire<=0){msg('No fireball scrolls.');return;}
+ const t=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
+ if(!t.length){msg('No visible enemies.');return;}
+ G.inv.fire--;const dmg=Math.round((10+G.floor*3)*G.p.fireMul);
+ msg('Fireball! '+dmg+' damage to all in sight.');
+ for(const e of t){hurtEnemy(e,dmg,'#ff7a2a');if(e.hp<=0&&!e.dead)killEnemy(e);}
+ endTurn();
+}
+function teleport(){
+ if(G.inv.tele<=0){msg('No teleport scrolls.');return;}
+ const p=G.p,c=[];
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++)
+  if(G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!itemAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=8)c.push([x,y]);
+ if(!c.length){msg('The scroll fizzles.');return;}
+ G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('You teleport away!');walkTok++;endTurn();
+}
+
+// ---------- walking ----------
+function bfsPath(sx,sy,tx,ty,allowEnemyTarget){
+ const prev=new Map(),start=ix(sx,sy);prev.set(start,-1);const q=[[sx,sy]];
+ const goal=ix(tx,ty);
+ for(let i=0;i<q.length;i++){const [x,y]=q[i];if(ix(x,y)===goal)break;
+  for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+   if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0)continue;
+   if(k!==goal&&enemyAt(nx,ny))continue;
+   prev.set(k,ix(x,y));q.push([nx,ny]);}}
+ if(!prev.has(goal))return null;
+ const path=[];let k=goal;while(k!==start){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
+ return path.reverse();
+}
+function visIds(){return G.enemies.filter(e=>G.vis[ix(e.x,e.y)]).map(e=>e.id);}
+function startWalk(path){
+ const tok=++walkTok;
+ const step=function(){
+  if(tok!==walkTok||!G||G.over||modalOpen()||!path.length)return;
+  const p=G.p,nx=path[0][0],ny=path[0][1];
+  if(enemyAt(nx,ny))return;
+  path.shift();
+  const hp0=p.hp,v0=visIds(),f0=G.floor;G.stopWalk=false;
+  if(!tryMove(nx-p.x,ny-p.y))return;
+  if(!G||G.over||G.floor!==f0||p.hp<hp0||G.stopWalk||modalOpen())return;
+  const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0))return;
+  if(path.length)setTimeout(step,70);
+ };
+ step();
+}
+function explore(){
+ if(!G||G.over||modalOpen())return;walkTok++;
+ const p=G.p;
+ if(G.enemies.some(e=>G.vis[ix(e.x,e.y)])){msg('Enemies in sight - deal with them first.');render();return;}
+ const prev=new Map();prev.set(ix(p.x,p.y),-1);const q=[[p.x,p.y]];let goal=-1;
+ for(let i=0;i<q.length&&goal<0;i++){const [x,y]=q[i];
+  for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+   if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||enemyAt(nx,ny))continue;
+   prev.set(k,ix(x,y));q.push([nx,ny]);
+   if(!G.exp[k]){goal=k;break;}}}
+ if(goal<0){
+  // go to stairs if seen
+  for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. Heading to the stairs.');startWalk(pa);return;}}
+  msg('Nothing left to explore.');render();return;
+ }
+ const path=[];let k=goal;while(k!==ix(p.x,p.y)){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
+ startWalk(path.reverse());
+}
+function onTap(tx,ty){
+ walkTok++;
+ if(!G||G.over||modalOpen())return;
+ const p=G.p;
+ if(tx===p.x&&ty===p.y){if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
+ if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored floor tile.');return;}
+ const e=enemyAt(tx,ty);
+ if(e&&G.vis[ix(tx,ty)]){
+  if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
+  const path=bfsPath(p.x,p.y,tx,ty);
+  if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
+  return;
+ }
+ const path=bfsPath(p.x,p.y,tx,ty);
+ if(!path||!path.length){msg("Can't reach that.");return;}
+ startWalk(path);
+}
+cv.addEventListener('click',function(ev){
+ if(!G)return;
+ const r=cv.getBoundingClientRect();
+ const tx=Math.floor((ev.clientX-r.left-view.ox)/view.ts),ty=Math.floor((ev.clientY-r.top-view.oy)/view.ts);
+ onTap(tx,ty);
+});
+document.addEventListener('keydown',function(ev){
+ if(!G||G.over||modalOpen()||$('title').style.display!=='none')return;
+ const k=ev.key.toLowerCase();let d=null;
+ if(k==='arrowup'||k==='w')d=[0,-1];else if(k==='arrowdown'||k==='s')d=[0,1];
+ else if(k==='arrowleft'||k==='a')d=[-1,0];else if(k==='arrowright'||k==='d')d=[1,0];
+ else if(k===' '||k==='.'){walkTok++;if(G.map[ix(G.p.x,G.p.y)]===2)descend();else wait();ev.preventDefault();return;}
+ else if(k==='e'){explore();return;}
+ else if(k==='q'){walkTok++;drink();return;}
+ if(d){ev.preventDefault();walkTok++;tryMove(d[0],d[1]);}
+});
+
+// ---------- modals / screens ----------
+function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
+function showModal(title,html,buttons){
+ const b=$('modalBox');b.innerHTML='';
+ const h=document.createElement('h2');h.textContent=title;b.appendChild(h);
+ if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
+ for(const bt of buttons){
+  const el=document.createElement('button');if(bt.c)el.className='c';
+  el.innerHTML=bt.html||bt.label;
+  el.addEventListener('click',function(e){e.stopPropagation();bt.fn(el);});
+  b.appendChild(el);
+ }
+ $('modal').style.display='flex';
+}
+function closeModal(){$('modal').style.display='none';}
+function showPerk(){
+ if(!G||G.pending<=0)return;
+ walkTok++;
+ const opts=PERKS.slice().sort(()=>Math.random()-0.5).slice(0,3);
+ showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>({html:'<b>'+pk.n+'</b><span>'+pk.d+'</span>',fn:function(){
+  pk.f(G.p);G.pending--;msg('Perk gained: '+pk.n+'.');closeModal();save();render();
+  if(G.pending>0)showPerk();
+ }})));
+}
+function showMenu(){
+ if(!G||G.over)return;walkTok++;
+ const arm={v:false};
+ showModal('Menu','',[
+  {label:'Resume',c:1,fn:closeModal},
+  {label:'How to play',c:1,fn:function(){showHelp(showMenu);}},
+  {label:'Abandon run',c:1,fn:function(el){
+   if(!arm.v){arm.v=true;el.textContent='Tap again to confirm (gold is banked)';return;}
+   closeModal();finish('abandon');}}
+ ]);
+}
+function showHelp(back){
+ showModal('How to play',
+  '<p><b>Move:</b> tap a floor tile to auto-walk (stops when danger appears). Arrow keys / WASD also work.</p>'+
+  '<p><b>Attack:</b> tap an adjacent enemy. Tap a distant enemy to walk toward it.</p>'+
+  '<p><b>Wait:</b> tap yourself. On stairs, tapping yourself descends.</p>'+
+  '<p>The game is strictly turn-based: enemies move only after you act. 🧭 auto-explores. 🧪 heals, 🔥 burns all visible enemies, 🌀 teleports.</p>'+
+  '<p>Level up to pick perks. Gold you collect is banked when the run ends and buys permanent upgrades on the title screen. Reach floor 8 and slay the dragon to win. Progress autosaves every turn.</p>',
+  [{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
+}
+function hideTitle(){$('title').style.display='none';}
+function showTitle(){
+ const t=$('titleBox');t.innerHTML='';
+ const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
+ add('h1','🗡 Depths of Emberfall');
+ add('p','Descend 8 floors. Slay the dragon. Die often, grow stronger.').style.textAlign='center';
+ add('div','Banked gold: <span class="gold">'+meta.gold+' 💰</span> &nbsp; Best floor: '+meta.best+' &nbsp; Wins: '+meta.wins,'row').style.justifyContent='center';
+ if(hasSave()){const b=add('button','Continue run','c');b.addEventListener('click',continueRun);}
+ const nb=add('button','New run','c');nb.addEventListener('click',function(){
+  if(hasSave()&&!nb.dataset.arm){nb.dataset.arm=1;nb.textContent='Overwrite saved run? Tap again';return;}
+  startRun();});
+ add('h2','Permanent upgrades').style.fontSize='16px';
+ for(const s of SHOP){
+  const c=cost(s),lv=meta[s.k],maxed=lv>=SHOPMAX;
+  const b=add('button','<b>'+s.n+' (Lv '+lv+'/'+SHOPMAX+')</b><span>'+s.d+' - '+(maxed?'MAXED':'<span class="gold">'+c+' 💰</span>')+'</span>');
+  b.disabled=maxed||meta.gold<c;
+  b.addEventListener('click',function(){if(meta[s.k]>=SHOPMAX||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showTitle();});
+ }
+ const hb=add('button','How to play','c');hb.addEventListener('click',function(){showHelp(closeModal);});
+ $('title').style.display='flex';
+}
+$('menuBtn').addEventListener('click',showMenu);
+
+// ---------- bar / hud ----------
+const BTNS=[
+ {id:'b_pot',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;drink();}},
+ {id:'b_fire',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;fireball();}},
+ {id:'b_tele',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;teleport();}},
+ {id:'b_exp',fn:explore},
+ {id:'b_wait',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;wait();}},
+ {id:'b_down',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;descend();}}
+];
+for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
+function updateBar(){
+ if(!G)return;const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
+ $('b_pot').innerHTML='🧪<small>'+inv.pot+'/'+G.p.potCap+'</small>';
+ $('b_fire').innerHTML='🔥<small>'+inv.fire+'</small>';
+ $('b_tele').innerHTML='🌀<small>'+inv.tele+'</small>';
+ $('b_exp').innerHTML='🧭<small>explore</small>';
+ $('b_wait').innerHTML='⏳<small>wait</small>';
+ $('b_down').innerHTML='⬇️<small>stairs</small>';
+ $('b_down').disabled=!onS;
+}
+function updateHud(){
+ if(!G)return;const p=G.p;
+ $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
+ $('hptxt').textContent='HP '+p.hp+' / '+p.mhp;
+ $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
+ $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+(p.atk+p.wb)+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>';
+}
+function renderLog(){
+ if(!G)return;const l=G.log.slice(-3);
+ $('log').innerHTML=l.map(t=>'<div></div>').join('');
+ const ch=$('log').children;for(let i=0;i<l.length;i++)ch[i].textContent=l[i];
+}
+
+// ---------- rendering ----------
+function resize(){
+ const box=$('cv'),r=box.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+ view.cw=Math.max(50,r.width);view.ch=Math.max(50,r.height);view.dpr=dpr;
+ cv.width=Math.round(view.cw*dpr);cv.height=Math.round(view.ch*dpr);
+ render();
+}
+if(window.ResizeObserver)new ResizeObserver(resize).observe($('cv'));
+window.addEventListener('resize',resize);
+const EF='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+function glyph(ch,cx,cy,size){ctx.font=Math.round(size)+'px '+EF;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ch,cx,cy);}
+function render(){
+ updateHud();updateBar();renderLog();
+ ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
+ ctx.fillStyle='#000';ctx.fillRect(0,0,view.cw,view.ch);
+ if(!G)return;
+ const now=performance.now(),p=G.p;
+ const ts=Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5));
+ const ox=Math.round(view.cw/2-(p.x+0.5)*ts),oy=Math.round(view.ch/2-(p.y+0.5)*ts);
+ view.ts=ts;view.ox=ox;view.oy=oy;
+ const x0=Math.max(0,Math.floor(-ox/ts)),x1=Math.min(W-1,Math.ceil((view.cw-ox)/ts)),
+       y0=Math.max(0,Math.floor(-oy/ts)),y1=Math.min(H-1,Math.ceil((view.ch-oy)/ts));
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+  const i=ix(x,y);if(!G.seen[i])continue;
+  const px=ox+x*ts,py=oy+y*ts,t=G.map[i];
+  if(t===0){ctx.fillStyle='#2b2f4a';ctx.fillRect(px,py,ts,ts);ctx.fillStyle='#3a3f60';ctx.fillRect(px,py,ts,Math.max(2,ts*0.12));
+   ctx.strokeStyle='#202338';ctx.strokeRect(px+.5,py+.5,ts-1,ts-1);}
+  else{ctx.fillStyle=((x+y)&1)?'#4a4538':'#4f4a3c';ctx.fillRect(px,py,ts,ts);
+   if(t===2){
+    ctx.fillStyle='#1a2a44';ctx.fillRect(px+3,py+3,ts-6,ts-6);
+    ctx.fillStyle='#7fd0ff';
+    for(let s=0;s<4;s++){const w=(ts-10)*(1-s*0.2);ctx.fillRect(px+5,py+5+s*(ts-10)/4,w,(ts-10)/4-2);}
+    ctx.fillStyle='#fff';ctx.font='bold '+Math.round(ts*0.4)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('▼',px+ts*0.78,py+ts*0.78);
+   }}
+  const it=itemAt(x,y);
+  if(it){const em={gold:'💰',potion:'🧪',weapon:'⚔️',armor:'🛡',fire:'📜',tele:'🌀'}[it.t];ctx.fillStyle='#fff';glyph(em,px+ts/2,py+ts/2+1,ts*0.62);}
+  if(!G.vis[i]){ctx.fillStyle='rgba(0,0,10,0.58)';ctx.fillRect(px,py,ts,ts);}
+ }
+ for(const e of G.enemies){
+  if(!G.vis[ix(e.x,e.y)])continue;
+  const px=ox+e.x*ts,py=oy+e.y*ts,d=EN[e.t];
+  ctx.fillStyle=e.awake?'rgba(200,40,40,0.28)':'rgba(0,0,0,0.25)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.45,0,7);ctx.fill();
+  ctx.fillStyle='#fff';glyph(d.e,px+ts/2,py+ts/2+1,ts*(d.boss?0.85:0.68));
+  ctx.fillStyle='#300';ctx.fillRect(px+3,py+ts-6,ts-6,4);ctx.fillStyle='#e44';ctx.fillRect(px+3,py+ts-6,(ts-6)*Math.max(0,e.hp/e.mhp),4);
+ }
+ {const px=ox+p.x*ts,py=oy+p.y*ts;
+  ctx.fillStyle='rgba(90,160,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();
+  ctx.fillStyle='#fff';glyph('🧙',px+ts/2,py+ts/2+1,ts*0.7);}
+ let more=false;
+ fx=fx.filter(f=>now-f.t<800);
+ for(const f of fx){
+  const a=(now-f.t)/800,px=ox+f.x*ts+ts/2,py=oy+f.y*ts+ts*0.2-a*ts*0.6;
+  ctx.globalAlpha=1-a*a;ctx.font='bold '+Math.round(ts*0.42)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(f.text,px,py);ctx.fillStyle=f.color;ctx.fillText(f.text,px,py);ctx.globalAlpha=1;more=true;
+ }
+ if(now<flashUntil){ctx.fillStyle='rgba(220,30,30,'+(0.35*(flashUntil-now)/250)+')';ctx.fillRect(0,0,view.cw,view.ch);more=true;}
+ if(more&&!rafPending){rafPending=true;requestAnimationFrame(function(){rafPending=false;render();});}
+}
+resize();
+showTitle();
+window.__dbg=function(){return G;};
+})();
+</script></body></html>
