@@ -28,6 +28,14 @@ button:disabled{opacity:.4}
 #bar{display:flex;gap:6px;padding:4px 6px calc(6px + env(safe-area-inset-bottom))}
 #bar button{flex:1;min-height:52px;font-size:20px;padding:2px;line-height:1.1}
 #bar button small{display:block;font-size:11px;opacity:.85}
+#bar2{display:none;gap:6px;padding:2px 6px 0}
+#bar2 button{flex:1;min-height:46px;font-size:18px;padding:2px;line-height:1.1}
+#bar2 button small{font-size:11px;opacity:.9;margin-left:4px}
+button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a inset}
+.tag{display:inline-block;font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:#6a3fb5;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
+.tag.act{background:#b5731f}.tag.syn{background:#2a8a5a}
+.pl{font-size:13px;line-height:1.35;color:#d4d2e4}.pl small{opacity:.8}
+.dim{opacity:.5}
 .ov{position:fixed;inset:0;background:rgba(5,5,12,.88);display:flex;align-items:center;justify-content:center;z-index:10;padding:12px;overflow:auto}
 .box{background:#171a2b;border:1px solid #4b5080;border-radius:14px;padding:16px;width:100%;max-width:440px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
 .box h2,.box h1{margin:0;text-align:center}
@@ -48,6 +56,7 @@ button:disabled{opacity:.4}
  </div>
  <div id="cv"><canvas id="c"></canvas></div>
  <div id="log"></div>
+ <div id="bar2"></div>
  <div id="bar"></div>
 </div>
 <div id="title" class="ov"><div class="box" id="titleBox"></div></div>
@@ -60,7 +69,7 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1));}
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
-let G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,oy:0,cw:300,ch:300,dpr:1},walkTok=0,dest=null,tapMark=null,bigMap=false;
+let G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,oy:0,cw:300,ch:300,dpr:1},walkTok=0,dest=null,tapMark=null,bigMap=false,armed=null,inChain=false;
 
 // ---------- meta ----------
 const SHOP=[
@@ -89,20 +98,53 @@ const EN={
 const WNAMES=['Dagger','Short Sword','Mace','Longsword','Warhammer','Runeblade'];
 const ANAMES=['Rags','Leather','Chainmail','Scale Mail','Plate','Dragon Mail'];
 const PERKS=[
- {n:'Vitality',d:'+12 max HP and heal 12',f:p=>{p.mhp+=12;p.hp=Math.min(p.mhp,p.hp+12);}},
- {n:'Might',d:'+2 attack',f:p=>{p.atk+=2;}},
- {n:'Bulwark',d:'+1 defense',f:p=>{p.def+=1;}},
- {n:'Vampirism',d:'Heal 10% of damage dealt (min 1)',f:p=>{p.life+=0.1;}},
- {n:'Keen Eye',d:'+12% critical chance (x2 damage)',f:p=>{p.crit+=0.12;}},
- {n:'Renewal',d:'Heal 30% HP on each new floor',f:p=>{p.renew+=0.3;}},
- {n:'Thorns',d:'Melee attackers take 2 damage',f:p=>{p.thorns+=2;}},
- {n:'Deep Pockets',d:'+2 potion capacity',f:p=>{p.potCap+=2;}},
- {n:'Evasion',d:'+8% chance to dodge attacks',f:p=>{p.dodge+=0.08;}},
- {n:'Scholar',d:'+30% XP gained',f:p=>{p.xpMul+=0.3;}},
- {n:'Pyromancer',d:'Fireball +50% damage, +1 scroll',f:p=>{p.fireMul+=0.5;G.inv.fire++;}},
- {n:'Regeneration',d:'+1 HP every 5 turns',f:p=>{p.regen+=1;}},
- {n:'Treasure Hunter',d:'+25% gold found',f:p=>{p.goldMul+=0.25;}}
+ {id:'vit',n:'Vitality',d:'+12 max HP and heal 12',f:p=>{p.mhp+=12;p.hp=Math.min(p.mhp,p.hp+12);}},
+ {id:'might',n:'Might',d:'+2 attack',f:p=>{p.atk+=2;}},
+ {id:'bul',n:'Bulwark',d:'+1 defense',f:p=>{p.def+=1;}},
+ {id:'vamp',n:'Vampirism',d:'Heal 10% of damage dealt (min 1)',f:p=>{p.life+=0.1;}},
+ {id:'keen',n:'Keen Eye',d:'+12% critical chance (x2 damage)',f:p=>{p.crit+=0.12;}},
+ {id:'renew',n:'Renewal',d:'Heal 30% HP on each new floor',f:p=>{p.renew+=0.3;}},
+ {id:'thorns',n:'Thorns',d:'Melee attackers take 2 damage',f:p=>{p.thorns+=2;}},
+ {id:'pockets',n:'Deep Pockets',d:'+2 potion capacity',f:p=>{p.potCap+=2;}},
+ {id:'evade',n:'Evasion',d:'+8% chance to dodge attacks',f:p=>{p.dodge+=0.08;}},
+ {id:'scholar',n:'Scholar',d:'+30% XP gained',f:p=>{p.xpMul+=0.3;}},
+ {id:'pyro',n:'Pyromancer',d:'Fireball +50% damage, +1 scroll',f:p=>{p.fireMul+=0.5;G.inv.fire++;}},
+ {id:'regen',n:'Regeneration',d:'+1 HP every 5 turns',f:p=>{p.regen+=1;}},
+ {id:'treasure',n:'Treasure Hunter',d:'+25% gold found',f:p=>{p.goldMul+=0.25;}},
+ // behaviour perks
+ {id:'cleave',n:'Cleave',beh:1,d:'Melee hits also strike adjacent enemies for half damage'},
+ {id:'venom',n:'Venom',beh:1,max:3,d:'Hits poison for 3 turns (+1 poison damage per level; halved on bosses)'},
+ {id:'chain',n:'Chain Lightning',beh:1,d:'Kills zap the nearest visible enemy (once, no further chains)'},
+ {id:'blood',n:'Bloodlust',beh:1,d:'After a kill, your next hit deals +75% damage'},
+ {id:'riposte',n:'Riposte',beh:1,max:3,d:'20% chance per level to counterattack when hit in melee'},
+ {id:'dash',n:'Dash',beh:1,act:1,d:'ACTIVE: move up to 3 tiles in a line as one turn (cooldown 5)'},
+ {id:'arcane',n:'Arcane Bolt',beh:1,act:1,d:'ACTIVE: ranged blast at a visible enemy (cooldown 4)'},
+ {id:'second',n:'Second Wind',beh:1,d:'Once per floor, a lethal hit leaves you at 1 HP instead'},
+ {id:'glass',n:'Glass Cannon',beh:1,d:'+5 attack but -25% max HP',f:p=>{p.atk+=5;p.mhp=Math.max(8,Math.round(p.mhp*0.75));p.hp=Math.min(p.hp,p.mhp);}},
+ {id:'scav',n:'Scavenger',beh:1,max:2,d:'Slain enemies drop an extra potion 20% of the time (per level)'},
+ {id:'berserk',n:'Berserk',beh:1,d:'Up to +80% damage as your HP drops'},
+ {id:'stone',n:'Stone Skin',beh:1,d:'The first hit you take each floor is negated'},
+ {id:'exec',n:'Executioner',beh:1,d:'Instantly slay non-boss enemies below 20% HP after a hit'}
 ];
+PERKS.forEach(p=>{if(!p.max)p.max=p.beh?1:5;});
+const SYN=[
+ {id:'vc',a:'venom',b:'cleave',n:'Toxic Sweep',d:'Cleave also spreads poison'},
+ {id:'bv',a:'berserk',b:'vamp',n:'Blood Frenzy',d:'Lifesteal is doubled below half HP'},
+ {id:'be',a:'blood',b:'exec',n:'Bloody Verdict',d:'Executioner threshold rises to 30%'},
+ {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons its target'},
+ {id:'db',a:'dash',b:'arcane',n:'Phase Hunter',d:'Dash cuts Arcane Bolt cooldown by 2'}
+];
+const ABIL=[{k:'dash',perk:'dash',e:'💨',n:'Dash'},{k:'bolt',perk:'arcane',e:'🔮',n:'Bolt'}];
+function pc(id){return (G&&G.perks&&G.perks[id])||0;}
+function perkById(id){return PERKS.find(x=>x.id===id);}
+function checkSyn(){
+ for(const s of SYN)if(pc(s.a)&&pc(s.b)&&!G.syn[s.id]){G.syn[s.id]=1;msg('Synergy! '+s.n+': '+s.d+'.');}
+}
+function addPerk(id){
+ const pk=perkById(id);if(!G||!pk||pc(id)>=pk.max)return false;
+ G.perks[id]=pc(id)+1;if(pk.f)pk.f(G.p);
+ msg('Perk gained: '+pk.n+(pk.max>1?' (Lv '+pc(id)+')':'')+'.');checkSyn();return true;
+}
 
 // ---------- helpers ----------
 const ix=(x,y)=>y*W+x;
@@ -164,7 +206,7 @@ function genFloor(f){
  return {m,rooms:[{x:2,y:2,w:26,h:26,cx:3,cy:3},{x:2,y:2,w:26,h:26,cx:W-4,cy:H-4}]};
 }
 function newFloor(f){
- const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];
+ const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.ssUsed=0;G.swUsed=0;
  G.seen=new Array(W*H).fill(false);G.exp=new Array(W*H).fill(false);
  const rooms=g.rooms,p=G.p;p.x=rooms[0].cx;p.y=rooms[0].cy;
  const taken=new Set([ix(p.x,p.y)]);
@@ -211,8 +253,8 @@ function computeVis(){
 function startRun(){
  const p={x:0,y:0,hp:30+6*meta.hp,mhp:30+6*meta.hp,atk:4+meta.atk,def:meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',
   xp:0,lvl:1,gold:0,potCap:3,life:0,crit:0.05,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+0.15*meta.goldp};
- G={floor:1,p,inv:{pot:Math.min(1+meta.pot,3),fire:1,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false};
- dest=null;tapMark=null;bigMap=false;newFloor(1);
+ G={floor:1,p,inv:{pot:Math.min(1+meta.pot,3),fire:1,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0},syn:{},bl:0,ssUsed:0,swUsed:0};
+ armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
  msg('You descend into the Emberfall depths...');
  hideTitle();closeModal();save();render();
 }
@@ -223,7 +265,7 @@ function continueRun(){
  try{
   const g=JSON.parse(localStorage.getItem(RUN_KEY));
   if(!g||!g.p||!g.map||g.map.length!==W*H)throw 0;
-  G=g;G.stopWalk=false;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
+  G=g;G.stopWalk=false;G.perks=G.perks||{};G.cd=G.cd||{dash:0,bolt:0};G.syn=G.syn||{};G.bl=G.bl||0;G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
   if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
 }
@@ -233,7 +275,7 @@ function gainXp(n){
  while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;G.pending++;msg('Level up! You are level '+p.lvl+'.');}
 }
 function finish(kind){
- G.over=true;const p=G.p;walkTok++;
+ G.over=true;armed=null;const p=G.p;walkTok++;
  const bonus=kind==='win'?150:0,banked=p.gold+bonus;
  meta.gold+=banked;if(kind==='win')meta.wins++;meta.best=Math.max(meta.best,G.floor);saveMeta();clearSave();
  computeVis();render();
@@ -247,32 +289,94 @@ function finish(kind){
 // ---------- combat ----------
 function floatFx(x,y,text,color){fx.push({x,y,text,color,t:performance.now()});}
 function killEnemy(e,src){
+ if(e.dead)return;
  e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;
  const d=EN[e.t];msg((src||'You')+' slew the '+d.n+'.');
  gainXp(d.xp+G.floor);
  if(d.boss){G.won=true;return;}
  if(Math.random()<0.15)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  else if(Math.random()<0.4)G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(3,7)+G.floor*2});
+ if(pc('scav')&&!itemAt(e.x,e.y)&&Math.random()<0.2*pc('scav'))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
+ if(pc('blood'))G.bl=1;
+ if(pc('chain')&&!inChain)chainZap(e);
 }
 function hurtEnemy(e,dmg,col){
+ if(e.dead)return;
  e.hp-=dmg;e.awake=true;floatFx(e.x,e.y,'-'+dmg,col||'#ffd24a');
 }
+// resolve a hit: kill if dead, else maybe execute
+function settle(e,src){
+ if(e.dead)return;
+ if(e.hp<=0){killEnemy(e,src);return;}
+ if(!pc('exec')||EN[e.t].boss)return;
+ if(e.hp/e.mhp<(pc('blood')?0.3:0.2)){floatFx(e.x,e.y,'EXECUTE','#f55');msg('Executed the '+EN[e.t].n+'!');killEnemy(e);}
+}
+function poison(e){
+ const s=pc('venom');if(!s||e.dead||e.hp<=0)return;
+ let d=1+s;if(EN[e.t].boss)d=Math.max(1,Math.floor(d/2));
+ e.pois={t:3,d:d};floatFx(e.x,e.y,'poison','#7be04b');
+}
+function tickPoison(){
+ for(const e of G.enemies.slice()){
+  if(e.dead||!e.pois)continue;
+  const d=e.pois.d;e.pois.t--;if(e.pois.t<=0)delete e.pois;
+  hurtEnemy(e,d,'#7be04b');settle(e,'Poison');
+ }
+}
+function chainZap(from){
+ inChain=true;
+ try{
+  let best=null,bd=99;
+  for(const o of G.enemies){if(o.dead||o===from||!G.vis[ix(o.x,o.y)])continue;
+   const dd=Math.abs(o.x-from.x)+Math.abs(o.y-from.y);if(dd<bd&&dd<=8){bd=dd;best=o;}}
+  if(best){const dmg=4+G.floor*2;hurtEnemy(best,dmg,'#9cf');
+   msg('Chain Lightning arcs to the '+EN[best.t].n+' for '+dmg+'.');
+   if(pc('venom'))poison(best);
+   settle(best,'Lightning');}
+ }finally{inChain=false;}
+}
+function playerDmg(){
+ const p=G.p;let d=Math.max(1,p.atk+p.wb+rnd(-1,1));
+ if(pc('berserk'))d*=1+0.8*(1-Math.max(0,p.hp)/p.mhp);
+ return Math.max(1,Math.round(d));
+}
+function lifeSteal(dmg){
+ const p=G.p;if(p.life<=0)return;
+ let h=Math.max(1,Math.round(dmg*p.life));
+ if(pc('berserk')&&pc('vamp')&&p.hp<p.mhp*0.5)h*=2;
+ p.hp=Math.min(p.mhp,p.hp+h);
+}
 function playerAttack(e){
- const p=G.p;let dmg=Math.max(1,p.atk+p.wb+rnd(-1,1)),crit=Math.random()<p.crit;
+ const p=G.p;let dmg=playerDmg(),crit=Math.random()<p.crit;
  if(crit)dmg*=2;
+ if(G.bl){dmg=Math.round(dmg*1.75);G.bl=0;msg('Bloodlust! Your strike is empowered.');}
  hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a');
  msg((crit?'Critical! ':'')+'You hit the '+EN[e.t].n+' for '+dmg+'.');
- if(p.life>0)p.hp=Math.min(p.mhp,p.hp+Math.max(1,Math.round(dmg*p.life)));
- if(e.hp<=0)killEnemy(e);
+ lifeSteal(dmg);
+ poison(e);
+ settle(e);
+ if(pc('cleave')){
+  const half=Math.max(1,Math.floor(dmg/2));
+  for(const o of G.enemies.slice()){
+   if(o===e||o.dead||Math.max(Math.abs(o.x-p.x),Math.abs(o.y-p.y))>1)continue;
+   hurtEnemy(o,half,'#ffb04a');msg('Cleave hits the '+EN[o.t].n+' for '+half+'.');
+   if(pc('venom'))poison(o);
+   settle(o);
+  }
+ }
 }
 function hurtPlayer(e,dmg,melee){
  const p=G.p;
  if(Math.random()<p.dodge){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+EN[e.t].n+'.');return;}
+ if(pc('stone')&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Stone Skin negates the '+EN[e.t].n+"'s hit.");return;}
  dmg=Math.max(1,dmg-(p.def+p.ab)+rnd(-1,1));
  if(dmg<1)dmg=1;
  p.hp-=dmg;flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
  msg('The '+EN[e.t].n+(melee?' hits':' blasts')+' you for '+dmg+'.');
- if(melee&&p.thorns>0&&!e.dead){hurtEnemy(e,p.thorns,'#8f8');if(e.hp<=0)killEnemy(e,'Thorns');}
+ if(p.hp<=0&&pc('second')&&!G.swUsed){G.swUsed=1;p.hp=1;msg('Second Wind! You cling to life at 1 HP.');}
+ if(melee&&p.thorns>0&&!e.dead){hurtEnemy(e,p.thorns,'#8f8');settle(e,'Thorns');}
+ if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&Math.random()<0.2*pc('riposte')){
+  const d2=playerDmg();hurtEnemy(e,d2,'#fff');msg('Riposte! You counter for '+d2+'.');settle(e);}
 }
 function enemiesAct(){
  const p=G.p,dist=bfsDist(p.x,p.y);
@@ -302,10 +406,13 @@ function endTurn(){
  const p=G.p;
  if(G.won){finish('win');return;}
  G.turn++;
+ for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;
  if(p.hp<p.mhp){
   if(p.regen&&G.turn%5===0)p.hp=Math.min(p.mhp,p.hp+p.regen);
   if(G.turn%8===0)p.hp=Math.min(p.mhp,p.hp+1);
  }
+ tickPoison();
+ if(G.won){finish('win');return;}
  enemiesAct();
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
@@ -370,7 +477,7 @@ function fireball(){
  if(!t.length){msg('No visible enemies.');return;}
  G.inv.fire--;const dmg=Math.round((10+G.floor*3)*G.p.fireMul);
  msg('Fireball! '+dmg+' damage to all in sight.');
- for(const e of t){hurtEnemy(e,dmg,'#ff7a2a');if(e.hp<=0&&!e.dead)killEnemy(e);}
+ for(const e of t){hurtEnemy(e,dmg,'#ff7a2a');settle(e);}
  endTurn();
 }
 function teleport(){
@@ -380,6 +487,38 @@ function teleport(){
   if(G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!itemAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=8)c.push([x,y]);
  if(!c.length){msg('The scroll fizzles.');return;}
  G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('You teleport away!');walkTok++;endTurn();
+}
+
+// ---------- active abilities ----------
+function dashTiles(){
+ const p=G.p,out=[];
+ for(const [dx,dy] of DIRS){for(let k=1;k<=3;k++){const x=p.x+dx*k,y=p.y+dy*k;
+  if(!walkable(x,y)||!G.seen[ix(x,y)]||enemyAt(x,y))break;out.push([x,y]);}}
+ return out;
+}
+function boltOk(e){return !e.dead&&G.vis[ix(e.x,e.y)]&&Math.abs(e.x-G.p.x)+Math.abs(e.y-G.p.y)<=8;}
+function useDash(tx,ty){
+ if(!dashTiles().some(t=>t[0]===tx&&t[1]===ty)){msg('Dash: tap a highlighted tile (straight line, up to 3).');return;}
+ const p=G.p;armed=null;walkTok++;G.cd.dash=6;p.x=tx;p.y=ty;msg('You dash!');
+ if(pc('arcane')&&G.cd.bolt>0){G.cd.bolt=Math.max(0,G.cd.bolt-2);msg('Phase Hunter: Bolt recharges faster.');}
+ pickup();
+ if(G.map[ix(tx,ty)]===2)msg('Stairs! Tap yourself to descend.');
+ endTurn();
+}
+function useBolt(tx,ty){
+ const e=enemyAt(tx,ty);
+ if(!e||!boltOk(e)){msg('Arcane Bolt: tap a visible enemy.');return;}
+ armed=null;walkTok++;G.cd.bolt=5;
+ const dmg=Math.round(playerDmg()*1.5)+3;
+ hurtEnemy(e,dmg,'#b48cff');msg('Arcane Bolt hits the '+EN[e.t].n+' for '+dmg+'.');
+ poison(e);settle(e);
+ endTurn();
+}
+function toggleAbility(k){
+ walkTok++;if(!G||G.over||modalOpen())return;
+ if(armed===k){armed=null;msg('Cancelled.');render();return;}
+ if(G.cd[k]>0){msg('Still recharging ('+G.cd[k]+').');return;}
+ armed=k;msg(k==='dash'?'Dash armed: tap a highlighted tile.':'Arcane Bolt armed: tap a visible enemy.');render();
 }
 
 // ---------- walking ----------
@@ -439,6 +578,13 @@ function onTap(tx,ty){
  walkTok++;
  if(!G||G.over||modalOpen())return;
  const p=G.p;
+ if(armed){
+  if(!inb(tx,ty))return;
+  if(tx===p.x&&ty===p.y){armed=null;msg('Cancelled.');render();return;}
+  tapMark={x:tx,y:ty,t:performance.now()};
+  if(armed==='dash')useDash(tx,ty);else useBolt(tx,ty);
+  render();return;
+ }
  if(inb(tx,ty)){tapMark={x:tx,y:ty,t:performance.now()};render();}
  if(tx===p.x&&ty===p.y){if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
  if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored floor tile.');return;}
@@ -446,7 +592,7 @@ function onTap(tx,ty){
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
   const d=EN[e.t];
-  msg(d.n+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr);
+  msg(d.n+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':''));
   const path=bfsPath(p.x,p.y,tx,ty);
   if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
   return;
@@ -479,7 +625,7 @@ document.addEventListener('keydown',function(ev){
 // ---------- modals / screens ----------
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
 function showModal(title,html,buttons){
- const b=$('modalBox');b.innerHTML='';
+ armed=null;const b=$('modalBox');b.innerHTML='';
  const h=document.createElement('h2');h.textContent=title;b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
@@ -491,20 +637,42 @@ function showModal(title,html,buttons){
  $('modal').style.display='flex';
 }
 function closeModal(){$('modal').style.display='none';}
+function perkTags(pk){
+ let t='';
+ if(pk.act)t+='<em class="tag act">ACTIVE</em>';else if(pk.beh)t+='<em class="tag">BEHAVIOUR</em>';
+ if(SYN.some(s=>(s.a===pk.id&&pc(s.b))||(s.b===pk.id&&pc(s.a))))t+='<em class="tag syn">SYNERGY</em>';
+ return t;
+}
 function showPerk(){
  if(!G||G.pending<=0)return;
  walkTok++;
- const opts=PERKS.slice().sort(()=>Math.random()-0.5).slice(0,3);
- showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>({html:'<b>'+pk.n+'</b><span>'+pk.d+'</span>',fn:function(){
-  pk.f(G.p);G.pending--;msg('Perk gained: '+pk.n+'.');closeModal();save();render();
-  if(G.pending>0)showPerk();
- }})));
+ const pool=PERKS.filter(pk=>pc(pk.id)<pk.max);
+ if(!pool.length){G.pending=0;save();return;}
+ const opts=pool.sort(()=>Math.random()-0.5).slice(0,3);
+ showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
+  const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
+  return {html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
+   addPerk(pk.id);G.pending--;closeModal();save();render();
+   if(G.pending>0)showPerk();
+  }};}));
+}
+function showPerks(back){
+ let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
+ if(!own.length)h+='<p>No perks yet. Level up to pick some.</p>';
+ for(const pk of own)h+='<div class="pl"><b>'+pk.n+(pk.max>1?' ×'+pc(pk.id):'')+'</b>'+perkTags(pk)+'<br><small>'+pk.d+'</small></div>';
+ h+='<p><b>Synergies</b></p>';
+ for(const s of SYN){
+  const on=pc(s.a)&&pc(s.b);
+  h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')'+(on?' ACTIVE':'')+'<br>'+s.d+'</small></div>';
+ }
+ showModal('Perks & synergies',h,[{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false};
  showModal('Menu','',[
   {label:'Resume',c:1,fn:closeModal},
+  {label:'Perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
   {label:'How to play',c:1,fn:function(){showHelp(showMenu);}},
   {label:'Abandon run',c:1,fn:function(el){
    if(!arm.v){arm.v=true;el.textContent='Tap again to confirm (gold is banked)';return;}
@@ -517,6 +685,7 @@ function showHelp(back){
   '<p><b>Attack:</b> tap an adjacent enemy. Tap a distant enemy to walk toward it.</p>'+
   '<p><b>Wait:</b> tap yourself. On stairs, tapping yourself descends.</p>'+
   '<p>The game is strictly turn-based: enemies move only after you act. 🧭 auto-explores. 🧪 heals, 🔥 burns all visible enemies, 🌀 teleports.</p>'+
+  '<p><b>Abilities:</b> perks like Dash and Arcane Bolt add a button row above the bar. Tap it to arm (highlights targets), then tap a target; tap it again to cancel. Review perks in the menu.</p>'+
   '<p>Level up to pick perks. Gold you collect is banked when the run ends and buys permanent upgrades on the title screen. Reach floor 8 and slay the dragon to win. Progress autosaves every turn.</p>',
   [{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
 }
@@ -553,8 +722,17 @@ const BTNS=[
  {id:'b_down',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;descend();}}
 ];
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
+const ab2=$('bar2');
+for(const a of ABIL){const el=document.createElement('button');el.id='b_'+a.k;el.addEventListener('click',()=>toggleAbility(a.k));ab2.appendChild(el);}
 function updateBar(){
- if(!G)return;const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
+ if(!G)return;
+ let any=false;
+ for(const a of ABIL){const el=$('b_'+a.k),own=pc(a.perk)>0,cd=G.cd[a.k]||0;
+  if(own)any=true;el.style.display=own?'':'none';
+  el.classList.toggle('armed',armed===a.k);
+  el.disabled=cd>0&&armed!==a.k;
+  el.innerHTML=a.e+'<small>'+(armed===a.k?'cancel':cd>0?'cd '+cd:a.n)+'</small>';}
+ ab2.style.display=any?'flex':'none';const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
  $('b_pot').innerHTML='🧪<small>'+inv.pot+'/'+G.p.potCap+'</small>';
  $('b_fire').innerHTML='🔥<small>'+inv.fire+'</small>';
  $('b_tele').innerHTML='🌀<small>'+inv.tele+'</small>';
@@ -568,7 +746,7 @@ function updateHud(){
  $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
  $('hptxt').textContent='HP '+p.hp+' / '+p.mhp;
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+(p.atk+p.wb)+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>';
+ $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+(p.atk+p.wb)+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>'+(G.bl?'<span>🩸 primed</span>':'');
 }
 function renderLog(){
  if(!G)return;const l=G.log.slice(-3);
@@ -644,6 +822,7 @@ function render(){
  if(tapMark){const a=(now-tapMark.t)/600;
   if(a<1){const px=ox+tapMark.x*ts,py=oy+tapMark.y*ts;ctx.globalAlpha=1-a;ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.strokeRect(px+1.5,py+1.5,ts-3,ts-3);ctx.lineWidth=1;ctx.globalAlpha=1;more0=true;}
   else tapMark=null;}
+ if(armed==='dash')for(const t of dashTiles()){const px=ox+t[0]*ts,py=oy+t[1]*ts;ctx.fillStyle='rgba(80,230,255,0.3)';ctx.fillRect(px,py,ts,ts);ctx.strokeStyle='#4ee6ff';ctx.lineWidth=2;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
  for(const e of G.enemies){
   if(!G.vis[ix(e.x,e.y)])continue;
   const px=ox+e.x*ts,py=oy+e.y*ts,d=EN[e.t];
@@ -652,6 +831,8 @@ function render(){
   const fr=Math.max(0,Math.min(1,e.hp/e.mhp)),bh=d.boss?9:7,bx=px+2,bw=ts-4,by=py+1;
   ctx.fillStyle='#000';ctx.fillRect(bx-1,by-1,bw+2,bh+2);ctx.fillStyle='#3a0d0d';ctx.fillRect(bx,by,bw,bh);
   ctx.fillStyle=fr>0.6?'#4be04b':fr>0.3?'#ffcc33':'#ff4040';ctx.fillRect(bx,by,bw*fr,bh);
+  if(e.pois){ctx.fillStyle='#7be04b';ctx.beginPath();ctx.arc(px+ts-7,py+ts-7,5,0,7);ctx.fill();ctx.strokeStyle='#000';ctx.stroke();}
+  if(armed==='bolt'&&boltOk(e)){ctx.strokeStyle='#ff5acd';ctx.lineWidth=3;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
  }
  {const px=ox+p.x*ts,py=oy+p.y*ts;
   ctx.fillStyle='rgba(90,160,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();
@@ -670,5 +851,7 @@ function render(){
 resize();
 showTitle();
 window.__dbg=function(){return G;};
+window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
+window.__dbg.perkIds=PERKS.map(p=>p.id);
 })();
 </script></body></html>
