@@ -848,7 +848,12 @@ function endTurn(){
 }
 function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function pickup(){
- const p=G.p;stepEffects();const it=itemAt(p.x,p.y);if(!it)return;
+ const p=G.p;stepEffects();
+ const here=G.items.filter(i=>i.x===p.x&&i.y===p.y);
+ for(const it of here)pickOne(it);
+}
+function pickOne(it){
+ const p=G.p;
  let take=true;
  if(it.t==='gold'){const g=Math.round(it.v*p.goldMul);p.gold+=g;msg('You pick up '+g+' gold.');}
  else if(it.t==='potion'){
