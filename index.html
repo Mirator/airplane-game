@@ -645,7 +645,7 @@ function explore(){
 }
 function itemName(it){
  return {gold:'Gold pile',potion:'Health potion',fire:'Fireball scroll',tele:'Teleport scroll'}[it.t]||
-  (gearName(it.t,it.v,it.tr)+' (+'+it.v+(it.t==='weapon'?' atk)':' def)')+(it.tr?' - '+TR[it.tr].d:''));
+  (gearName(it.t,it.v,it.tr)+' (+'+it.v+(it.t==='weapon'?' atk)':' def)')+(it.tr?' - '+TR[it.tr].d.replace(/\.$/,''):''));
 }
 function onTap(tx,ty){
  walkTok++;
