@@ -10,6 +10,9 @@ body{position:fixed;inset:0}
 #app{display:flex;flex-direction:column;height:100%;max-width:900px;margin:0 auto}
 #hud{padding:6px 8px 2px;display:flex;flex-direction:column;gap:4px}
 #hrow{display:flex;gap:8px;align-items:center}
+@keyframes pls{0%{box-shadow:0 0 0 0 rgba(255,220,90,.9)}100%{box-shadow:0 0 0 14px rgba(255,220,90,0)}}
+#hpbar.pulse{animation:pls .7s ease-out}
+@media (prefers-reduced-motion: reduce){#hpbar.pulse{animation:none}}
 #hpbar{flex:1;height:22px;background:#2a1418;border-radius:6px;position:relative;overflow:hidden;border:1px solid #522}
 #hpfill{height:100%;background:linear-gradient(#e24b4b,#a82424);width:100%;transition:width .15s}
 #hptxt{position:absolute;inset:0;text-align:center;font-size:13px;line-height:22px;font-weight:700;text-shadow:0 1px 2px #000}
@@ -41,6 +44,7 @@ button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24
 .dim{opacity:.5}
 .ov{position:fixed;inset:0;background:rgba(5,5,12,.88);display:flex;align-items:center;justify-content:center;z-index:10;padding:12px;overflow:auto}
 .box{background:#171a2b;border:1px solid #4b5080;border-radius:14px;padding:16px;width:100%;max-width:440px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.box>*{flex-shrink:0}
 .box h2,.box h1{margin:0;text-align:center}
 .box p{margin:0;font-size:14px;line-height:1.4;color:#d4d2e4}
 .box button{width:100%;text-align:left}
@@ -83,10 +87,86 @@ const SHOP=[
  {k:'def',n:'Padded',d:'+1 starting defense',base:60}
 ];
 const SHOPMAX=8;
-let meta={seenHelp:0,gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0};
-try{const m=JSON.parse(localStorage.getItem(META_KEY));if(m&&typeof m==='object')Object.assign(meta,m);}catch(e){}
+let meta={seenHelp:0,gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0,unl:{}};
+let metaRaw=null,metaDirty=false;
+try{metaRaw=JSON.parse(localStorage.getItem(META_KEY));}catch(e){}
+const hadMeta=!!(metaRaw&&typeof metaRaw==='object'&&!Array.isArray(metaRaw));
+if(hadMeta)Object.assign(meta,metaRaw);
+if(!meta.unl||typeof meta.unl!=='object'||Array.isArray(meta.unl))meta.unl={};
+// migration: players with an older meta save keep every class they could already play
+let migrated=false;
+if(hadMeta&&!metaRaw.unl){meta.unl.rogue=1;meta.unl.mage=1;migrated=true;}
+meta.kills=+meta.kills||0;meta.elites=+meta.elites||0;meta.sound=meta.sound?1:0;
 function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+const UNLOCKS=[
+ {id:'rogue',n:'🗡 Rogue class',d:'High crit, double damage on unaware enemies, Vanish ability.',cost:150},
+ {id:'mage',n:'🧙 Mage class',d:'Arcane Bolt from the start and an extra fireball scroll.',cost:200},
+ {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord (+3 attack, +1 defense) to the level-up pool.',cost:120},
+ {id:'elixir',n:'Merchant: Elixir',d:'Merchants also stock an Elixir of Vigor (+10 max HP, full heal).',cost:110},
+ {id:'scroll',n:'Starting scroll',d:'Begin every run with a random scroll (fireball or teleport).',cost:90},
+ {id:'pick4',n:'Fourth choice',d:'Level-ups offer 4 perks to choose from instead of 3.',cost:160},
+ {id:'shrine',n:'Shrine favour',d:'Shrines offer a safe Blessing and better odds when you pray.',cost:110},
+ {id:'phoenix',n:'Perk: Phoenix Heart',d:'Adds Phoenix Heart (revive once per run) to the pool.',ach:'Defeat the dragon',chk:function(){return meta.wins>=1;},prog:function(){return meta.wins+'/1 wins';}},
+ {id:'trapper',n:'Perk: Trapfinder',d:'Adds Trapfinder (see traps from 3 tiles, take half trap damage) to the pool.',ach:'Reach floor 4',chk:function(){return meta.best>=4;},prog:function(){return 'best floor '+meta.best+'/4';}},
+ {id:'midas',n:'Perk: Midas Touch',d:'Adds Midas Touch (every kill drops gold) to the pool.',ach:'Slay 50 enemies in total',chk:function(){return meta.kills>=50;},prog:function(){return meta.kills+'/50 kills';}},
+ {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist (potions heal 50% more) to the pool.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
+];
+function checkAch(){
+ let any=false;
+ for(const u of UNLOCKS)if(u.chk&&!meta.unl[u.id]&&u.chk()){
+  meta.unl[u.id]=1;any=true;
+  if(G){msg('Unlocked: '+u.n.replace(/^Perk: /,'')+'! ('+u.ach+')');(G.newUnl=G.newUnl||[]).push(u.n);}
+ }
+ if(any)saveMeta();
+}
+checkAch();if(migrated)saveMeta();
 function cost(s){const l=meta[s.k];return Math.round(s.base*(l+1)*(1+l*0.3));}
+
+// ---------- juice: sound, haptics, cosmetic effects (never block input) ----------
+let AC=null,flashes={},shakeUntil=0,shakeAmt=0,puffs=[],pulseUntil=0,stepAnim=null,lastPos=null,visX=0,visY=0;
+function rmo(){try{return !!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);}catch(e){return false;}}
+function ac(){
+ try{
+  if(!meta.sound)return null;
+  if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();}
+  if(AC.state==='suspended'&&AC.resume)AC.resume();
+  return AC;
+ }catch(e){return null;}
+}
+// [freq, seconds, wave, volume, endFreq]
+const SFX={
+ hit:[[190,.07,'square',.07,95]],
+ crit:[[330,.05,'square',.08],[560,.1,'square',.08,280]],
+ hurt:[[150,.14,'sawtooth',.08,70]],
+ pickup:[[660,.05,'sine',.07],[880,.08,'sine',.07]],
+ level:[[523,.09,'triangle',.09],[659,.09,'triangle',.09],[784,.09,'triangle',.09],[1047,.2,'triangle',.09]],
+ stairs:[[420,.09,'triangle',.08,320],[320,.09,'triangle',.08,230],[230,.14,'triangle',.08,130]],
+ death:[[300,.16,'sawtooth',.09,200],[200,.2,'sawtooth',.09,110],[110,.45,'sawtooth',.09,40]],
+ win:[[523,.12,'triangle',.09],[659,.12,'triangle',.09],[784,.12,'triangle',.09],[1047,.35,'triangle',.09]]
+};
+function sfx(k){
+ try{
+  const a=ac();if(!a||!SFX[k])return;let t=a.currentTime;
+  for(const n of SFX[k]){
+   const o=a.createOscillator(),g=a.createGain();o.type=n[2];o.frequency.setValueAtTime(n[0],t);
+   if(n[4])o.frequency.exponentialRampToValueAtTime(n[4],t+n[1]);
+   g.gain.setValueAtTime(n[3],t);g.gain.exponentialRampToValueAtTime(0.0001,t+n[1]);
+   o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+n[1]+0.03);t+=n[1]*0.9;
+  }
+ }catch(e){}
+}
+function buzz(ms){try{if(meta.sound&&navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
+function shake(a){if(rmo())return;shakeUntil=performance.now()+220;shakeAmt=a;}
+function soundLabel(){return meta.sound?'🔊 Sound & vibration: ON':'🔇 Sound & vibration: OFF (tap to enable)';}
+function toggleSound(){
+ meta.sound=meta.sound?0:1;saveMeta();
+ if(meta.sound){ac();sfx('pickup');buzz(25);}
+}
+document.addEventListener('pointerdown',function(){if(meta.sound&&!AC)ac();},true);
+function playerHurtFx(d){
+ const p=G.p,now=performance.now();flashes.p=now;flashUntil=now+250;sfx('hurt');
+ const big=d>=Math.max(6,p.mhp*0.2);buzz(big?70:30);if(big)shake(6);
+}
 
 // ---------- defs ----------
 const EN={
@@ -128,7 +208,13 @@ const PERKS=[
  {id:'scav',n:'Scavenger',beh:1,max:2,d:'Slain enemies drop an extra potion 20% of the time (per level)'},
  {id:'berserk',n:'Berserk',beh:1,d:'Up to +80% damage as your HP drops'},
  {id:'stone',n:'Stone Skin',beh:1,d:'The first hit you take each floor is negated'},
- {id:'exec',n:'Executioner',beh:1,d:'Instantly slay non-boss enemies below 20% HP after a hit'}
+ {id:'exec',n:'Executioner',beh:1,d:'Instantly slay non-boss enemies below 20% HP after a hit'},
+ // unlockable perks (only in the pool once unlocked in the title shop / by achievements)
+ {id:'warlord',n:'Warlord',lock:'warlord',max:2,d:'+3 attack and +1 defense',f:p=>{p.atk+=3;p.def+=1;}},
+ {id:'phoenix',n:'Phoenix Heart',lock:'phoenix',beh:1,d:'Once per run, a lethal hit revives you at half HP'},
+ {id:'trapper',n:'Trapfinder',lock:'trapper',beh:1,d:'Spot traps from 3 tiles away; traps do half damage to you and poison is shorter'},
+ {id:'midas',n:'Midas Touch',lock:'midas',beh:1,d:'Every slain enemy drops some gold'},
+ {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more (per level)'}
 ];
 PERKS.forEach(p=>{if(!p.max)p.max=p.beh?1:5;});
 const SYN=[
@@ -154,6 +240,16 @@ const TR={
  light:{slot:'armor',n:'Light',dv:-1,minF:1,d:'-1 defense, but +12% dodge.'},
  leaden:{slot:'armor',n:'Leaden',dv:2,minF:3,d:'+2 defense, but potions heal 40% less.'}
 };
+const THEMES=[
+ {n:'The Crypt',wl:'#3d4678',wt:'#6d7ab8',we:'#252b52',wld:'#171a2e',wtd:'#272c4a',wed:'#0d0f1c',fa:'#a8996f',fb:'#b2a37a',fda:'#35322a',fdb:'#38352d',mw:'#3a4270',mf:'#cbbd90',mfd:'#8a8060'},
+ {n:'The Caverns',wl:'#2d4a45',wt:'#5f9484',we:'#173029',wld:'#13211e',wtd:'#1f3631',wed:'#0a1411',fa:'#8a9a78',fb:'#94a482',fda:'#2b3328',fdb:'#2e362b',mw:'#2f5a50',mf:'#a8b890',mfd:'#6a7a5a'},
+ {n:'The Embers',wl:'#5a2a22',wt:'#b0482e',we:'#2e100c',wld:'#241210',wtd:'#3a1b15',wed:'#140807',fa:'#a8704a',fb:'#b47a52',fda:'#3a2619',fdb:'#3e291c',mw:'#7a3224',mf:'#d08a58',mfd:'#7a5030'}
+];
+function themeOf(f){return f<=3?THEMES[0]:f<=6?THEMES[1]:THEMES[2];}
+const TRAPS={spike:{n:'Spike trap',c:'#ff5a5a'},dart:{n:'Dart trap',c:'#7be04b'},alarm:{n:'Alarm trap',c:'#ffd24a'}};
+const ENAMES=['Gorak','Vexa','Morn','Sable','Thrain','Ilsa','Brakk','Nyx'],ETITLES=['the Cruel','the Bloodied','Ironhide','the Hungry','Gravecaller','Emberhand'];
+function nm(e){return e.elite?'elite '+EN[e.t].n+' '+(e.name||''):EN[e.t].n;}
+let shrineQ=false,trapConfirm=-1,bannerText='',bannerUntil=0;
 let gearQ=null;
 function clsOf(p){return CLS[p.cls]||CLS.warrior;}
 function gearName(slot,v,tr){
@@ -175,11 +271,12 @@ function thornsDmg(){const p=G.p;return p.thorns+(p.at==='spiked'?3:0);}
 function secondWind(){
  const p=G.p;
  if(p.hp<=0&&pc('second')&&!G.swUsed){G.swUsed=1;p.hp=1;msg('Second Wind! You cling to life at 1 HP.');return true;}
+ if(p.hp<=0&&pc('phoenix')&&!G.phxUsed){G.phxUsed=1;p.hp=Math.max(1,Math.ceil(p.mhp/2));floatFx(p.x,p.y,'REBORN','#ffb04a');msg('Phoenix Heart! You rise from the ashes at half HP.');return true;}
  return false;
 }
 function curseDrain(){
  const p=G.p;if(p.hp<=0)return;
- p.hp-=1;floatFx(p.x,p.y,'-1','#c6f');msg('The cursed blade drinks 1 HP.');secondWind();
+ p.hp-=1;G.killer='a cursed blade';floatFx(p.x,p.y,'-1','#c6f');msg('The cursed blade drinks 1 HP.');secondWind();
 }
 function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'No trait.';}
 const ABIL=[{k:'bash',cls:'warrior',e:'🛡',n:'Bash'},{k:'vanish',cls:'rogue',e:'👻',n:'Vanish'},{k:'dash',perk:'dash',e:'💨',n:'Dash'},{k:'bolt',perk:'arcane',e:'🔮',n:'Bolt'}];
@@ -198,7 +295,10 @@ function addPerk(id){
 const ix=(x,y)=>y*W+x;
 const inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
-function walkable(x,y){return inb(x,y)&&G.map[ix(x,y)]!==0;}
+function merchantAt(x,y){return !!(G&&G.merchant&&G.merchant.x===x&&G.merchant.y===y);}
+function walkable(x,y){return inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==5&&!merchantAt(x,y);}
+function trapAt(x,y){for(const t of G.traps)if(t.x===x&&t.y===y&&!t.done)return t;return null;}
+function trapSet(){const st=new Set();if(G&&G.traps)for(const t of G.traps)if(t.rev&&!t.done)st.add(ix(t.x,t.y));return st;}
 function enemyAt(x,y){for(const e of G.enemies)if(e.x===x&&e.y===y)return e;return null;}
 function itemAt(x,y){for(const i of G.items)if(i.x===x&&i.y===y)return i;return null;}
 function msg(t){
@@ -208,7 +308,7 @@ function msg(t){
 function los(x0,y0,x1,y1,ub){
  let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx-dy,x=x0,y=y0;
  while(!(x===x1&&y===y1)){
-  if(!(x===x0&&y===y0)){const t=G.map[ix(x,y)];if(t===0||t===3)return false;if(ub&&enemyAt(x,y))return false;}
+  if(!(x===x0&&y===y0)){const t=G.map[ix(x,y)];if(t===0||t===3||t===5)return false;if(ub&&enemyAt(x,y))return false;}
   const e2=2*err;
   if(e2>-dy){err-=dy;x+=sx;}
   if(e2<dx){err+=dx;y+=sy;}
@@ -231,8 +331,16 @@ function genFloor(f){
    const big=f===MAXF&&rooms.length===0;
    const w=big?11:rnd(4,8),h=big?9:rnd(4,7),x=rnd(1,W-w-1),y=rnd(1,H-h-1);
    if(rooms.some(r=>x<r.x+r.w+1&&x+w+1>r.x&&y<r.y+r.h+1&&y+h+1>r.y))continue;
-   rooms.push({x,y,w,h,cx:x+(w>>1),cy:y+(h>>1)});
-   for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)m[ix(xx,yy)]=1;
+   const rcx=x+(w>>1),rcy=y+(h>>1);
+   rooms.push({x,y,w,h,cx:rcx,cy:rcy});
+   const cave=f>=4&&f<=6&&!big&&Math.random()<0.75;
+   for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++){
+    m[ix(xx,yy)]=1;
+    if(cave&&xx!==rcx&&yy!==rcy){
+     const ring=(xx===x||xx===x+w-1||yy===y||yy===y+h-1);
+     if(Math.random()<(ring?0.5:0.1))m[ix(xx,yy)]=0;
+    }
+   }
   }
   if(rooms.length<5)continue;
   if(f===MAXF)rooms.push(rooms.shift());
@@ -273,21 +381,66 @@ function makeEnemy(type,x,y,f){
  const hp=Math.round(d.hp*s),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*sa),awake:false,cd:0};
  G.enemies.push(e);return e;
 }
+function stairsOk(){
+ let t=G.map.indexOf(2);
+ if(t<0){const d=G.enemies.find(e=>EN[e.t].boss);if(!d)return true;t=ix(d.x,d.y);}
+ const p=G.p,blk=new Set(G.traps.map(a=>ix(a.x,a.y))),seen=new Set([ix(p.x,p.y)]),q=[[p.x,p.y]];
+ for(let i=0;i<q.length;i++){const [x,y]=q[i];
+  for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+   if(!walkable(nx,ny)||seen.has(k)||blk.has(k))continue;seen.add(k);q.push([nx,ny]);}}
+ if(!seen.has(t))return false;
+ const m=G.merchant;
+ if(m&&!DIRS.some(d=>seen.has(ix(m.x+d[0],m.y+d[1]))))return false;
+ const sh=G.shrine;
+ if(sh&&!seen.has(ix(sh.x,sh.y)))return false;
+ return true;
+}
+function carveTreasure(rooms,f){
+ const cand=rooms.filter((r,i)=>i>0&&!(f===MAXF&&i===rooms.length-1));
+ for(let a=0;a<60&&cand.length;a++){
+  const r=pick(cand),side=rnd(0,3),dx=[1,-1,0,0][side],dy=[0,0,1,-1][side];
+  const ddx=dx?(dx>0?r.x+r.w:r.x-1):r.cx,ddy=dx?r.cy:(dy>0?r.y+r.h:r.y-1);
+  const cx=ddx+dx*2,cy=ddy+dy*2;let ok=true;
+  for(let y=cy-2;y<=cy+2&&ok;y++)for(let x=cx-2;x<=cx+2;x++){if(x<1||y<1||x>W-2||y>H-2||G.map[ix(x,y)]!==0){ok=false;break;}}
+  if(!ok||G.map[ix(ddx-dx,ddy-dy)]!==1)continue;
+  G.map[ix(ddx,ddy)]=5;const cells=[];
+  for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){G.map[ix(x,y)]=1;cells.push([x,y]);}
+  return {door:[ddx,ddy],cells:cells};
+ }
+ return null;
+}
+function forcedGear(f,slot){
+ const pool=Object.keys(TR).filter(k=>TR[k].slot===slot&&TR[k].minF<=Math.max(f,2)),tr=pick(pool);
+ return {t:slot,tr:tr,v:applyTrait(slot==='weapon'?rnd(2,4)+f-1:Math.floor((f+rnd(1,3))/2)+1,tr)};
+}
+function buildStock(f){
+ const s=[],pr=(a,b)=>Math.round(a+b*f);
+ s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(12,2)});
+ s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(12,2)});
+ s.push({k:'fire',n:'📜 Fireball scroll',d:'Damages every enemy in sight.',price:pr(22,3)});
+ s.push({k:'tele',n:'🌀 Teleport scroll',d:'Jump to a random far spot.',price:pr(18,2)});
+ const slot=Math.random()<0.5?'weapon':'armor',g=forcedGear(f,slot);
+ s.push({k:'gear',slot:slot,v:g.v,tr:g.tr,n:(slot==='weapon'?'⚔️ ':'🛡 ')+gearName(slot,g.v,g.tr),d:'+'+g.v+(slot==='weapon'?' attack. ':' defense. ')+TR[g.tr].d+' Replaces your current '+(slot==='weapon'?'weapon.':'armor.'),price:pr(40,8)});
+ const pool=PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&pc(pk.id)<pk.max);
+ if(pool.length){const pk=pick(pool);s.push({k:'perk',id:pk.id,n:'✨ Perk: '+pk.n,d:pk.d,price:pr(60,10)});}
+ if(meta.unl.elixir)s.push({k:'elixir',n:'🧿 Elixir of Vigor',d:'+10 max HP and a full heal.',price:pr(65,8)});
+ return s;
+}
 function newFloor(f){
- const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.ssUsed=0;G.swUsed=0;
+ const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.traps=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.ppois=null;shrineQ=false;trapConfirm=-1;
  G.seen=new Array(W*H).fill(false);G.exp=new Array(W*H).fill(false);
  const rooms=g.rooms,p=G.p;p.x=rooms[0].cx;p.y=rooms[0].cy;
  const taken=new Set([ix(p.x,p.y)]);
- function free(room){
+ const tre=(f>=2&&f<MAXF&&Math.random()<0.7)?carveTreasure(rooms,f):null;
+ const reach=bfsDist(p.x,p.y);
+ function free(room,minD){
   for(let i=0;i<60;i++){
-   const x=rnd(room.x,room.x+room.w-1),y=rnd(room.y,room.y+room.h-1);
-   if(G.map[ix(x,y)]===1&&!taken.has(ix(x,y))){taken.add(ix(x,y));return [x,y];}
+   const x=rnd(room.x,room.x+room.w-1),y=rnd(room.y,room.y+room.h-1),k=ix(x,y);
+   if(G.map[k]===1&&!taken.has(k)&&reach[k]<9999&&(!minD||reach[k]>=minD)){taken.add(k);return [x,y];}
   }
   return null;
  }
- function addEnemy(type,room,x,y){
-  makeEnemy(type,x,y,f);
- }
+ function addEnemy(type,room,x,y){return makeEnemy(type,x,y,f);}
  const others=f===MAXF?rooms.slice(1,-1):rooms.slice(1);
  if(f===MAXF){const r=rooms[rooms.length-1];taken.add(ix(r.cx,r.cy));addEnemy('dragon',r,r.cx,r.cy);}
  const n=3+Math.floor(f*0.8)+rnd(0,2);
@@ -301,6 +454,40 @@ function newFloor(f){
  if(Math.random()<0.5){const tr=rollTrait('armor',f);addItem('armor',applyTrait(Math.floor((f+rnd(0,2))/2)+1,tr),tr);}
  if(Math.random()<0.5)addItem('fire',0);
  if(Math.random()<0.35)addItem('tele',0);
+ // locked treasure room + marked elite carrying the key
+ if(tre){
+  const cands=G.enemies.filter(e=>!EN[e.t].boss&&reach[ix(e.x,e.y)]<9999);
+  if(!cands.length){G.map[ix(tre.door[0],tre.door[1])]=4;}
+  else{
+   const e=pick(cands);e.elite=1;e.name=pick(ENAMES)+' '+pick(ETITLES);e.mhp=Math.round(e.mhp*2);e.hp=e.mhp;e.atk=Math.round(e.atk*1.3)+1;
+   const g1=forcedGear(f,Math.random()<0.5?'weapon':'armor'),cs=tre.cells.slice().sort(()=>Math.random()-0.5);
+   G.items.push({x:cs[0][0],y:cs[0][1],t:g1.t,v:g1.v,tr:g1.tr});
+   G.items.push({x:cs[1][0],y:cs[1][1],t:'gold',v:18+f*6});
+   G.items.push({x:cs[2][0],y:cs[2][1],t:'gold',v:14+f*5});
+   if(Math.random()<0.6)G.items.push({x:cs[3][0],y:cs[3][1],t:'potion',v:0});
+   G.treasure={door:tre.door};
+  }
+ }
+ // shrine
+ if(f>=2&&f<MAXF&&Math.random()<0.55){const t=free(pick(others));if(t)G.shrine={x:t[0],y:t[1],used:0,left:0};}
+ // merchant
+ if(f===3||f===6){
+  for(let a=0;a<40&&!G.merchant;a++){
+   const t=free(a<30?pick(others):rooms[0]);if(!t)continue;
+   G.merchant={x:t[0],y:t[1],stock:[]};
+   if(a<30&&!stairsOk()){G.merchant=null;}
+  }
+  if(G.merchant)G.merchant.stock=buildStock(f);
+ }
+ // traps
+ const nt=rnd(1,2)+Math.floor(f/2);
+ for(let i=0;i<nt;i++){
+  const t=free(pick(others),4);if(!t)continue;
+  const r=Math.random(),k=r<0.45?'spike':(r<0.75||f<2)?'dart':'alarm';
+  G.traps.push({x:t[0],y:t[1],k:k,rev:0,done:0});
+  if(!stairsOk())G.traps.pop();
+ }
+ const th=themeOf(f);bannerText='Floor '+f+' - '+th.n;bannerUntil=performance.now()+2600;
  computeVis();
 }
 function computeVis(){
@@ -313,73 +500,125 @@ function computeVis(){
   if(G.map[i]!==0){G.exp[i]=true;
    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(inb(x+dx,y+dy))G.seen[ix(x+dx,y+dy)]=true;}
  }
+ const rr=pc('trapper')?3:1;
+ for(const t of G.traps)if(!t.rev&&!t.done&&Math.max(Math.abs(t.x-p.x),Math.abs(t.y-p.y))<=rr&&(rr===1||los(p.x,p.y,t.x,t.y))){t.rev=1;G.seen[ix(t.x,t.y)]=true;msg('You spot '+(t.k==='alarm'?'an ':'a ')+TRAPS[t.k].n.toLowerCase()+'!');}
 }
 
 // ---------- run ----------
 function startRun(cls){
- if(!CLS[cls])cls='warrior';const C=CLS[cls];
+ if(!CLS[cls]||(cls!=='warrior'&&!meta.unl[cls]))cls='warrior';const C=CLS[cls];
  const p={x:0,y:0,cls:cls,hp:C.hp+6*meta.hp,mhp:C.hp+6*meta.hp,atk:C.atk+meta.atk,def:C.def+meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',wt:null,at:null,
   xp:0,lvl:1,gold:0,potCap:3,life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+0.15*meta.goldp};
- G={floor:1,p,inv:{pot:Math.min(1+meta.pot,3),fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0,bash:0,vanish:0},syn:{},bl:0,ssUsed:0,swUsed:0,vanish:0};
+ G={floor:1,p,inv:{pot:Math.min(1+meta.pot,3),fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0,bash:0,vanish:0},syn:{},bl:0,ssUsed:0,swUsed:0,vanish:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
  if(cls==='mage')G.perks.arcane=1;
+ if(meta.unl.scroll){const k=Math.random()<0.5?'fire':'tele';G.inv[k]++;}
  gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg('You descend into the Emberfall depths as a '+C.n+'.');
+ msg('You descend into the Emberfall depths as a '+C.n+'.');if(meta.unl.scroll)msg('Your starting scroll: '+(G.inv.fire>C.fire?'Fireball.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
-function save(){if(!G||G.over)return;try{localStorage.setItem(RUN_KEY,JSON.stringify(G));}catch(e){}}
+function save(){if(!G||G.over)return;if(metaDirty){saveMeta();metaDirty=false;}try{localStorage.setItem(RUN_KEY,JSON.stringify(G));}catch(e){}}
 function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}}
 function hasSave(){try{return !!localStorage.getItem(RUN_KEY);}catch(e){return false;}}
 function continueRun(){
  try{
   const g=JSON.parse(localStorage.getItem(RUN_KEY));
   if(!g||!g.p||!g.map||g.map.length!==W*H)throw 0;
-  G=g;G.stopWalk=false;G.perks=G.perks||{};G.cd=Object.assign({dash:0,bolt:0,bash:0,vanish:0},G.cd||{});G.vanish=G.vanish||0;G.syn=G.syn||{};if(!CLS[G.p.cls])G.p.cls='warrior';G.p.wt=TR[G.p.wt]?G.p.wt:null;G.p.at=TR[G.p.at]?G.p.at:null;G.enemies=(G.enemies||[]).filter(e=>EN[e.t]);for(const e of G.enemies)if(e.wind&&!(Array.isArray(e.wind.tiles)&&e.wind.tiles.every(t=>Array.isArray(t)&&inb(t[0],t[1]))))e.wind=null;gearQ=null;G.bl=G.bl||0;G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
+  G=g;G.stopWalk=false;G.perks=G.perks||{};G.cd=Object.assign({dash:0,bolt:0,bash:0,vanish:0},G.cd||{});G.vanish=G.vanish||0;G.syn=G.syn||{};if(!CLS[G.p.cls])G.p.cls='warrior';G.p.wt=TR[G.p.wt]?G.p.wt:null;G.p.at=TR[G.p.at]?G.p.at:null;G.enemies=(G.enemies||[]).filter(e=>EN[e.t]);for(const e of G.enemies)if(e.wind&&!(Array.isArray(e.wind.tiles)&&e.wind.tiles.every(t=>Array.isArray(t)&&inb(t[0],t[1]))))e.wind=null;gearQ=null;G.bl=G.bl||0;G.traps=Array.isArray(G.traps)?G.traps.filter(t=>t&&inb(t.x,t.y)&&TRAPS[t.k]):[];G.shrine=(G.shrine&&inb(G.shrine.x,G.shrine.y))?G.shrine:null;G.merchant=(G.merchant&&inb(G.merchant.x,G.merchant.y)&&Array.isArray(G.merchant.stock))?G.merchant:null;G.treasure=G.treasure||null;G.keys=G.keys||0;G.ppois=(G.ppois&&G.ppois.t>0)?G.ppois:null;G.killer=G.killer||'';shrineQ=false;trapConfirm=-1;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
   if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
 }
 function needXp(l){return 8+l*7;}
 function gainXp(n){
  const p=G.p;p.xp+=Math.round(n*p.xpMul);
- while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;G.pending++;const lg=LG[p.cls]||LG.warrior;p.mhp+=lg.hp;p.hp+=lg.hp;if(lg.atkE&&p.lvl%lg.atkE===0)p.atk++;msg('Level up! You are level '+p.lvl+'.');}
+ while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;G.pending++;const lg=LG[p.cls]||LG.warrior;p.mhp+=lg.hp;p.hp+=lg.hp;if(lg.atkE&&p.lvl%lg.atkE===0)p.atk++;msg('Level up! You are level '+p.lvl+'.');pulseUntil=performance.now()+700;floatFx(p.x,p.y,'LEVEL UP','#ffd24a',true);sfx('level');try{if(!rmo()){const h=$('hpbar');h.classList.remove('pulse');void h.offsetWidth;h.classList.add('pulse');}}catch(e){}}
+}
+function deathTip(){
+ const k=(G.killer||'').toLowerCase();
+ if(/spike|trap|dart/.test(k))return 'Traps are drawn once you stand next to them. Walk around drawn traps (Explore does it for you), and never rush through unexplored rooms at low HP.';
+ if(/poison/.test(k))return 'Poison ticks every turn. A potion cures it - drink one before it stacks with enemy hits.';
+ if(/archer|warlock/.test(k))return 'Archers and warlocks need a clear line of sight. Break the line around a corner or a door, then close in.';
+ if(/troll|dragon/.test(k))return 'Red hatched tiles mark the next big hit. Step off them (one tile is enough) and it deals nothing.';
+ if(/ogre/.test(k))return 'Ogres act every other turn. Hit while the hourglass shows, then step back before it swings.';
+ if(/wall|impact/.test(k))return 'Knockback into a wall or door adds damage. Fight with open floor behind you.';
+ if(/shrine|curse/.test(k))return 'Gambles and cursed gear cost HP. Check your HP before praying at a shrine.';
+ if(/elite/.test(k))return 'Elite enemies are tougher than they look. Lure them into a corridor, use Fireball, or skip the treasure room.';
+ if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP - it costs a turn but saves the run.';
+ if(G.p.hp<=0&&G.inv.fire>0)return 'You died with a Fireball scroll unused. It hits everything in sight - use it when a crowd closes in.';
+ return 'Fight in corridors and doorways so only one enemy can reach you, and rest behind a closed door when you can.';
 }
 function finish(kind){
  G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
  const bonus=kind==='win'?150:0,banked=p.gold+bonus;
- meta.gold+=banked;if(kind==='win')meta.wins++;meta.best=Math.max(meta.best,G.floor);saveMeta();clearSave();
+ meta.gold+=banked;if(kind==='win')meta.wins++;meta.best=Math.max(meta.best,G.floor);saveMeta();checkAch();clearSave();
  computeVis();render();
  const dead=kind==='dead';
+ if(dead){sfx('death');buzz([80,40,120]);}else if(kind==='win')sfx('win');
+ const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
+ const perks=PERKS.filter(pk=>pc(pk.id)>0).map(pk=>pk.n+(pk.max>1?' x'+pc(pk.id):'')).join(', ')||'none';
  showModal((dead?'You Died':kind==='win'?'Victory!':'Run Ended'),
-  (kind==='win'?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>The dungeon claims another adventurer.</p>':'<p>You left the dungeon.</p>')+
-  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b><br>Gear: <b>'+p.wn+'</b>, <b>'+p.an+'</b><br>Floor reached: <b>'+G.floor+'</b><br>Level: <b>'+p.lvl+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Turns: <b>'+G.turn+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. 150 win bonus)':'')+'</span></p>',
+  (kind==='win'?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>Killed by <b>'+killTxt+'</b> on floor '+G.floor+'.</p>':'<p>You left the dungeon.</p>')+
+  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+p.wn+'</b>, <b>'+p.an+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. 150 win bonus)':'')+'</span></p>'+
+  (G.newUnl&&G.newUnl.length?'<p>New unlock'+(G.newUnl.length>1?'s':'')+': <b>'+G.newUnl.join(', ')+'</b></p>':'')+
+  (dead?'<p class="pl" style="border:1px solid #4b5080;border-radius:10px;padding:8px"><b>Tip:</b> '+deathTip()+'</p>':''),
   [{label:'Back to title',c:1,fn:function(){closeModal();G=null;showTitle();}}]);
 }
 
 // ---------- combat ----------
-function floatFx(x,y,text,color){fx.push({x,y,text,color,t:performance.now()});}
+function floatFx(x,y,text,color,big){fx.push({x,y,text,color,big:!!big,t:performance.now()});}
+function dropAt(x,y,it){
+ let t=[x,y];
+ if(itemAt(x,y)){for(const [dx,dy] of DIRS){const a=x+dx,b=y+dy;if(inb(a,b)&&G.map[ix(a,b)]===1&&!itemAt(a,b)&&!trapAt(a,b)&&!merchantAt(a,b)){t=[a,b];break;}}}
+ it.x=t[0];it.y=t[1];G.items.push(it);
+}
+function wakeAll(){for(const e of G.enemies){e.awake=true;e.alarm=1;}}
+function springEnemy(e,t){
+ const vis=G.vis[ix(e.x,e.y)];if(vis)t.rev=1;
+ if(t.k==='spike'){const d=3+G.floor;hurtEnemy(e,d,'#c9c');if(vis)msg('The '+nm(e)+' steps on a spike trap!');settle(e,'A spike trap');}
+ else if(t.k==='dart'){e.pois={t:4,d:2};e.awake=true;floatFx(e.x,e.y,'poison','#7be04b');if(vis)msg('The '+nm(e)+' is hit by a poison dart!');}
+ else{wakeAll();t.done=1;msg(vis?'The '+nm(e)+' sets off an alarm! Everything is awake.':'A distant alarm shrieks. Everything is awake.');}
+}
+function springPlayer(t){
+ const p=G.p;t.rev=1;G.stopWalk=true;walkTok++;
+ if(t.k==='spike'){
+  let d=3+G.floor;if(pc('trapper'))d=Math.max(1,Math.ceil(d/2));
+  p.hp-=d;G.killer='a spike trap';playerHurtFx(d);floatFx(p.x,p.y,'-'+d,'#ff5a5a');
+  msg('You step on a spike trap! -'+d+' HP.');secondWind();
+ }else if(t.k==='dart'){
+  G.ppois={t:pc('trapper')?2:4,d:1+Math.floor(G.floor/3)};G.killer='dart poison';floatFx(p.x,p.y,'poison','#7be04b');
+  msg('A dart hits you - poisoned for '+G.ppois.t+' turns!');
+ }else{wakeAll();t.done=1;floatFx(p.x,p.y,'ALARM','#ffd24a');msg('An alarm shrieks! Every enemy on the floor is awake.');}
+}
+function stepEffects(){
+ const p=G.p,t=trapAt(p.x,p.y);
+ if(t)springPlayer(t);
+ const s=G.shrine;if(s&&!s.used&&!s.left&&s.x===p.x&&s.y===p.y){shrineQ=true;G.stopWalk=true;}
+}
 function killEnemy(e,src){
  if(e.dead)return;
- e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;
- const d=EN[e.t];msg((src||'You')+' slew the '+d.n+'.');
+ e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
+ const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');if(!rmo())puffs.push({x:e.x,y:e.y,t:performance.now(),s:Math.random()*6});
  gainXp(d.xp+G.floor);
  if(d.boss){G.won=true;return;}
  if(G.p.wt==='cursed')curseDrain();
- if(Math.random()<0.15)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
+ if(e.elite){dropAt(e.x,e.y,{t:'key',v:0});floatFx(e.x,e.y,'KEY','#ffd24a');msg('The elite drops a brass key!');}
+ else if(Math.random()<0.15)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  else if(Math.random()<0.4)G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(3,7)+G.floor*2});
+ if(pc('midas'))dropAt(e.x,e.y,{t:'gold',v:rnd(3,6)+G.floor*2});
  if(pc('scav')&&!itemAt(e.x,e.y)&&Math.random()<0.2*pc('scav'))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  if(pc('blood'))G.bl=1;
  if(pc('chain')&&!inChain)chainZap(e);
 }
-function hurtEnemy(e,dmg,col){
+function hurtEnemy(e,dmg,col,crit){
  if(e.dead)return;
- e.hp-=dmg;e.awake=true;floatFx(e.x,e.y,'-'+dmg,col||'#ffd24a');
+ e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now();floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
 }
 // resolve a hit: kill if dead, else maybe execute
 function settle(e,src){
  if(e.dead)return;
  if(e.hp<=0){killEnemy(e,src);return;}
  if(!pc('exec')||EN[e.t].boss)return;
- if(e.hp/e.mhp<(pc('blood')?0.3:0.2)){floatFx(e.x,e.y,'EXECUTE','#f55');msg('Executed the '+EN[e.t].n+'!');killEnemy(e);}
+ if(e.hp/e.mhp<(pc('blood')?0.3:0.2)){floatFx(e.x,e.y,'EXECUTE','#f55');msg('Executed the '+nm(e)+'!');killEnemy(e);}
 }
 function poison(e){
  const s=pc('venom');if(!s||e.dead||e.hp<=0)return;
@@ -400,7 +639,7 @@ function chainZap(from){
   for(const o of G.enemies){if(o.dead||o===from||!G.vis[ix(o.x,o.y)])continue;
    const dd=Math.abs(o.x-from.x)+Math.abs(o.y-from.y);if(dd<bd&&dd<=8){bd=dd;best=o;}}
   if(best){const dmg=4+G.floor*2;hurtEnemy(best,dmg,'#9cf');
-   msg('Chain Lightning arcs to the '+EN[best.t].n+' for '+dmg+'.');
+   msg('Chain Lightning arcs to the '+nm(best)+' for '+dmg+'.');
    if(pc('venom'))poison(best);
    settle(best,'Lightning');}
  }finally{inChain=false;}
@@ -414,7 +653,7 @@ function lifeSteal(dmg){
  const p=G.p,lr=lifeRate();if(lr<=0)return;
  let h=Math.max(1,Math.round(dmg*lr));
  if(pc('berserk')&&pc('vamp')&&p.hp<p.mhp*0.5)h*=2;
- p.hp=Math.min(p.mhp,p.hp+h);
+ p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');
 }
 function playerAttack(e){
  const p=G.p;let dmg=playerDmg(),crit=Math.random()<critChance();
@@ -422,8 +661,9 @@ function playerAttack(e){
  if(p.cls==='rogue'&&!e.awake){dmg*=2;msg('Sneak attack!');}
  if(G.vanish>0){G.vanish=0;msg('You step out of the shadows.');}
  if(G.bl){dmg=Math.round(dmg*1.75);G.bl=0;msg('Bloodlust! Your strike is empowered.');}
- hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a');
- msg((crit?'Critical! ':'')+'You hit the '+EN[e.t].n+' for '+dmg+'.');
+ hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a',crit);
+ sfx(crit?'crit':'hit');if(crit||dmg>=Math.max(8,e.mhp*0.5))shake(crit?5:3);
+ msg((crit?'Critical! ':'')+'You hit the '+nm(e)+' for '+dmg+'.');
  lifeSteal(dmg);
  poison(e);
  settle(e);
@@ -431,7 +671,7 @@ function playerAttack(e){
   const half=Math.max(1,Math.floor(dmg/2));
   for(const o of G.enemies.slice()){
    if(o===e||o.dead||Math.max(Math.abs(o.x-p.x),Math.abs(o.y-p.y))>1)continue;
-   hurtEnemy(o,half,'#ffb04a');msg('Cleave hits the '+EN[o.t].n+' for '+half+'.');
+   hurtEnemy(o,half,'#ffb04a');msg('Cleave hits the '+nm(o)+' for '+half+'.');
    if(pc('venom'))poison(o);
    settle(o);
   }
@@ -439,12 +679,12 @@ function playerAttack(e){
 }
 function hurtPlayer(e,dmg,melee,verb){
  const p=G.p;
- if(Math.random()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+EN[e.t].n+'.');return false;}
- if(pc('stone')&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Stone Skin negates the '+EN[e.t].n+"'s hit.");return false;}
+ if(Math.random()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+nm(e)+'.');return false;}
+ if(pc('stone')&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Stone Skin negates the '+nm(e)+"'s hit.");return false;}
  dmg=Math.max(1,dmg-(p.def+p.ab)+rnd(-1,1));
  if(dmg<1)dmg=1;
- p.hp-=dmg;flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
- msg('The '+EN[e.t].n+' '+(verb||(melee?'hits':'blasts'))+' you for '+dmg+'.');
+ p.hp-=dmg;G.killer=nm(e);flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
+ msg('The '+nm(e)+' '+(verb||(melee?'hits':'blasts'))+' you for '+dmg+'.');playerHurtFx(dmg);
  secondWind();
  if(melee&&thornsDmg()>0&&!e.dead){hurtEnemy(e,thornsDmg(),'#8f8');settle(e,'Thorns');}
  if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&Math.random()<0.2*pc('riposte')){
@@ -455,17 +695,17 @@ function kbDmg(){return 3+Math.floor(G.floor/2);}
 // push a unit one tile; never into walls/doors/units/out of bounds (those cause bump damage instead)
 function knock(u,dx,dy){
  const p=G.p,isP=u===p;
- if(!isP&&EN[u.t].boss){msg('The '+EN[u.t].n+' is too heavy to push.');return false;}
+ if(!isP&&EN[u.t].boss){msg('The '+nm(u)+' is too heavy to push.');return false;}
  const nx=u.x+dx,ny=u.y+dy;let bump=false,other=null,what='the wall';
- if(!inb(nx,ny)||G.map[ix(nx,ny)]===0||G.map[ix(nx,ny)]===3)bump=true;
- else{other=(nx===p.x&&ny===p.y&&!isP)?p:enemyAt(nx,ny);if(other){bump=true;what=other===p?'you':'the '+EN[other.t].n;}}
+ if(!inb(nx,ny)||G.map[ix(nx,ny)]===0||G.map[ix(nx,ny)]===3||G.map[ix(nx,ny)]===5||merchantAt(nx,ny))bump=true;
+ else{other=(nx===p.x&&ny===p.y&&!isP)?p:enemyAt(nx,ny);if(other){bump=true;what=other===p?'you':'the '+nm(other);}}
  const hitU=(t,d)=>{
-  if(t===p){p.hp-=d;flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+d,'#ff5a5a');secondWind();}
+  if(t===p){p.hp-=d;G.killer='a wall slam';playerHurtFx(d);floatFx(p.x,p.y,'-'+d,'#ff5a5a');secondWind();}
   else{hurtEnemy(t,d,'#ffb04a');settle(t,'Impact');}
  };
  if(bump){
   const d=kbDmg();
-  msg((isP?'You are':'The '+EN[u.t].n+' is')+' slammed into '+what+' for '+d+'!');
+  msg((isP?'You are':'The '+nm(u)+' is')+' slammed into '+what+' for '+d+'!');
   floatFx(u.x,u.y,'BUMP','#ffb04a');
   if(!isP)u.wind=null;
   hitU(u,d);
@@ -483,12 +723,12 @@ function dangerNear(dz){const p=G.p;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1
 function canEscape(tiles){
  const p=G.p,st=new Set(tiles.map(t=>ix(t[0],t[1])));
  for(const [dx,dy] of DIRS){const nx=p.x+dx,ny=p.y+dy;if(!inb(nx,ny))continue;const t=G.map[ix(nx,ny)];
-  if(t===0||t===3||enemyAt(nx,ny))continue;if(!st.has(ix(nx,ny)))return true;}
+  if(t===0||t===3||t===5||merchantAt(nx,ny)||enemyAt(nx,ny))continue;if(!st.has(ix(nx,ny)))return true;}
  return false;
 }
 function smashWind(e){
  const p=G.p,dx=p.x-e.x,dy=p.y-e.y,px=Math.abs(dy),py=Math.abs(dx),tiles=[];
- for(const o of [0,1,-1]){const x=p.x+px*o,y=p.y+py*o;if(inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==3&&!(x===e.x&&y===e.y))tiles.push([x,y]);}
+ for(const o of [0,1,-1]){const x=p.x+px*o,y=p.y+py*o;if(inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==3&&G.map[ix(x,y)]!==5&&!(x===e.x&&y===e.y))tiles.push([x,y]);}
  if(!canEscape(tiles))return null;
  return {k:'smash',tiles:tiles,dx:dx,dy:dy};
 }
@@ -503,7 +743,7 @@ function breathWind(e){
   for(const o of offs){
    for(let kk=1;kk<=8;kk++){
     const x=e.x+ax*kk+px*o,y=e.y+ay*kk+py*o;
-    if(!inb(x,y)||G.map[ix(x,y)]===0||G.map[ix(x,y)]===3)break;
+    if(!inb(x,y)||G.map[ix(x,y)]===0||G.map[ix(x,y)]===3||G.map[ix(x,y)]===5)break;
     tiles.push([x,y]);
    }
   }
@@ -521,8 +761,9 @@ function resolveWind(e,d){
 }
 function moveEnemy(e,x,y){
  const i=ix(x,y);
- if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+EN[e.t].n+' opens the door.');}
+ if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
  e.x=x;e.y=y;
+ const tp=trapAt(x,y);if(tp)springEnemy(e,tp);
 }
 function fleeStep(e,p){
  let best=null,bd=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
@@ -558,10 +799,11 @@ function enemiesAct(free){
   const see=md<=9&&los(e.x,e.y,p.x,p.y);
   if(see)e.awake=true;
   if(!e.awake)continue;
-  if(!see&&dist[ix(e.x,e.y)]>14){e.awake=false;continue;}
+  if(!see&&!e.alarm&&dist[ix(e.x,e.y)]>14){e.awake=false;continue;}
   if(d.slowAct){if(e.rest){e.rest=0;continue;}e.rest=1;}
   const steps=d.speed||1;
   for(let s=0;s<steps;s++){
+   if(e.dead)break;
    const dd=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
    if(d.breath&&!free&&e.cd<=0&&see){const w=breathWind(e);if(w){e.wind=w;msg(d.windMsg);floatFx(e.x,e.y,'!','#f55');break;}}
    if(d.wind&&!free&&dd===1&&e.cd<=0){const w=smashWind(e);if(w){e.wind=w;msg(d.windMsg);floatFx(e.x,e.y,'!','#f55');break;}}
@@ -590,6 +832,7 @@ function endTurn(){
   if(p.regen&&G.turn%5===0)p.hp=Math.min(p.mhp,p.hp+p.regen);
   if(G.turn%8===0)p.hp=Math.min(p.mhp,p.hp+1);
  }
+ if(G.ppois&&p.hp>0){const d=G.ppois.d;p.hp-=d;G.killer='dart poison';floatFx(p.x,p.y,'-'+d,'#7be04b');G.ppois.t--;if(G.ppois.t<=0){G.ppois=null;msg('The poison wears off.');}secondWind();}
  tickPoison();
  if(G.won){finish('win');return;}
  enemiesAct();
@@ -598,10 +841,11 @@ function endTurn(){
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
  computeVis();save();render();
- if(G.pending>0)showPerk();else if(gearQ)showGear();
+ afterModals();
 }
+function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function pickup(){
- const p=G.p,it=itemAt(p.x,p.y);if(!it)return;
+ const p=G.p;stepEffects();const it=itemAt(p.x,p.y);if(!it)return;
  let take=true;
  if(it.t==='gold'){const g=Math.round(it.v*p.goldMul);p.gold+=g;msg('You pick up '+g+' gold.');}
  else if(it.t==='potion'){
@@ -617,11 +861,16 @@ function pickup(){
  }
  else if(it.t==='fire'){G.inv.fire++;msg('Found a Fireball scroll.');}
  else if(it.t==='tele'){G.inv.tele++;msg('Found a Teleport scroll.');}
- if(take)G.items=G.items.filter(o=>o!==it);
+ else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('You pick up a brass key!');}
+ if(take){G.items=G.items.filter(o=>o!==it);sfx('pickup');}
  G.stopWalk=true;
 }
 function tryMove(dx,dy){
  const p=G.p,nx=p.x+dx,ny=p.y+dy;
+ if(inb(nx,ny)&&G.map[ix(nx,ny)]===5){
+  if(G.keys>0){G.keys--;G.map[ix(nx,ny)]=4;msg('The key turns - the treasure room is open!');endTurn();return true;}
+  msg('Locked. The key is carried by the marked elite (gold ring and star) on this floor.');render();return false;}
+ if(merchantAt(nx,ny)){showShop();return false;}
  if(!walkable(nx,ny))return false;
  const e=enemyAt(nx,ny);
  if(e){playerAttack(e);endTurn();return true;}
@@ -634,20 +883,20 @@ function wait(){msg('You wait.');endTurn();}
 function descend(){
  if(!G||G.over)return;
  if(G.map[ix(G.p.x,G.p.y)]!==2){msg('No stairs here. Stand on the ▼ tile first.');return;}
- walkTok++;
+ walkTok++;sfx('stairs');
  G.stopWalk=false;
  newFloor(G.floor+1);
  const p=G.p;
  if(p.renew>0){p.hp=Math.min(p.mhp,p.hp+Math.round(p.mhp*p.renew));}
- meta.best=Math.max(meta.best,G.floor);saveMeta();
- msg('Floor '+G.floor+(G.floor===MAXF?' - dragon lair!':'.'));
+ meta.best=Math.max(meta.best,G.floor);saveMeta();checkAch();
+ msg('Floor '+G.floor+' - '+themeOf(G.floor).n+(G.floor===MAXF?' (dragon lair!)':'')+'.');
  save();render();
 }
 function drink(){
  const p=G.p;
  if(G.inv.pot<=0){msg('No potions. Find them in the dungeon.');return;}
  if(p.hp>=p.mhp){msg('Already at full health.');return;}
- G.inv.pot--;let h=Math.max(12,Math.round(p.mhp*0.4));if(p.at==='leaden')h=Math.max(1,Math.round(h*0.6));p.hp=Math.min(p.mhp,p.hp+h);
+ G.ppois=null;G.inv.pot--;let h=Math.max(12,Math.round(p.mhp*0.4*(1+0.5*pc('sage'))));if(p.at==='leaden')h=Math.max(1,Math.round(h*0.6));p.hp=Math.min(p.mhp,p.hp+h);
  floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');endTurn();
 }
 function fireball(){
@@ -663,7 +912,7 @@ function teleport(){
  if(G.inv.tele<=0){msg('No teleport scrolls. Find them in the dungeon.');return;}
  const p=G.p,c=[];
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)
-  if(G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!itemAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=8)c.push([x,y]);
+  if(G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!itemAt(x,y)&&!trapAt(x,y)&&!merchantAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=8)c.push([x,y]);
  if(!c.length){msg('The scroll fizzles.');return;}
  G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('You teleport away!');walkTok++;endTurn();
 }
@@ -690,8 +939,8 @@ function useBash(tx,ty){
  if(!e||!bashOk(e)){msg('Shield Bash: tap an adjacent enemy.');return;}
  armed=null;walkTok++;G.cd.bash=7;
  const dmg=playerDmg();hurtEnemy(e,dmg,'#ffb04a');
- msg('Shield Bash hits the '+EN[e.t].n+' for '+dmg+'.');lifeSteal(dmg);
- if(!e.dead&&e.hp>0){e.stun=EN[e.t].boss?1:2;e.wind=null;floatFx(e.x,e.y,'stunned','#ffe066');msg('The '+EN[e.t].n+' is stunned.');
+ msg('Shield Bash hits the '+nm(e)+' for '+dmg+'.');lifeSteal(dmg);
+ if(!e.dead&&e.hp>0){e.stun=EN[e.t].boss?1:2;e.wind=null;floatFx(e.x,e.y,'stunned','#ffe066');msg('The '+nm(e)+' is stunned.');
   if(e.hp>0)knock(e,e.x-G.p.x,e.y-G.p.y);}
  settle(e);endTurn();
 }
@@ -705,7 +954,7 @@ function useBolt(tx,ty){
  if(!e||!boltOk(e)){msg('Arcane Bolt: tap a visible enemy.');return;}
  const mg=G.p.cls==='mage';armed=null;walkTok++;G.cd.bolt=mg?4:5;
  const dmg=Math.round(playerDmg()*1.5)+3+(mg?3:0);
- hurtEnemy(e,dmg,'#b48cff');msg('Arcane Bolt hits the '+EN[e.t].n+' for '+dmg+'.');
+ hurtEnemy(e,dmg,'#b48cff');msg('Arcane Bolt hits the '+nm(e)+' for '+dmg+'.');
  poison(e);settle(e);
  endTurn();
 }
@@ -719,34 +968,42 @@ function toggleAbility(k){
 
 // ---------- walking ----------
 function bfsPath(sx,sy,tx,ty,allowEnemyTarget){
- const dz=dangerSet();
+ const dz=dangerSet(),tz=trapSet();
  const prev=new Map(),start=ix(sx,sy);prev.set(start,-1);const q=[[sx,sy]];
  const goal=ix(tx,ty);
  for(let i=0;i<q.length;i++){const [x,y]=q[i];if(ix(x,y)===goal)break;
   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
    if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||dz.has(k))continue;
-   if(k!==goal&&enemyAt(nx,ny))continue;
+   if(k!==goal&&(enemyAt(nx,ny)||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)))continue;
    prev.set(k,ix(x,y));q.push([nx,ny]);}}
  if(!prev.has(goal))return null;
  const path=[];let k=goal;while(k!==start){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
  return path.reverse();
 }
 function visIds(){return G.enemies.filter(e=>G.vis[ix(e.x,e.y)]).map(e=>e.id);}
-function startWalk(path){
+function startWalk(path,opts){
+ opts=opts||{};
  const tok=++walkTok;
  const stop=function(){if(dest&&dest.tok===tok){dest=null;if(G)render();}};
  const step=function(){
   if(tok!==walkTok||!G||G.over||modalOpen()||!path.length)return;
-  const p=G.p,nx=path[0][0],ny=path[0][1];
+  const p=G.p,tz=trapSet();
+  if(tz.has(ix(path[0][0],path[0][1]))){
+   const l=path[path.length-1],np=bfsPath(p.x,p.y,l[0],l[1]);
+   if(np&&np.length&&!np.some(t=>tz.has(ix(t[0],t[1])))){path.length=0;for(const t of np)path.push(t);}
+   else{msg('A trap blocks the way - walk around it.');stop();return;}
+  }
+  const nx=path[0][0],ny=path[0][1];
   if(enemyAt(nx,ny)){stop();return;}
   const dz=dangerSet();
   if(dz.size&&(dangerNear(dz)||dz.has(ix(nx,ny)))){msg('Danger tiles! Auto-walk stopped.');stop();return;}
-  if(G.map[ix(nx,ny)]!==3)path.shift();
+  if(G.map[ix(nx,ny)]!==3&&G.map[ix(nx,ny)]!==5)path.shift();
   const hp0=p.hp,v0=visIds(),f0=G.floor;G.stopWalk=false;
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
   if(!G||G.over||G.floor!==f0||p.hp<hp0||G.stopWalk||modalOpen()){stop();return;}
   const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0)){stop();return;}
-  if(path.length)setTimeout(step,70);else stop();
+  if(opts.explore&&G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){stop();return;}
+  if(path.length)setTimeout(step,70);else{stop();if(opts.done&&G&&!G.over&&!modalOpen())opts.done();}
  };
  if(path.length){const l=path[path.length-1];dest={x:l[0],y:l[1],tok:tok};}
  step();
@@ -754,22 +1011,32 @@ function startWalk(path){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemies awake nearby - fight first.');render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight - tap it to attack, or tap a tile to move.');render();return;}
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger tiles nearby - step away first.');render();return;}
- const prev=new Map();prev.set(ix(p.x,p.y),-1);const q=[[p.x,p.y]];let goal=-1;
- for(let i=0;i<q.length&&goal<0;i++){const [x,y]=q[i];
-  for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
-   if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||enemyAt(nx,ny)||dz.has(k))continue;
-   prev.set(k,ix(x,y));q.push([nx,ny]);
-   if(!G.exp[k]||G.map[k]===3){goal=k;break;}}}
+ // unnoticed enemies: keep exploring, but try not to step next to them
+const tz=trapSet();
+ const sleepers=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]);
+ const near=new Set();for(const e of sleepers)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)near.add(ix(e.x+dx,e.y+dy));
+ const search=function(avoid){
+  const prev=new Map();prev.set(ix(p.x,p.y),-1);const q=[[p.x,p.y]];let goal=-1;
+  for(let i=0;i<q.length&&goal<0;i++){const [x,y]=q[i];
+   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+    if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||enemyAt(nx,ny)||dz.has(k)||(avoid&&near.has(k)))continue;
+    prev.set(k,ix(x,y));q.push([nx,ny]);
+    if(!G.exp[k]||G.map[k]===3){goal=k;break;}}}
+  return {prev:prev,goal:goal};
+ };
+ let res=search(sleepers.length>0);
+ if(res.goal<0&&sleepers.length)res=search(false);
+ const prev=res.prev;let goal=res.goal;
  if(goal<0){
   // go to stairs if seen
   for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. Heading to the stairs.');startWalk(pa);return;}}
   msg('Nothing left to explore.');render();return;
  }
  const path=[];let k=goal;while(k!==ix(p.x,p.y)){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
- startWalk(path.reverse());
+ startWalk(path.reverse(),{explore:true});
 }
 function itemName(it){
  return {gold:'Gold pile',potion:'Health potion',fire:'Fireball scroll',tele:'Teleport scroll'}[it.t]||
@@ -787,13 +1054,31 @@ function onTap(tx,ty){
   render();return;
  }
  if(inb(tx,ty)){tapMark={x:tx,y:ty,t:performance.now()};render();}
- if(tx===p.x&&ty===p.y){if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
+ if(tx===p.x&&ty===p.y){
+  const sh=G.shrine;
+  if(sh&&!sh.used&&sh.x===p.x&&sh.y===p.y){showShrine();return;}
+  if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
  if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored floor tile.');return;}
+ const adj=Math.abs(tx-p.x)+Math.abs(ty-p.y)===1;
+ if(merchantAt(tx,ty)){
+  if(adj){showShop();return;}
+  const mp=bfsPath(p.x,p.y,tx,ty);
+  if(mp&&mp.length>1){mp.pop();startWalk(mp,{done:showShop});}else msg("Can't reach the merchant.");
+  return;}
+ if(G.map[ix(tx,ty)]===5){
+  if(adj){tryMove(tx-p.x,ty-p.y);return;}
+  const lp=bfsPath(p.x,p.y,tx,ty);
+  if(lp&&lp.length>1){lp.pop();startWalk(lp,{done:function(){if(G&&!G.over)tryMove(tx-G.p.x,ty-G.p.y);}});}else msg("Can't reach the locked door.");
+  return;}
+ {const tk=ix(tx,ty),rt=trapSet().has(tk);
+  if(rt&&trapConfirm!==tk){const t=G.traps.find(a=>a.x===tx&&a.y===ty&&!a.done);trapConfirm=tk;msg(TRAPS[t.k].n+'! Tap it again if you really want to step on it.');return;}
+  if(!rt)trapConfirm=-1;
+  if(rt&&!adj){msg('Walk around the trap - Explore and auto-walk avoid it.');return;}}
  const e=enemyAt(tx,ty);
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
   const d=EN[e.t];
-  msg(d.n+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':'')+(e.stun>0?' Stunned ('+e.stun+'t).':'')+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
+  msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':'')+(e.stun>0?' Stunned ('+e.stun+'t).':'')+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
   const path=bfsPath(p.x,p.y,tx,ty);
   if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
   return;
@@ -832,7 +1117,7 @@ function showModal(title,html,buttons){
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
   const el=document.createElement('button');if(bt.c)el.className='c';
-  el.innerHTML=bt.html||bt.label;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
+  el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
   el.addEventListener('click',function(e){e.stopPropagation();bt.fn(el);});
   b.appendChild(el);
  }
@@ -848,15 +1133,54 @@ function perkTags(pk){
 function showPerk(){
  if(!G||G.pending<=0)return;
  walkTok++;
- const pool=PERKS.filter(pk=>pc(pk.id)<pk.max);
+ const pool=PERKS.filter(pk=>pc(pk.id)<pk.max&&(!pk.lock||meta.unl[pk.lock]));
  if(!pool.length){G.pending=0;save();return;}
- const opts=pool.sort(()=>Math.random()-0.5).slice(0,3);
+ const opts=pool.sort(()=>Math.random()-0.5).slice(0,meta.unl.pick4?4:3);
  showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
    addPerk(pk.id);G.pending--;closeModal();save();render();
-   if(G.pending>0)showPerk();else if(gearQ)showGear();
+   if(G.pending>0)showPerk();else afterModals();
   }};}));
+}
+function randomPerkId(){
+ const pool=PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&pc(pk.id)<pk.max);return pool.length?pick(pool).id:null;
+}
+function showShrine(){
+ const s=G&&G.shrine;if(!s||s.used||G.over)return;walkTok++;
+ const p=G.p,better=!!meta.unl.shrine,heal=better?0.75:0.6,loss=better?0.15:0.25,pct=n=>Math.round(n*100);
+ const done=function(t){s.used=1;closeModal();msg(t);save();render();afterModals();};
+ const opts=[
+  {html:'<b>🙏 Pray</b><span>'+pct(heal)+'% chance of a full heal, '+pct(1-heal)+'% chance you lose '+pct(loss)+'% of max HP.</span>',fn:function(){
+   if(Math.random()<heal){const h=p.mhp-p.hp;p.hp=p.mhp;floatFx(p.x,p.y,'+'+h,'#6f6');done('The shrine glows. You are fully healed.');}
+   else{const l=Math.max(1,Math.round(p.mhp*loss));p.hp=Math.max(1,p.hp-l);G.killer='a cursed shrine';floatFx(p.x,p.y,'-'+l,'#ff5a5a');playerHurtFx(l);done('The shrine rejects you: -'+l+' HP.');}}},
+  {html:'<b>🪙 Sacrifice 30 gold</b><span>Gain a random perk. You have '+p.gold+' gold.</span>',off:p.gold<30,fn:function(){
+   const id=randomPerkId();if(!id){msg('No perks left to offer.');return;}
+   p.gold-=30;addPerk(id);done('The shrine accepts your gold.');}},
+  {html:'<b>🩸 Blood pact</b><span>-8 max HP, +3 attack for the rest of the run.</span>',off:p.mhp<=10,fn:function(){
+   p.mhp=Math.max(10,p.mhp-8);p.hp=Math.min(p.hp,p.mhp);p.atk+=3;done('You sign in blood: -8 max HP, +3 attack.');}}
+ ];
+ if(better)opts.splice(1,0,{html:'<b>✨ Blessing</b><span>Safe: heal 30% of max HP and gain +1 defense.</span>',fn:function(){
+  const h=Math.round(p.mhp*0.3);p.hp=Math.min(p.mhp,p.hp+h);p.def++;floatFx(p.x,p.y,'+'+h,'#6f6');done('A warm light blesses you: +1 defense.');}});
+ opts.push({label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
+ showModal('🗿 Ancient shrine','<p>A strange altar hums with power. Choose carefully - it works only once.</p>',opts);
+}
+function showShop(){
+ if(!G||G.over||!G.merchant)return;walkTok++;
+ const m=G.merchant,p=G.p;
+ const btns=m.stock.map(function(it,i){return {html:'<b>'+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' 💰</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
+ btns.push({label:'Leave',c:1,fn:closeModal});
+ showModal('🧔 Merchant','<p>"Fine wares for fine coin." You have <span class="gold">'+p.gold+' 💰</span>.</p>',btns);
+}
+function buy(i){
+ const m=G&&G.merchant,it=m&&m.stock[i],p=G&&G.p;if(!it||it.sold||p.gold<it.price)return;
+ if(it.k==='pot'){if(G.inv.pot>=p.potCap){msg('Your potion belt is full.');return;}G.inv.pot++;}
+ else if(it.k==='fire')G.inv.fire++;
+ else if(it.k==='tele')G.inv.tele++;
+ else if(it.k==='gear'){const w=it.slot==='weapon',nn=gearName(it.slot,it.v,it.tr);if(w){p.wb=it.v;p.wn=nn;p.wt=it.tr;}else{p.ab=it.v;p.an=nn;p.at=it.tr;}}
+ else if(it.k==='perk'){if(!addPerk(it.id)){msg('You cannot take that perk.');return;}}
+ else if(it.k==='elixir'){p.mhp+=10;p.hp=p.mhp;}
+ p.gold-=it.price;it.sold=1;msg('Bought: '+it.n.replace(/^\S+ /,'')+'.');save();render();showShop();
 }
 function gearHtml(){
  const p=G.p,C=clsOf(p);
@@ -883,6 +1207,7 @@ function showMenu(){
   {label:'Resume',c:1,fn:closeModal},
   {label:'Gear, perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
   {label:'Controls',c:1,fn:function(){showHelp(showMenu);}},
+  {label:soundLabel(),c:1,fn:function(el){toggleSound();el.textContent=soundLabel();}},
   {label:'Abandon run',c:1,fn:function(el){
    if(!arm.v){arm.v=true;el.textContent='Tap again to confirm (gold is banked)';return;}
    closeModal();finish('abandon');}}
@@ -894,7 +1219,7 @@ function showHelp(back){
   r('🧪','Potion','Heals about 40% of your max HP (min 12). Takes a turn. The badge shows potions carried.')+
   r('🔥','Fireball','Damages every enemy you can see. Takes a turn. Not used if no enemy is in sight.')+
   r('🌀','Teleport','Moves you to a random spot far away. Takes a turn.')+
-  r('🧭','Explore','Auto-walks to unexplored areas (opening doors), then to the stairs. Stops when an enemy appears or red danger tiles show up near you.')+
+  r('🧭','Explore','Auto-walks to unexplored areas (opening doors), then to the stairs. Keeps going past unnoticed enemies (avoiding stepping next to them); stops when one wakes up, a new one appears, or red danger tiles show up. It routes around known traps.')+
   r('⏳','Wait','Skips a turn (also: tap yourself).')+
   r('⬇️','Stairs','Goes down one floor when you stand on the ▼ tile.')+
   '<p><b>Tap controls</b></p>'+
@@ -906,6 +1231,15 @@ function showHelp(back){
   r('💥','Knockback','Shield Bash and troll smashes push a target one tile. Into a wall, a closed door or another unit means bonus damage; into open floor it just moves. Bosses cannot be pushed.')+
   r('🚪','Doors','Tap a door to open it (it uses your turn). Closed doors block sight; monsters open them too. Fight in a doorway or corridor so only one enemy can reach you, and archers need a clear line.')+
   r('💤','Unaware enemies','Dim enemies with a z have not noticed you: the Rogue deals double damage to them. An hourglass on an Ogre means it is resting this turn.')+
+  '<p><b>Dungeon features</b></p>'+
+  r('🔺','Traps','Hidden until you are next to them, then drawn clearly. Spike (grey spikes) hurts, dart (green) poisons you, alarm (bell) wakes the whole floor. Auto-walk and Explore route around revealed traps; enemies can trigger them too. Pink dot on the minimap.')+
+  r('🗿','Shrines','Some floors have one. Step on it (or tap yourself on it) for a risky choice - heal, perk, or power for a price. You can always Leave. Purple dot on the minimap.')+
+  r('🔒','Locked room and key','A locked iron door hides a treasure room (gear with a trait plus gold). The key drops from the marked elite on that floor: a named, tougher enemy with a gold ring and a star (orange on the minimap). Tap the door with the key in hand to open it. Red-orange on the minimap.')+
+  r('🧔','Merchant','On floors 3 and 6. He is not hostile and cannot be hit by accident: tap him to open the shop (potions, scrolls, gear, a perk) and spend run gold. Green dot on the minimap.')+
+  r('🏰','Themes','Floors 1-3 are the Crypt, 4-6 the Caverns (irregular rooms), 7-8 the Embers. The name shows when you arrive.')+
+  r('🔊','Sound & vibration','Off by default (handy on a plane). Switch it on in the ☰ menu or on the title screen. Sounds are generated in the page; no downloads.')+
+  r('🔓','Unlocks','On the title screen, spend banked gold on unlocks: classes, extra perks for the level-up pool, a starting scroll and more. Some unlock by playing (reach floor 4, slay 50 enemies, slay an elite, defeat the dragon).')+
+  r('🗺','Minimap colours','Cyan you, yellow stairs, red enemies, orange elite, pink traps, purple shrine, green merchant, orange-red locked door.')+
   '<p><b>Top bar</b></p>'+
   r('🏰','Floor','Current floor out of '+MAXF+'. Slay the dragon on the last one.')+
   r('Lv','Level / XP','Level up to choose a perk.')+
@@ -945,15 +1279,16 @@ function showClassPicker(){
  const t=$('titleBox');t.innerHTML='';
  const h=document.createElement('h1');h.textContent='Choose your class';t.appendChild(h);
  for(const k of Object.keys(CLS)){
-  const C=CLS[k],b=document.createElement('button');b.style.minHeight='96px';
-  b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+C.d+'</span><span><br><i>'+C.ab+'</i></span>';
-  b.addEventListener('click',function(){startRun(k);});t.appendChild(b);
+  const C=CLS[k],b=document.createElement('button'),open=k==='warrior'||!!meta.unl[k];b.style.minHeight='96px';
+  if(open){b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+C.d+'</span><span><br><i>'+C.ab+'</i></span>';b.addEventListener('click',function(){startRun(k);});}
+  else{const u=UNLOCKS.find(x=>x.id===k);b.disabled=true;b.innerHTML='<b style="font-size:18px">🔒 '+C.e+' '+C.n+'</b><span>Locked. Buy it in the title screen shop for <span class="gold">'+(u?u.cost:'?')+' 💰</span> (you have '+meta.gold+').</span>';}
+  t.appendChild(b);
  }
  const bk=document.createElement('button');bk.className='c';bk.textContent='Back';bk.addEventListener('click',showTitle);t.appendChild(bk);
 }
 function hideTitle(){$('title').style.display='none';}
-function showTitle(){
- const t=$('titleBox');t.innerHTML='';
+function showTitle(keep){
+ const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','🗡 Depths of Emberfall');
  add('p','Descend 8 floors. Slay the dragon. Die often, grow stronger.').style.textAlign='center';
@@ -967,10 +1302,23 @@ function showTitle(){
   const c=cost(s),lv=meta[s.k],maxed=lv>=SHOPMAX;
   const b=add('button','<b>'+s.n+' (Lv '+lv+'/'+SHOPMAX+')</b><span>'+s.d+' - '+(maxed?'MAXED':'<span class="gold">'+c+' 💰</span>')+'</span>');
   b.disabled=maxed||meta.gold<c;
-  b.addEventListener('click',function(){if(meta[s.k]>=SHOPMAX||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showTitle();});
+  b.addEventListener('click',function(){if(meta[s.k]>=SHOPMAX||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showTitle(1);});
  }
+ add('h2','Unlocks').style.fontSize='16px';
+ add('p','Buy these with banked gold. Locked perks only appear in the level-up pool once unlocked; the last four unlock by playing.').style.fontSize='13px';
+ for(const u of UNLOCKS){
+  const have=!!meta.unl[u.id];let sub,dis=true;
+  if(have)sub='<span style="color:#6fd08c">✓ Unlocked</span>';
+  else if(u.ach)sub='🔒 Locked - '+u.ach+' ('+u.prog()+')';
+  else{sub='🔒 <span class="gold">'+u.cost+' 💰</span>';dis=meta.gold<u.cost;}
+  const b=add('button','<b>'+u.n+'</b><span>'+u.d+'<br>'+sub+'</span>');b.disabled=dis;
+  if(have){b.style.opacity='.85';b.style.borderColor='#2a8a5a';}
+  if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showTitle(1);});
+ }
+ const sb=add('button',soundLabel(),'c');sb.addEventListener('click',function(){toggleSound();sb.textContent=soundLabel();});
  const hb=add('button','Controls','c');hb.addEventListener('click',function(){showHelp(closeModal);});
  $('title').style.display='flex';
+ if(keep)t.scrollTop=st;
 }
 $('menuBtn').addEventListener('click',showMenu);
 $('helpBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showHelp(closeModal);});
@@ -1011,7 +1359,7 @@ function updateHud(){
  $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
  $('hptxt').textContent=clsOf(p).e+' '+clsOf(p).n+'  HP '+p.hp+' / '+p.mhp;
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+Math.max(1,p.atk+p.wb+atkMod())+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>'+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'');
+ $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+Math.max(1,p.atk+p.wb+atkMod())+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'');
 }
 function renderLog(){
  if(!G)return;const l=G.log.slice(-3);
@@ -1031,7 +1379,7 @@ window.addEventListener('resize',resize);
 const EF='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 function glyph(ch,cx,cy,size){ctx.font=Math.round(size)+'px '+EF;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ch,cx,cy);}
 function drawMini(){
- const big=bigMap,cs=big?Math.max(4,Math.floor(Math.min(view.cw-8,view.ch-8)/W)):3,S=cs*W;
+ const th=themeOf(G.floor),big=bigMap,cs=big?Math.max(4,Math.floor(Math.min(view.cw-8,view.ch-8)/W)):3,S=cs*W;
  const mx=big?Math.round((view.cw-S)/2):Math.round(view.cw-S-4),my=big?Math.round((view.ch-S)/2):4;
  view.mm={x:mx,y:my,w:S,h:S};
  ctx.globalAlpha=big?0.95:0.82;ctx.fillStyle='#05060c';ctx.fillRect(mx-2,my-2,S+4,S+4);ctx.globalAlpha=1;
@@ -1039,25 +1387,51 @@ function drawMini(){
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
   const i=ix(x,y);if(!G.seen[i])continue;const t=G.map[i];
   if(t===2)continue;
-  ctx.fillStyle=t===0?'#3a4270':t===3?'#a0602a':(G.vis[i]?'#cbbd90':'#8a8060');
+  ctx.fillStyle=t===0?th.mw:t===3?'#a0602a':t===5?'#ff6a3a':(G.vis[i]?th.mf:th.mfd);
   if(t===0&&!G.exp[i]&&!big){}
   ctx.fillRect(mx+x*cs,my+y*cs,cs,cs);
  }
  for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const x=k%W,y=Math.floor(k/W),r=Math.max(cs,5);
   ctx.fillStyle='#000';ctx.fillRect(mx+x*cs+cs/2-r/2-1,my+y*cs+cs/2-r/2-1,r+2,r+2);ctx.fillStyle='#ffd24a';ctx.fillRect(mx+x*cs+cs/2-r/2,my+y*cs+cs/2-r/2,r,r);}
- for(const e of G.enemies)if(G.vis[ix(e.x,e.y)]){ctx.fillStyle='#ff4040';ctx.fillRect(mx+e.x*cs,my+e.y*cs,cs,cs);}
+ const dot=function(x,y,col,r){r=r||Math.max(cs,4);ctx.fillStyle='#000';ctx.fillRect(mx+x*cs+cs/2-r/2-1,my+y*cs+cs/2-r/2-1,r+2,r+2);ctx.fillStyle=col;ctx.fillRect(mx+x*cs+cs/2-r/2,my+y*cs+cs/2-r/2,r,r);};
+ for(const t of G.traps)if(t.rev&&!t.done&&G.seen[ix(t.x,t.y)])dot(t.x,t.y,'#ff5acd',Math.max(cs,3));
+ if(G.shrine&&G.seen[ix(G.shrine.x,G.shrine.y)])dot(G.shrine.x,G.shrine.y,G.shrine.used?'#7a6a90':'#c58aff');
+ if(G.merchant&&G.seen[ix(G.merchant.x,G.merchant.y)])dot(G.merchant.x,G.merchant.y,'#4be04b');
+ for(const e of G.enemies)if(G.vis[ix(e.x,e.y)]){if(e.elite)dot(e.x,e.y,'#ff9a1f',Math.max(cs+1,5));else{ctx.fillStyle='#ff4040';ctx.fillRect(mx+e.x*cs,my+e.y*cs,cs,cs);}}
  const q=G.p,r=Math.max(cs,4);ctx.fillStyle='#000';ctx.fillRect(mx+q.x*cs+cs/2-r/2-1,my+q.y*cs+cs/2-r/2-1,r+2,r+2);
  ctx.fillStyle='#4ee6ff';ctx.fillRect(mx+q.x*cs+cs/2-r/2,my+q.y*cs+cs/2-r/2,r,r);
+}
+function drawTrap(t,px,py,ts,v){
+ const c=TRAPS[t.k].c;ctx.save();if(!v||t.done)ctx.globalAlpha=0.55;
+ ctx.fillStyle='rgba(0,0,0,0.38)';ctx.fillRect(px+3,py+3,ts-6,ts-6);
+ ctx.strokeStyle=c;ctx.lineWidth=2;ctx.strokeRect(px+3.5,py+3.5,ts-7,ts-7);
+ if(t.k==='spike'){ctx.fillStyle='#d8dbe6';const n=3,w=(ts-10)/n;
+  for(let a=0;a<n;a++)for(let b=0;b<2;b++){const bx=px+5+a*w,by=py+ts*0.45+b*ts*0.26;ctx.beginPath();ctx.moveTo(bx,by+ts*0.22);ctx.lineTo(bx+w/2,by);ctx.lineTo(bx+w,by+ts*0.22);ctx.closePath();ctx.fill();}}
+ else if(t.k==='dart'){ctx.strokeStyle=c;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(px+ts*0.2,py+ts*0.7);ctx.lineTo(px+ts*0.75,py+ts*0.3);ctx.stroke();
+  ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(px+ts*0.82,py+ts*0.24);ctx.lineTo(px+ts*0.6,py+ts*0.27);ctx.lineTo(px+ts*0.76,py+ts*0.45);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#9d5bd6';ctx.beginPath();ctx.arc(px+ts*0.28,py+ts*0.64,ts*0.09,0,7);ctx.fill();}
+ else{ctx.fillStyle='#fff';glyph('🔔',px+ts/2,py+ts/2+1,ts*0.52);}
+ ctx.restore();
 }
 function render(){
  updateHud();updateBar();renderLog();
  ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
  ctx.fillStyle='#000';ctx.fillRect(0,0,view.cw,view.ch);
  if(!G)return;
- const now=performance.now(),p=G.p;
+ const now=performance.now(),p=G.p,th=themeOf(G.floor),rm=rmo();
+ let shk=false;
+ if(now<shakeUntil&&!rm){const sa=shakeAmt*(shakeUntil-now)/220;ctx.translate((Math.random()*2-1)*sa,(Math.random()*2-1)*sa);ctx.fillStyle='#000';ctx.fillRect(-12,-12,view.cw+24,view.ch+24);shk=true;}
  const ts=Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5));
- const ox=Math.round(view.cw/2-(p.x+0.5)*ts),oy=Math.round(view.ch/2-(p.y+0.5)*ts);
- view.ts=ts;view.ox=ox;view.oy=oy;
+ const fox=Math.round(view.cw/2-(p.x+0.5)*ts),foy=Math.round(view.ch/2-(p.y+0.5)*ts);
+ if(lastPos&&lastPos.f===G.floor&&(lastPos.x!==p.x||lastPos.y!==p.y)){
+  if(!rm&&Math.abs(lastPos.x-p.x)+Math.abs(lastPos.y-p.y)<=3)stepAnim={fx:visX,fy:visY,t:now};else stepAnim=null;
+ }else if(!lastPos||lastPos.f!==G.floor)stepAnim=null;
+ lastPos={x:p.x,y:p.y,f:G.floor};
+ let vx=p.x,vy=p.y;
+ if(stepAnim){const k=(now-stepAnim.t)/110;if(k>=1)stepAnim=null;else{const ek=k*(2-k);vx=stepAnim.fx+(p.x-stepAnim.fx)*ek;vy=stepAnim.fy+(p.y-stepAnim.fy)*ek;}}
+ visX=vx;visY=vy;
+ const ox=Math.round(view.cw/2-(vx+0.5)*ts),oy=Math.round(view.ch/2-(vy+0.5)*ts);
+ view.ts=ts;view.ox=fox;view.oy=foy;
  const x0=Math.max(0,Math.floor(-ox/ts)),x1=Math.min(W-1,Math.ceil((view.cw-ox)/ts)),
        y0=Math.max(0,Math.floor(-oy/ts)),y1=Math.min(H-1,Math.ceil((view.ch-oy)/ts));
  let more0=false;
@@ -1065,15 +1439,20 @@ function render(){
   const i=ix(x,y);if(!G.seen[i])continue;
   const px=ox+x*ts,py=oy+y*ts,t=G.map[i];
   const v=G.vis[i];
-  if(t===0){ctx.fillStyle=v?'#3d4678':'#171a2e';ctx.fillRect(px,py,ts,ts);ctx.fillStyle=v?'#6d7ab8':'#272c4a';ctx.fillRect(px,py,ts,Math.max(2,ts*0.14));
-   ctx.strokeStyle=v?'#252b52':'#0d0f1c';ctx.strokeRect(px+.5,py+.5,ts-1,ts-1);}
-  else{ctx.fillStyle=v?(((x+y)&1)?'#a8996f':'#b2a37a'):(((x+y)&1)?'#35322a':'#38352d');ctx.fillRect(px,py,ts,ts);
+  if(t===0){ctx.fillStyle=v?th.wl:th.wld;ctx.fillRect(px,py,ts,ts);ctx.fillStyle=v?th.wt:th.wtd;ctx.fillRect(px,py,ts,Math.max(2,ts*0.14));
+   ctx.strokeStyle=v?th.we:th.wed;ctx.strokeRect(px+.5,py+.5,ts-1,ts-1);}
+  else{ctx.fillStyle=v?(((x+y)&1)?th.fa:th.fb):(((x+y)&1)?th.fda:th.fdb);ctx.fillRect(px,py,ts,ts);
    if(v){ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.strokeRect(px+.5,py+.5,ts-1,ts-1);}
    if(t===3){
     ctx.fillStyle=v?'#7a4a22':'#3a2410';ctx.fillRect(px+2,py+2,ts-4,ts-4);
     ctx.strokeStyle=v?'#2a1606':'#1a0e04';ctx.lineWidth=2;ctx.strokeRect(px+3,py+3,ts-6,ts-6);
     ctx.beginPath();ctx.moveTo(px+ts/2,py+3);ctx.lineTo(px+ts/2,py+ts-3);ctx.stroke();ctx.lineWidth=1;
     ctx.fillStyle='#ffd24a';ctx.beginPath();ctx.arc(px+ts*0.7,py+ts*0.5,Math.max(2,ts*0.07),0,7);ctx.fill();
+   }
+   if(t===5){
+    ctx.fillStyle=v?'#4a4f5c':'#262a33';ctx.fillRect(px+1,py+1,ts-2,ts-2);
+    ctx.strokeStyle=v?'#ffb000':'#6a4a10';ctx.lineWidth=3;ctx.strokeRect(px+2.5,py+2.5,ts-5,ts-5);ctx.lineWidth=1;
+    ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph('🔒',px+ts/2,py+ts/2+1,ts*0.55);ctx.globalAlpha=1;
    }
    if(t===4){
     ctx.strokeStyle=v?'#7a4a22':'#3a2410';ctx.lineWidth=4;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;
@@ -1087,7 +1466,12 @@ function render(){
     ctx.strokeText('▼',px+ts*0.72,py+ts*0.7);ctx.fillStyle='#fff';ctx.fillText('▼',px+ts*0.72,py+ts*0.7);ctx.lineWidth=1;
    }}
   const it=itemAt(x,y);
-  if(it){const em={gold:'💰',potion:'🧪',weapon:'⚔️',armor:'🛡',fire:'📜',tele:'🌀'}[it.t];ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph(em,px+ts/2,py+ts/2+1,ts*0.62);if(it.tr)glyph('✨',px+ts*0.8,py+ts*0.22,ts*0.34);ctx.globalAlpha=1;}
+  {const tp=G.traps.find(a=>a.x===x&&a.y===y&&a.rev);
+   if(tp)drawTrap(tp,px,py,ts,v);
+   const sh=G.shrine;
+   if(sh&&sh.x===x&&sh.y===y){ctx.fillStyle=sh.used?'rgba(120,120,140,0.3)':'rgba(190,140,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();ctx.strokeStyle=sh.used?'#778':'#c58aff';ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;ctx.fillStyle='#fff';if(!v||sh.used)ctx.globalAlpha=0.6;glyph('🗿',px+ts/2,py+ts/2+1,ts*0.62);ctx.globalAlpha=1;}
+   if(merchantAt(x,y)){ctx.fillStyle='rgba(80,220,100,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();ctx.strokeStyle='#4be04b';ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph('🧔',px+ts/2,py+ts/2+1,ts*0.62);glyph('💰',px+ts*0.82,py+ts*0.2,ts*0.3);ctx.globalAlpha=1;}}
+  if(it){const em={gold:'💰',potion:'🧪',weapon:'⚔️',armor:'🛡',fire:'📜',tele:'🌀',key:'🗝️'}[it.t]||'❔';ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph(em,px+ts/2,py+ts/2+1,ts*0.62);if(it.tr)glyph('✨',px+ts*0.8,py+ts*0.22,ts*0.34);ctx.globalAlpha=1;}
  }
  if(dest&&dest.tok===walkTok&&!G.over&&(dest.x!==p.x||dest.y!==p.y)){
   const px=ox+dest.x*ts,py=oy+dest.y*ts;ctx.fillStyle='rgba(80,230,255,0.28)';ctx.fillRect(px,py,ts,ts);
@@ -1114,9 +1498,12 @@ function render(){
  for(const e of G.enemies){
   if(!G.vis[ix(e.x,e.y)])continue;
   const px=ox+e.x*ts,py=oy+e.y*ts,d=EN[e.t];
-  ctx.fillStyle=e.awake?'rgba(200,40,40,0.28)':'rgba(0,0,0,0.25)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.45,0,7);ctx.fill();
+  ctx.fillStyle=e.elite?'rgba(255,200,40,0.4)':e.awake?'rgba(200,40,40,0.28)':'rgba(0,0,0,0.25)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.45,0,7);ctx.fill();
+  if(e.elite){ctx.strokeStyle='#ffd24a';ctx.lineWidth=3;ctx.stroke();ctx.lineWidth=1;}
   ctx.fillStyle='#fff';if(!e.awake)ctx.globalAlpha=0.6;glyph(d.e,px+ts/2,py+ts/2+1,ts*(d.boss?0.85:0.68));ctx.globalAlpha=1;
   if(!e.awake){ctx.font='bold '+Math.round(ts*0.34)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText('z',px+ts*0.82,py+ts*0.42);ctx.fillStyle='#b9c4ff';ctx.fillText('z',px+ts*0.82,py+ts*0.42);ctx.lineWidth=1;}
+  {const fl=flashes[e.id];if(fl&&now-fl<190){ctx.fillStyle='rgba(255,255,255,'+(0.75*(1-(now-fl)/190))+')';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.4,0,7);ctx.fill();more0=true;}}
+  if(e.elite)glyph('⭐',px+ts*0.16,py+ts*0.4,ts*0.3);
   if(e.wind)glyph('❗',px+ts*0.82,py+ts*0.42,ts*0.38);
   else if(e.rest)glyph('⌛',px+ts*0.82,py+ts*0.42,ts*0.34);
   const fr=Math.max(0,Math.min(1,e.hp/e.mhp)),bh=d.boss?9:7,bx=px+2,bw=ts-4,by=py+1;
@@ -1126,17 +1513,22 @@ function render(){
   if(e.stun>0)glyph('💫',px+ts*0.5,py+ts*0.25,ts*0.4);
   if((armed==='bolt'&&boltOk(e))||(armed==='bash'&&bashOk(e))){ctx.strokeStyle=armed==='bash'?'#ffb04a':'#ff5acd';ctx.lineWidth=3;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
  }
- {const px=ox+p.x*ts,py=oy+p.y*ts;
+ puffs=puffs.filter(q=>now-q.t<450);
+ for(const q of puffs){const a=(now-q.t)/450,cx=ox+q.x*ts+ts/2,cy=oy+q.y*ts+ts/2;ctx.globalAlpha=1-a;ctx.fillStyle='#e6e6ee';for(let i=0;i<6;i++){const ang=i*1.047+q.s,r=ts*(0.15+0.5*a);ctx.beginPath();ctx.arc(cx+Math.cos(ang)*r,cy+Math.sin(ang)*r,Math.max(1.5,ts*0.12*(1-a)),0,7);ctx.fill();}ctx.globalAlpha=1;more0=true;}
+ {const px=ox+vx*ts,py=oy+vy*ts;
   ctx.fillStyle='rgba(90,160,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();if(G.vanish>0)ctx.globalAlpha=0.5;
-  ctx.fillStyle='#fff';glyph(clsOf(p).e,px+ts/2,py+ts/2+1,ts*0.7);ctx.globalAlpha=1;}
+  ctx.fillStyle='#fff';glyph(clsOf(p).e,px+ts/2,py+ts/2+1,ts*0.7);ctx.globalAlpha=1;
+  {const fl=flashes.p;if(fl&&now-fl<190){ctx.fillStyle='rgba(255,70,70,'+(0.6*(1-(now-fl)/190))+')';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.42,0,7);ctx.fill();more0=true;}}
+  if(now<pulseUntil&&!rm){const a=1-(pulseUntil-now)/700;ctx.strokeStyle='rgba(255,220,90,'+(1-a)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*(0.5+1.4*a),0,7);ctx.stroke();ctx.lineWidth=1;more0=true;}}
  drawMini(ts);
- let more=more0;
+ let more=more0||shk||!!stepAnim;
  fx=fx.filter(f=>now-f.t<800);
  for(const f of fx){
-  const a=(now-f.t)/800,px=ox+f.x*ts+ts/2,py=oy+f.y*ts+ts*0.2-a*ts*0.6;
-  ctx.globalAlpha=1-a*a;ctx.font='bold '+Math.round(ts*0.42)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const a=(now-f.t)/800,px=ox+f.x*ts+ts/2,py=oy+f.y*ts+ts*0.2-(rm?0.25:a)*ts*0.6;
+  ctx.globalAlpha=1-a*a;ctx.font='bold '+Math.round(ts*(f.big?0.62:0.42))+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(f.text,px,py);ctx.fillStyle=f.color;ctx.fillText(f.text,px,py);ctx.globalAlpha=1;more=true;
  }
+ if(now<bannerUntil&&!G.over){const a=Math.min(1,(bannerUntil-now)/600);ctx.globalAlpha=a;ctx.font='bold '+Math.round(Math.min(26,view.cw/14))+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';const bw=ctx.measureText(bannerText).width+28;ctx.fillStyle='rgba(5,5,12,0.72)';ctx.fillRect(view.cw/2-bw/2,view.ch*0.16,bw,40);ctx.fillStyle=th.wt;ctx.fillRect(view.cw/2-bw/2,view.ch*0.16+38,bw,2);ctx.fillStyle='#fff';ctx.fillText(bannerText,view.cw/2,view.ch*0.16+20);ctx.globalAlpha=1;more=true;}
  if(now<flashUntil){ctx.fillStyle='rgba(220,30,30,'+(0.35*(flashUntil-now)/250)+')';ctx.fillRect(0,0,view.cw,view.ch);more=true;}
  if(more&&!rafPending){rafPending=true;requestAnimationFrame(function(){rafPending=false;render();});}
 }
@@ -1145,6 +1537,7 @@ showTitle();
 window.__dbg=function(){return G;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
 window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){return Array.from(dangerSet());},computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,useBash:useBash,hurtPlayer:hurtPlayer,dim:{W:W,H:H,MAXF:MAXF}};
+window.__dbg.api={sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,springPlayer:springPlayer,springEnemy:springEnemy,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,wakeAll:wakeAll,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt,trapAt:trapAt};
 window.__dbg.perkIds=PERKS.map(p=>p.id);
 window.__dbg.traits=Object.keys(TR);
 window.__dbg.spawnGear=function(slot,tr,v){
