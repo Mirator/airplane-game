@@ -808,7 +808,10 @@ function enemiesAct(free){
    if(d.breath&&!free&&e.cd<=0&&see){const w=breathWind(e);if(w){e.wind=w;msg(d.windMsg);floatFx(e.x,e.y,'!','#f55');break;}}
    if(d.wind&&!free&&dd===1&&e.cd<=0){const w=smashWind(e);if(w){e.wind=w;msg(d.windMsg);floatFx(e.x,e.y,'!','#f55');break;}}
    if(dd===1){
-    if(d.kite){const fs=fleeStep(e,p);if(fs){moveEnemy(e,fs[0],fs[1]);break;}}
+    if(d.kite){
+     if(e.tired>0)e.tired--;
+     else{const fs=fleeStep(e,p);if(fs){e.fl=(e.fl||0)+1;if(e.fl>=2){e.tired=3;e.fl=0;}moveEnemy(e,fs[0],fs[1]);break;}}
+    }
     hurtPlayer(e,e.atk,true);break;}
    if(d.range&&see&&dd<=d.range&&e.cd<=0&&los(e.x,e.y,p.x,p.y,true)){hurtPlayer(e,e.atk,false);e.cd=d.cdmax||0;break;}
    if(d.kite&&see&&dd===2&&e.cd>0){const fs=fleeStep(e,p);if(fs){moveEnemy(e,fs[0],fs[1]);break;}}
@@ -1536,8 +1539,8 @@ resize();
 showTitle();
 window.__dbg=function(){return G;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
-window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){return Array.from(dangerSet());},computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,useBash:useBash,hurtPlayer:hurtPlayer,dim:{W:W,H:H,MAXF:MAXF}};
-window.__dbg.api={sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,springPlayer:springPlayer,springEnemy:springEnemy,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,wakeAll:wakeAll,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt,trapAt:trapAt};
+window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){return Array.from(dangerSet());},computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,useBash:useBash,hurtPlayer:hurtPlayer,useBolt:useBolt,useVanish:useVanish,dim:{W:W,H:H,MAXF:MAXF}};
+window.__dbg.api={SHOP:SHOP,cost:cost,sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,springPlayer:springPlayer,springEnemy:springEnemy,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,wakeAll:wakeAll,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt,trapAt:trapAt};
 window.__dbg.perkIds=PERKS.map(p=>p.id);
 window.__dbg.traits=Object.keys(TR);
 window.__dbg.spawnGear=function(slot,tr,v){
