@@ -1,0 +1,140 @@
+// run.js - run lifecycle: starting a run, populating floors, descending, death tip and the end-of-run summary.
+
+function makeEnemy(type,x,y,f){
+ const d=EN[type],s=d.boss?1:1+BAL.enemy.hpPerFloor*(f-1)*(d.range?BAL.enemy.rangedHpFactor:1),sa=d.boss?1:1+BAL.enemy.atkPerFloor*(f-1)*(d.range?BAL.enemy.rangedAtkFactor:1);
+ const hp=Math.round(d.hp*s),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*sa),awake:false,cd:0};
+ G.enemies.push(e);return e;
+}
+function stairsOk(){
+ let t=G.map.indexOf(2);
+ if(t<0){const d=G.enemies.find(e=>EN[e.t].boss);if(!d)return true;t=ix(d.x,d.y);}
+ const p=G.p,blk=new Set(G.traps.map(a=>ix(a.x,a.y))),seen=new Set([ix(p.x,p.y)]),q=[[p.x,p.y]];
+ for(let i=0;i<q.length;i++){const [x,y]=q[i];
+  for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+   if(!walkable(nx,ny)||seen.has(k)||blk.has(k))continue;seen.add(k);q.push([nx,ny]);}}
+ if(!seen.has(t))return false;
+ const m=G.merchant;
+ if(m&&!DIRS.some(d=>seen.has(ix(m.x+d[0],m.y+d[1]))))return false;
+ const sh=G.shrine;
+ if(sh&&!seen.has(ix(sh.x,sh.y)))return false;
+ return true;
+}
+function newFloor(f){
+ const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.traps=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.ppois=null;shrineQ=false;trapConfirm=-1;
+ G.seen=new Array(W*H).fill(false);G.exp=new Array(W*H).fill(false);
+ const rooms=g.rooms,p=G.p;p.x=rooms[0].cx;p.y=rooms[0].cy;
+ const taken=new Set([ix(p.x,p.y)]);
+ const tre=(f>=BAL.floor.treasureFrom&&f<MAXF&&Math.random()<BAL.floor.treasureChance)?carveTreasure(rooms,f):null;
+ const reach=bfsDist(p.x,p.y);
+ function free(room,minD){
+  for(let i=0;i<60;i++){
+   const x=rnd(room.x,room.x+room.w-1),y=rnd(room.y,room.y+room.h-1),k=ix(x,y);
+   if(G.map[k]===1&&!taken.has(k)&&reach[k]<9999&&(!minD||reach[k]>=minD)){taken.add(k);return [x,y];}
+  }
+  return null;
+ }
+ function addEnemy(type,room,x,y){return makeEnemy(type,x,y,f);}
+ const others=f===MAXF?rooms.slice(1,-1):rooms.slice(1);
+ if(f===MAXF){const r=rooms[rooms.length-1];taken.add(ix(r.cx,r.cy));addEnemy('dragon',r,r.cx,r.cy);}
+ const n=BAL.spawn.enemyBase+Math.floor(f*BAL.spawn.enemyPerFloor)+rnd(0,BAL.spawn.enemyExtraMax);
+ const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&!(k==='rat'&&f>BAL.spawn.ratLastFloor));
+ for(let i=0;i<n;i++){const r=pick(others),t=free(r);if(t)addEnemy(pick(pool),r,t[0],t[1]);}
+ // items
+ function addItem(t,v,tr){const r=pick(rooms),pos=free(r);if(pos)G.items.push({x:pos[0],y:pos[1],t,v,tr:tr||null});}
+ for(let i=0;i<BAL.spawn.goldPiles;i++)addItem('gold',rnd(BAL.spawn.goldMin,BAL.spawn.goldMax)+f*BAL.spawn.goldPerFloor);
+ addItem('potion',0);if(Math.random()<BAL.spawn.extraPotionChance)addItem('potion',0);
+ if(Math.random()<BAL.spawn.weaponChance){const tr=rollTrait('weapon',f);addItem('weapon',applyTrait(rnd(BAL.spawn.weaponMin,BAL.spawn.weaponMax)+Math.floor(f*BAL.spawn.weaponPerFloor),tr),tr);}
+ if(Math.random()<BAL.spawn.armorChance){const tr=rollTrait('armor',f);addItem('armor',applyTrait(Math.floor((f+rnd(0,BAL.spawn.armorRand))/BAL.spawn.armorDiv)+BAL.spawn.armorBase,tr),tr);}
+ if(Math.random()<BAL.spawn.fireChance)addItem('fire',0);
+ if(Math.random()<BAL.spawn.teleChance)addItem('tele',0);
+ // locked treasure room + marked elite carrying the key
+ if(tre){
+  const cands=G.enemies.filter(e=>!EN[e.t].boss&&reach[ix(e.x,e.y)]<9999);
+  if(!cands.length){G.map[ix(tre.door[0],tre.door[1])]=4;}
+  else{
+   const e=pick(cands);e.elite=1;e.name=pick(ENAMES)+' '+pick(ETITLES);e.mhp=Math.round(e.mhp*BAL.enemy.eliteHpMul);e.hp=e.mhp;e.atk=Math.round(e.atk*BAL.enemy.eliteAtkMul)+BAL.enemy.eliteAtkAdd;
+   const g1=forcedGear(f,Math.random()<BAL.treasure.weaponChance?'weapon':'armor'),cs=tre.cells.slice().sort(()=>Math.random()-0.5);
+   G.items.push({x:cs[0][0],y:cs[0][1],t:g1.t,v:g1.v,tr:g1.tr});
+   G.items.push({x:cs[1][0],y:cs[1][1],t:'gold',v:BAL.treasure.gold1Base+f*BAL.treasure.gold1PerFloor});
+   G.items.push({x:cs[2][0],y:cs[2][1],t:'gold',v:BAL.treasure.gold2Base+f*BAL.treasure.gold2PerFloor});
+   if(Math.random()<BAL.treasure.potionChance)G.items.push({x:cs[3][0],y:cs[3][1],t:'potion',v:0});
+   G.treasure={door:tre.door};
+  }
+ }
+ // shrine
+ if(f>=BAL.floor.shrineFrom&&f<MAXF&&Math.random()<BAL.floor.shrineChance){const t=free(pick(others));if(t)G.shrine={x:t[0],y:t[1],used:0,left:0};}
+ // merchant
+ if(BAL.merchant.floors.includes(f)){
+  for(let a=0;a<40&&!G.merchant;a++){
+   const t=free(a<30?pick(others):rooms[0]);if(!t)continue;
+   G.merchant={x:t[0],y:t[1],stock:[]};
+   if(a<30&&!stairsOk()){G.merchant=null;}
+  }
+  if(G.merchant)G.merchant.stock=buildStock(f);
+ }
+ // traps
+ const nt=rnd(BAL.trap.countMin,BAL.trap.countMax)+Math.floor(f/BAL.trap.floorsPerExtra);
+ for(let i=0;i<nt;i++){
+  const t=free(pick(others),BAL.trap.minDistFromStart);if(!t)continue;
+  const r=Math.random(),k=r<BAL.trap.spikeBelow?'spike':(r<BAL.trap.dartBelow||f<BAL.trap.dartOnlyBelowFloor)?'dart':'alarm';
+  G.traps.push({x:t[0],y:t[1],k:k,rev:0,done:0});
+  if(!stairsOk())G.traps.pop();
+ }
+ const th=themeOf(f);bannerText='Floor '+f+' - '+th.n;bannerUntil=performance.now()+2600;
+ computeVis();
+}
+function startRun(cls){
+ if(!CLS[cls]||(cls!=='warrior'&&!meta.unl[cls]))cls='warrior';const C=CLS[cls];
+ const p={x:0,y:0,cls:cls,hp:C.hp+BAL.meta.hpPerLevel*meta.hp,mhp:C.hp+BAL.meta.hpPerLevel*meta.hp,atk:C.atk+BAL.meta.atkPerLevel*meta.atk,def:C.def+BAL.meta.defPerLevel*meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',wt:null,at:null,
+  xp:0,lvl:1,gold:0,potCap:BAL.player.potCap,life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+BAL.meta.goldPerLevel*meta.goldp};
+ G={floor:1,p,inv:{pot:Math.min(1+BAL.meta.potPerLevel*meta.pot,BAL.meta.startPotMax),fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0,bash:0,vanish:0},syn:{},bl:0,ssUsed:0,swUsed:0,vanish:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
+ if(cls==='mage')G.perks.arcane=1;
+ if(meta.unl.scroll){const k=Math.random()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
+ gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
+ msg('You descend into the Emberfall depths as a '+C.n+'.');if(meta.unl.scroll)msg('Your starting scroll: '+(G.inv.fire>C.fire?'Fireball.':'Teleport.'));
+ hideTitle();closeModal();save();render();
+ if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
+}
+function deathTip(){
+ const k=(G.killer||'').toLowerCase();
+ if(/spike|trap|dart/.test(k))return 'Traps are drawn once you stand next to them. Walk around drawn traps (Explore does it for you), and never rush through unexplored rooms at low HP.';
+ if(/poison/.test(k))return 'Poison ticks every turn. A potion cures it - drink one before it stacks with enemy hits.';
+ if(/archer|warlock/.test(k))return 'Archers and warlocks need a clear line of sight. Break the line around a corner or a door, then close in.';
+ if(/troll|dragon/.test(k))return 'Red hatched tiles mark the next big hit. Step off them (one tile is enough) and it deals nothing.';
+ if(/ogre/.test(k))return 'Ogres act every other turn. Hit while the hourglass shows, then step back before it swings.';
+ if(/wall|impact/.test(k))return 'Knockback into a wall or door adds damage. Fight with open floor behind you.';
+ if(/shrine|curse/.test(k))return 'Gambles and cursed gear cost HP. Check your HP before praying at a shrine.';
+ if(/elite/.test(k))return 'Elite enemies are tougher than they look. Lure them into a corridor, use Fireball, or skip the treasure room.';
+ if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP - it costs a turn but saves the run.';
+ if(G.p.hp<=0&&G.inv.fire>0)return 'You died with a Fireball scroll unused. It hits everything in sight - use it when a crowd closes in.';
+ return 'Fight in corridors and doorways so only one enemy can reach you, and rest behind a closed door when you can.';
+}
+function finish(kind){
+ G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
+ const bonus=kind==='win'?BAL.run.winBonus:0,banked=p.gold+bonus;
+ meta.gold+=banked;if(kind==='win')meta.wins++;meta.best=Math.max(meta.best,G.floor);saveMeta();checkAch();clearSave();
+ computeVis();render();
+ const dead=kind==='dead';
+ if(dead){sfx('death');buzz([80,40,120]);}else if(kind==='win')sfx('win');
+ const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
+ const perks=PERKS.filter(pk=>pc(pk.id)>0).map(pk=>pk.n+(pk.max>1?' x'+pc(pk.id):'')).join(', ')||'none';
+ showModal((dead?'You Died':kind==='win'?'Victory!':'Run Ended'),
+  (kind==='win'?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>Killed by <b>'+killTxt+'</b> on floor '+G.floor+'.</p>':'<p>You left the dungeon.</p>')+
+  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+p.wn+'</b>, <b>'+p.an+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+'</span></p>'+
+  (G.newUnl&&G.newUnl.length?'<p>New unlock'+(G.newUnl.length>1?'s':'')+': <b>'+G.newUnl.join(', ')+'</b></p>':'')+
+  (dead?'<p class="pl" style="border:1px solid #4b5080;border-radius:10px;padding:8px"><b>Tip:</b> '+deathTip()+'</p>':''),
+  [{label:'Back to title',c:1,fn:function(){closeModal();G=null;showTitle();}}]);
+}
+
+function descend(){
+ if(!G||G.over)return;
+ if(G.map[ix(G.p.x,G.p.y)]!==2){msg('No stairs here. Stand on the ▼ tile first.');return;}
+ walkTok++;sfx('stairs');
+ G.stopWalk=false;
+ newFloor(G.floor+1);
+ const p=G.p;
+ if(p.renew>0){p.hp=Math.min(p.mhp,p.hp+Math.round(p.mhp*p.renew));}
+ meta.best=Math.max(meta.best,G.floor);saveMeta();checkAch();
+ msg('Floor '+G.floor+' - '+themeOf(G.floor).n+(G.floor===MAXF?' (dragon lair!)':'')+'.');
+ save();render();
+}

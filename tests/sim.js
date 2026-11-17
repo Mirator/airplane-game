@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+// Balance simulator (NOT part of `npm test`: slow). Plays full runs with the heuristic bot in tests/lib/botlib.js against
+// the built index.html and prints win rate / stall rate / death-floor histogram / top killers per class and upgrade level.
+//
+// Usage: node tests/sim.js [--runs 10] [--classes warrior,mage,rogue] [--levels fresh=0,mid=500,heavy=1500]
+//                          [--jobs 4] [--seed N] [--file path/to/index.html] [--jsonl out.jsonl]
+//   --runs     runs per class per upgrade level (default 10)
+//   --levels   name=bankedGold pairs. Each run starts from a fresh meta save with that much gold spent on the permanent
+//              shop/unlocks in the bot's fixed buying order (see SEQ in tests/lib/botlib.js), so runs are independent samples.
+//   --jobs     parallel browser pages (default 4)
+//   --seed     seed Math.random per run (run i of the whole job list uses seed*100003+i) for reproducible tables
+// "stall" = the bot gave up (action cap / no goal); it is a bot limitation, not a death. Win% counts stalls as non-wins.
+// Runtime: ~0.7 s per run with 4 jobs; the default (3 classes x 3 levels x 10 runs = 90 runs) takes about 70 s here.
+// Use --runs 50 or more for a balance decision (a 10-run cell has a +-15 point error bar on win%).
+'use strict';
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+
+const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i > 0 ? process.argv[i + 1] : def; };
+const RUNS = +arg('runs', 10);
+const CLASSES = arg('classes', 'warrior,mage,rogue').split(',');
+const LEVELS = arg('levels', 'fresh=0,mid=500,heavy=1500').split(',').map((s) => { const [n, g] = s.split('='); return { name: n, gold: +g }; });
+const JOBS = +arg('jobs', 4);
+const SEED = arg('seed', null);
+const FILE = path.resolve(arg('file', path.join(__dirname, '..', 'index.html')));
+const JSONL = arg('jsonl', null);
+const lib = fs.readFileSync(path.join(__dirname, 'lib', 'botlib.js'), 'utf8');
+
+const tasks = [];
+for (const lv of LEVELS) for (const cls of CLASSES) for (let r = 0; r < RUNS; r++) tasks.push({ lv, cls, r, id: tasks.length });
+
+const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y); return a[a.length >> 1]; };
+
+(async () => {
+  const t0 = Date.now();
+  const browser = await chromium.launch();
+  const results = [], errors = [];
+  let next = 0, done = 0;
+  async function worker() {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.goto('file://' + FILE);
+    await page.addScriptTag({ content: lib });
+    while (next < tasks.length) {
+      const t = tasks[next++];
+      try {
+        const res = await page.evaluate(([cls, gold, seed]) => {
+          if (seed !== null) {
+            let a = seed >>> 0;
+            Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let x = a; x = Math.imul(x ^ (x >>> 15), x | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+          }
+          BOT.resetMeta({ gold });
+          BOT.spend(window.__dbg.api.meta(), { i: 0 });
+          const r = BOT.runOne(cls, {});
+          r.dbg = null;
+          return r;
+        }, [t.cls, t.lv.gold, SEED === null ? null : (+SEED * 100003 + t.id) >>> 0]);
+        results.push({ ...res, level: t.lv.name, run: t.r });
+      } catch (e) { errors.push('crash ' + t.cls + ': ' + String(e).slice(0, 100)); }
+      if (++done % 10 === 0) process.stderr.write(`  ${done}/${tasks.length} runs, ${((Date.now() - t0) / 1000).toFixed(0)}s\n`);
+    }
+    await ctx.close();
+  }
+  await Promise.all(Array.from({ length: Math.min(JOBS, tasks.length) }, worker));
+  await browser.close();
+
+  if (JSONL) fs.writeFileSync(JSONL, results.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  for (const lv of LEVELS) {
+    console.log(`\n== ${lv.name} (${lv.gold} banked gold spent on upgrades)`);
+    console.log('class     n   win%  stall%  medTurns  medGold  deathFloor(1..8)  top killers');
+    for (const cls of CLASSES) {
+      const rows = results.filter((r) => r.level === lv.name && r.cls === cls);
+      if (!rows.length) continue;
+      const n = rows.length, won = rows.filter((r) => r.won).length, st = rows.filter((r) => r.stall).length;
+      const fl = Array(9).fill(0);
+      rows.filter((r) => !r.won).forEach((r) => fl[r.floor]++);
+      const kc = {};
+      rows.filter((r) => !r.won && !r.stall).forEach((r) => { kc[r.killer] = (kc[r.killer] || 0) + 1; });
+      const ks = Object.entries(kc).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0] + ':' + x[1]).join(' ');
+      console.log(cls.padEnd(9) + String(n).padStart(3) + String((100 * won / n).toFixed(0) + '%').padStart(7) + String((100 * st / n).toFixed(0) + '%').padStart(8)
+        + String(med(rows.map((r) => r.turns))).padStart(10) + String(med(rows.map((r) => r.gold))).padStart(9) + '  ' + fl.slice(1).join(',').padEnd(17) + ks);
+    }
+  }
+  console.log(`\n${results.length}/${tasks.length} runs finished in ${((Date.now() - t0) / 1000).toFixed(0)}s, ${errors.length} page errors/crashes${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
+  process.exit(errors.length ? 1 : 0);
+})();
