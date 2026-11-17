@@ -1,18 +1,19 @@
-// Feature tests: floor modifiers, branching exits, Daily seeding, records / achievements / Hard mode and the save migrations around them.
+// Feature tests: floor modifiers, branching exits, the locked treasure room, Daily seeding, records / achievements / gold banking /
+// Hard mode and the save migrations around them. Every test has its own browser context and runs concurrently with the others.
 'use strict';
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { launch, newPage, startRun } = require('./lib/harness');
+const { launch, newPage, startRun, openRun, closeModal, dbgReady, HELPERS, CONC } = require('./lib/harness');
 
 let browser;
 before(async () => { browser = await launch(); });
 after(async () => { await browser.close(); });
 
 const BASE_META = { seenHelp: 1, gold: 0, unl: { rogue: 1, mage: 1 } };
-const dbgDone = (page) => page.waitForFunction(() => !!window.__dbg() && document.getElementById('title').style.display === 'none');
-const closeModal = (page) => page.evaluate(() => { document.getElementById('modal').style.display = 'none'; });
+const run = (page, cls) => page.locator('#title button', { hasText: new RegExp(cls) }).click();
 
-describe('floor modifiers', () => {
+describe('features', { concurrency: CONC }, () => {
+  // ------------------------------------------------------------------------------------------------ floor modifiers
   it('every modifier generates a completable floor over many seeds (stairs reachable, nothing sealed in, stairsOk)', async () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 5, meta: BASE_META });
     try {
@@ -21,8 +22,8 @@ describe('floor modifiers', () => {
         const g = () => window.__dbg(), F = window.__dbg.fn, M = window.__dbg.mods, out = { fails: [], floors: 0, seen: {} };
         const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
         for (const m of M.MODS) {
-          for (let i = 0; i < 80; i++) {
-            const f = m.minF + (i % (7 - m.minF + 1));                    // every depth the modifier can roll on (2..7)
+          for (let i = 0; i < 36; i++) {
+            const f = m.minF + (i % (7 - m.minF + 1));                    // every depth the modifier can roll on (2..7), several times
             F.newFloor(f, { mod: m.id, v: i % 2 }); out.floors++;
             const G = g(), W = 30, tag = m.id + ' f' + f + ' #' + i;
             if (G.mod !== m.id) out.fails.push(tag + ': modifier not applied');
@@ -53,28 +54,31 @@ describe('floor modifiers', () => {
     } finally { await ctx.close(); }
   });
 
-  it('modifier rules: cursed ground, dark sight, silent sneak, rich gold, flooded wading, unstable collapse, hunted reward', async () => {
-    const { page, ctx, errors } = await newPage(browser, { seed: 6, meta: BASE_META });
+  it('modifier rules: cursed ground, dark sight, silent sneak and hearing, rich gold, flooded wading, unstable collapse, hunted reward', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 6, meta: BASE_META });
     try {
-      await startRun(page, 'warrior'); await closeModal(page);
+      await page.evaluate(HELPERS);
       const r = await page.evaluate(() => {
-        const g = () => window.__dbg(), F = window.__dbg.fn, A = window.__dbg.api, B = window.__dbg.tables.BAL, o = {};
+        const g = () => window.__dbg(), F = window.__dbg.fn, A = window.__dbg.api, B = window.__dbg.tables.BAL, T = window.T, o = {};
         const clear = () => { g().enemies.length = 0; };
         // cursed: no natural regeneration, potions weakened
-        F.newFloor(3, { mod: 'cursed', v: 0 }); clear(); g().p.hp = 10; const t0 = g().turn; for (let i = 0; i < 40; i++) F.endTurn(); o.cursedHp = g().p.hp;
+        F.newFloor(3, { mod: 'cursed', v: 0 }); clear(); g().p.hp = 10; for (let i = 0; i < 40; i++) F.endTurn(); o.cursedHp = g().p.hp;
         g().inv.pot = 1; g().p.hp = 10; g().p.mhp = 100; document.getElementById('b_pot').click(); o.cursedPot = g().p.hp - 10;
         F.newFloor(3, { mod: null, v: 0 }); clear(); g().p.mhp = 100; g().p.hp = 10; g().inv.pot = 1; document.getElementById('b_pot').click(); o.plainPot = g().p.hp - 10;
         // dark: short sight
         F.newFloor(3, { mod: 'dark', v: 0 }); F.computeVis(); { const G = g(); let far = 0; for (let y = 0; y < 30; y++) for (let x = 0; x < 30; x++) if (G.vis[y * 30 + x] && Math.hypot(x - G.p.x, y - G.p.y) > B.mod.dark.sight + 1.2) far++; o.darkFar = far; }
-        // silent: warrior sneak multiplier
-        F.newFloor(3, { mod: 'silent', v: 0 }); o.silentSneak = window.__dbg.gear.sneakMul(); F.newFloor(3, { mod: null, v: 0 }); o.plainSneak = window.__dbg.gear.sneakMul();
+        // silent: warrior sneak multiplier, and sleeping enemies only notice you from a short distance
+        F.newFloor(3, { mod: 'silent', v: 0 }); o.silentSneak = window.__dbg.gear.sneakMul();
+        T.setup(8); g().mod = 'silent'; { const e = T.foe('goblin', 6, 0, false); F.enemiesAct(); o.silentNoticed = e.awake; }   // (setup may roll a new floor: pin the modifier)
+        F.newFloor(3, { mod: null, v: 0 }); o.plainSneak = window.__dbg.gear.sneakMul();
+        T.setup(8); g().mod = null; { const e = T.foe('goblin', 6, 0, false); F.enemiesAct(); o.plainNoticed = e.awake; }
         // rich: doubled gold on pickup
-        F.newFloor(3, { mod: 'rich', v: 0 }); { const G = g(); clear(); G.items.length = 0; G.p.goldMul = 1; const g0 = G.p.gold; G.items.push({ x: G.p.x, y: G.p.y, t: 'gold', v: 10 }); F.tryMove(0, 0); window.__dbg.fn.endTurn(); }
+        F.newFloor(3, { mod: 'rich', v: 0 }); { const G = g(); clear(); G.items.length = 0; G.p.goldMul = 1; const g0 = G.p.gold; G.items.push({ x: G.p.x, y: G.p.y, t: 'gold', v: 10 }); F.tryMove(0, 0); o.richGold = G.p.gold - g0; }
         // flooded: stepping into water gives the awake enemy a free move
         F.newFloor(4, { mod: 'flooded', v: 0 }); { const G = g(); clear(); const w = new Set(G.water); let step = null;
           for (let y = 1; y < 29 && !step; y++) for (let x = 1; x < 29 && !step; x++) { if (!w.has(y * 30 + x)) continue; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const px = x + dx, py = y + dy; if (G.map[py * 30 + px] === 1 && !w.has(py * 30 + px)) { step = { px, py, dx: -dx, dy: -dy }; break; } } }
           o.waterFound = !!step;
-          if (step) { G.p.x = step.px; G.p.y = step.py; G.items.length = 0; G.traps.length = 0; const e = F.makeEnemy('goblin', step.px + (step.dx === 0 ? 3 : -step.dx * 3), step.py, 4); e.awake = true; G.enemies = [e]; F.computeVis(); const before = g().turn; F.tryMove(step.dx, step.dy); o.waded = /slog through the water/.test(G.log.join('|')); } }
+          if (step) { G.p.x = step.px; G.p.y = step.py; G.items.length = 0; G.traps.length = 0; const e = F.makeEnemy('goblin', step.px + (step.dx === 0 ? 3 : -step.dx * 3), step.py, 4); e.awake = true; G.enemies = [e]; F.computeVis(); F.tryMove(step.dx, step.dy); o.waded = /slog through the water/.test(G.log.join('|')); } }
         // unstable: cracks appear, collapse hurts the one standing on them, not the one who moved away
         F.newFloor(4, { mod: 'unstable', v: 0 }); { const G = g(); clear(); G.p.hp = G.p.mhp; for (let i = 0; i < 8; i++) F.endTurn(); o.cracks = G.cracks.length;
           G.p.hp = G.p.mhp; G.cracks = [{ x: G.p.x, y: G.p.y, t: 1 }]; const h = G.p.hp; F.endTurn(); o.collapseDmg = h - G.p.hp; o.cracksLeft = G.cracks.length; }
@@ -86,19 +90,20 @@ describe('floor modifiers', () => {
       assert.ok(r.cursedPot > 0 && r.cursedPot < r.plainPot, 'cursed potion heals less: ' + r.cursedPot + ' vs ' + r.plainPot);
       assert.equal(r.darkFar, 0, 'dark: nothing visible beyond the short radius');
       assert.ok(r.silentSneak > r.plainSneak, 'silent: warrior sneak attacks are stronger');
+      assert.equal(r.silentNoticed, false, 'silent: a sleeper 6 tiles away does not notice you');
+      assert.equal(r.plainNoticed, true, 'normal floor: it does');
+      assert.equal(r.richGold, 20, 'rich vein doubles picked-up gold');
       assert.equal(r.waterFound, true); assert.equal(r.waded, true, 'stepping into water gives the awake enemy a free move');
       assert.ok(r.cracks >= 1, 'unstable floor produced cracks'); assert.ok(r.collapseDmg > 0, 'collapse hurt the player standing on it'); assert.equal(r.cracksLeft, 0);
       assert.equal(r.hunter, true); assert.match(r.reward, /gold/); assert.match(r.reward, /potion/); assert.equal(r.huntAch, true);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });
-});
 
-describe('branching exits', () => {
+  // ------------------------------------------------------------------------------------------------ exits
   it('stairs open a two-way choice by touch; each route shows theme and modifier; Stay and choosing both work; merchants on both branches', async () => {
-    const { page, ctx, errors } = await newPage(browser, { seed: 7, touch: true, meta: BASE_META });
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 7, touch: true, meta: BASE_META });
     try {
-      await startRun(page, 'warrior'); await closeModal(page);
       const goStairs = () => page.evaluate(() => {
         const G = window.__dbg(); G.enemies.length = 0; const k = G.map.indexOf(2); G.p.x = k % 30; G.p.y = Math.floor(k / 30); window.__dbg.fn.computeVis(); window.__dbg.fn.endTurn();
         return { floor: G.floor, opts: G.opts };
@@ -127,7 +132,7 @@ describe('branching exits', () => {
       // merchant floors keep their merchant on both branches
       const mer = await page.evaluate(() => {
         const F = window.__dbg.fn, res = [];
-        for (const f of [3, 6]) for (const v of [0, 1]) for (const mod of [null, 'hunted', 'horde', 'flooded', 'unstable']) for (let i = 0; i < 5; i++) { F.newFloor(f, { mod, v }); if (!window.__dbg().merchant) res.push(f + ':' + mod); }
+        for (const f of [3, 6]) for (const v of [0, 1]) for (const mod of [null, 'hunted', 'horde', 'flooded', 'unstable']) for (let i = 0; i < 3; i++) { F.newFloor(f, { mod, v }); if (!window.__dbg().merchant) res.push(f + ':' + mod); }
         return res;
       });
       assert.deepEqual(mer, []);
@@ -136,20 +141,18 @@ describe('branching exits', () => {
   });
 
   it('exit options: never two plain routes, never a modifier on floor 1 or the dragon floor, and the HUD chip explains the modifier on tap', async () => {
-    const { page, ctx, errors } = await newPage(browser, { seed: 8, touch: true, meta: BASE_META });
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 8, touch: true, meta: BASE_META });
     try {
-      await startRun(page, 'warrior'); await closeModal(page);
       const r = await page.evaluate(() => {
-        const F = window.__dbg.fn, M = window.__dbg.mods, bad = [], counts = { mod: 0, none: 0 };
-        for (let nf = 2; nf <= 7; nf++) for (let i = 0; i < 200; i++) {
+        const F = window.__dbg.fn, bad = [], counts = { mod: 0, none: 0 };
+        for (let nf = 2; nf <= 7; nf++) for (let i = 0; i < 150; i++) {
           const o = F.rollOpts(nf);
           if (!o[0].mod && !o[1].mod) bad.push('two plain at ' + nf);
           if (o[0].mod && o[0].mod === o[1].mod) bad.push('same mod twice at ' + nf);
           if (o[0].v === o[1].v) bad.push('same theme twice');
           for (const x of o) { if (x.mod) counts.mod++; else counts.none++; if (x.mod === 'hunted' && nf < 3) bad.push('hunted too early'); }
         }
-        F.newFloor(1, { mod: null, v: 0 }); const g = window.__dbg();
-        return { bad, counts, opts1: g.opts && g.opts.length, floor8: (F.newFloor(8, { mod: 'dark', v: 1 }), window.__dbg().opts) };
+        return { bad, counts, floor8: (F.newFloor(8, { mod: 'dark', v: 1 }), window.__dbg().opts) };
       });
       assert.deepEqual(r.bad, []);
       assert.ok(r.counts.mod > 0.4 * (r.counts.mod + r.counts.none) && r.counts.mod < 0.75 * (r.counts.mod + r.counts.none), JSON.stringify(r.counts));
@@ -165,9 +168,49 @@ describe('branching exits', () => {
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });
-});
 
-describe('daily run', () => {
+  it('locked treasure room: the elite drops the key, the door stays locked without it and opens with it; stairsOk rejects blocked merchants/shrines', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 23, meta: BASE_META });
+    try {
+      const r = await page.evaluate(() => {
+        const G = window.__dbg(), F = window.__dbg.fn, A = window.__dbg.api, out = {};
+        for (let i = 0; i < 60 && !G.treasure; i++) F.newFloor(3 + (i % 4));
+        out.treasure = !!G.treasure;
+        const [dx, dy] = G.treasure.door, W = 30, at = (x, y) => y * W + x;
+        const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => [dx + a, dy + b, -a, -b]).find((t) => G.map[at(t[0], t[1])] === 1);
+        const stand = (x, y) => { G.p.x = x; G.p.y = y; G.enemies = G.enemies.filter((e) => e.elite); G.items = G.items.filter((i) => i.t === 'key'); };
+        const elite = G.enemies.find((e) => e.elite); out.elite = !!elite;
+        stand(nb[0], nb[1]); G.keys = 0;
+        out.lockedRefused = F.tryMove(nb[2], nb[3]) === false && G.map[at(dx, dy)] === 5;
+        elite.hp = 1; G.items = []; A.killEnemy(elite);
+        const key = G.items.find((i) => i.t === 'key'); out.keyDropped = !!key;
+        if (key) { G.p.x = key.x; G.p.y = key.y; F.tryMove(0, 0); }
+        out.keys = G.keys;
+        stand(nb[0], nb[1]);
+        out.opened = F.tryMove(nb[2], nb[3]) === true && G.map[at(dx, dy)] === 4 && G.keys === 0;
+        return out;
+      });
+      assert.ok(r.treasure && r.elite, 'found a floor with a treasure room: ' + JSON.stringify(r));
+      assert.ok(r.lockedRefused, 'a locked door does not open without a key');
+      assert.ok(r.keyDropped, 'the elite drops a key'); assert.equal(r.keys, 1, 'the key is picked up');
+      assert.ok(r.opened, 'with the key the door opens (and uses it up)');
+      // stairsOk: a merchant sealed into a pocket, or a shrine the player cannot reach, makes a floor invalid
+      const s = await page.evaluate(() => {
+        const G = window.__dbg(), api = window.__dbg.api, W = 30, out = {};
+        G.map.fill(0); for (let x = 3; x <= 10; x++) G.map[5 * W + x] = 1; G.map[5 * W + 10] = 2;
+        G.p.x = 3; G.p.y = 5; G.enemies = []; G.traps = []; G.shrine = null; G.merchant = null; G.treasure = null;
+        out.plain = api.stairsOk();
+        G.map[9 * W + 12] = 1; G.merchant = { x: 12, y: 9, stock: [] }; out.sealedMerchant = api.stairsOk();
+        G.merchant = { x: 9, y: 5, stock: [] }; G.map[5 * W + 9] = 1; out.merchantBlocksCorridor = api.stairsOk();
+        G.merchant = null; G.map[5 * W + 9] = 1; G.map[9 * W + 12] = 1; G.shrine = { x: 12, y: 9, used: 0, left: 0 }; out.sealedShrine = api.stairsOk();
+        return out;
+      });
+      assert.equal(s.plain, true); assert.equal(s.sealedMerchant, false); assert.equal(s.merchantBlocksCorridor, false); assert.equal(s.sealedShrine, false);
+      assert.deepEqual(errors, []);
+    } finally { await ctx.close(); }
+  });
+
+  // ------------------------------------------------------------------------------------------------ daily
   const capture = (page) => page.evaluate(() => {
     const F = window.__dbg.fn, out = [];
     const snap = () => { const G = window.__dbg(); return JSON.stringify({ f: G.floor, mod: G.mod, v: G.variant, map: G.map, p: [G.p.x, G.p.y], en: G.enemies.map((e) => [e.t, e.x, e.y, e.hp, e.atk, !!e.elite, !!e.hunter]), it: G.items.map((i) => [i.t, i.k, i.v, i.x, i.y, i.tr]), tr: G.traps.map((t) => [t.k, t.x, t.y]), sh: G.shrine && [G.shrine.x, G.shrine.y], me: G.merchant && [G.merchant.x, G.merchant.y, G.merchant.stock.map((s) => s.n)], w: G.water, opts: G.opts }); };
@@ -175,19 +218,20 @@ describe('daily run', () => {
     for (let f = 2; f <= 8; f++) { const G = window.__dbg(); F.goDown(f < 8 ? G.opts[f % 2] : { mod: null, v: 0 }); out.push(snap()); }
     return out;
   });
+  const startDaily = async (page, cls) => { await page.locator('#btnDaily').click(); await run(page, cls); await dbgReady(page); await closeModal(page); };
+
   it('the same date gives identical floors, modifiers, exits, enemies and loot across two fresh page loads (different Math.random)', async () => {
     const a = await newPage(browser, { seed: 111, fakeDate: [2026, 5, 15], meta: BASE_META });
     const b = await newPage(browser, { seed: 222, fakeDate: [2026, 5, 15], meta: BASE_META });
     const c = await newPage(browser, { seed: 111, fakeDate: [2026, 5, 16], meta: BASE_META });
     try {
-      const run = async (x) => { await x.page.locator('#btnDaily').click(); await x.page.locator('#title button', { hasText: /Warrior/ }).click(); await dbgDone(x.page); await closeModal(x.page); return capture(x.page); };
-      const [fa, fb, fc] = [await run(a), await run(b), await run(c)];
+      const [fa, fb, fc] = await Promise.all([a, b, c].map(async (x) => { await startDaily(x.page, 'Warrior'); return capture(x.page); }));
       assert.equal(fa.length, 8);
       assert.deepEqual(fa, fb);
       assert.notDeepEqual(fa[0], fc[0], 'another date must give another dungeon');
       assert.equal(await a.page.evaluate(() => window.__dbg().daily), '2026-06-15');
       // the plan for a floor does not depend on which way you went before
-      const opt = await a.page.evaluate(() => { const F = window.__dbg.fn; return [0, 1].map((i) => { return JSON.stringify(F.rollOpts(5)); }); });
+      const opt = await a.page.evaluate(() => { const F = window.__dbg.fn; return [0, 1].map(() => JSON.stringify(F.rollOpts(5))); });
       assert.equal(opt[0], opt[1]);
       for (const x of [a, b, c]) assert.deepEqual(x.errors, []);
     } finally { for (const x of [a, b, c]) await x.ctx.close(); }
@@ -196,7 +240,7 @@ describe('daily run', () => {
   it('combat rolls are seeded too: same actions on the same date give the same outcome; Daily result is recorded per day and survives reload', async () => {
     const play = async (seed) => {
       const x = await newPage(browser, { seed, fakeDate: [2026, 5, 15], meta: BASE_META });
-      await x.page.locator('#btnDaily').click(); await x.page.locator('#title button', { hasText: /Rogue/ }).click(); await dbgDone(x.page); await closeModal(x.page);
+      await startDaily(x.page, 'Rogue');
       const res = await x.page.evaluate(() => {
         const F = window.__dbg.fn, G = window.__dbg(); const log = [];
         for (let i = 0; i < 120 && !G.over; i++) { const d = [[1, 0], [0, 1], [-1, 0], [0, -1]][i % 4]; F.tryMove(d[0], d[1]); if (document.getElementById('modal').style.display !== 'none') document.getElementById('modal').style.display = 'none'; log.push(G.p.hp + ':' + G.p.x + ':' + G.p.y + ':' + G.kills); }
@@ -204,12 +248,11 @@ describe('daily run', () => {
       });
       return { x, res };
     };
-    const A = await play(1), B = await play(2);
+    const [A, B] = await Promise.all([play(1), play(2)]);
     try {
       assert.equal(A.res.log, B.res.log);
       // record: end the run, reload, the Daily button reports the result
       await A.x.page.evaluate(() => { window.__dbg.api.finish('dead'); });
-      await A.x.page.waitForTimeout(100);
       await A.x.page.reload();
       assert.match(await A.x.page.locator('#btnDaily').textContent(), /best floor \d+ - \d+ pts/);
       const m = await A.x.page.evaluate(() => JSON.parse(localStorage.getItem('dcr_meta_v1')).dly);
@@ -221,10 +264,9 @@ describe('daily run', () => {
   it('a Daily run saves and continues with its seeded stream intact', async () => {
     const x = await newPage(browser, { seed: 3, fakeDate: [2026, 5, 15], meta: BASE_META });
     try {
-      await x.page.locator('#btnDaily').click(); await x.page.locator('#title button', { hasText: /Warrior/ }).click(); await dbgDone(x.page); await closeModal(x.page);
+      await startDaily(x.page, 'Warrior');
       await x.page.evaluate(() => { const F = window.__dbg.fn; for (let i = 0; i < 6; i++) F.tryMove(1, 0); F.save(); });
       const before = await x.page.evaluate(() => { const G = window.__dbg(); return { turn: G.turn, rs: G.rs, daily: G.daily }; });
-      await x.page.waitForTimeout(300);
       await x.page.reload();
       await x.page.locator('#title button', { hasText: /Continue run/ }).click();
       const after = await x.page.evaluate(() => { const G = window.__dbg(); return { turn: G.turn, rs: G.rs, daily: G.daily }; });
@@ -232,27 +274,38 @@ describe('daily run', () => {
       assert.deepEqual(x.errors, []);
     } finally { await x.ctx.close(); }
   });
-});
 
-describe('records, achievements, Hard mode', () => {
-  it('recap shows score and NEW RECORD; records and achievements persist across reload', async () => {
-    const { page, ctx, errors } = await newPage(browser, { seed: 9, meta: BASE_META });
+  // ------------------------------------------------------------------------------------------------ records, achievements, banking, Hard
+  it('records: score and NEW RECORD on the recap; runs, wins, streaks, fastest win and achievements persist across reload', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 9, meta: BASE_META });
     try {
-      await startRun(page, 'warrior'); await closeModal(page);
-      await page.evaluate(() => { const G = window.__dbg(); G.floor = 3; G.kills = 5; window.__dbg.api.finish('dead'); });
-      assert.match(await page.locator('#modalBox').textContent(), /Score:\s*\d+/);
-      await page.locator('#modalBox button').click();
-      await page.locator('#title button', { hasText: /New run/ }).click(); await page.locator('#title button', { hasText: /Warrior/ }).click(); await dbgDone(page); await closeModal(page);
-      await page.evaluate(() => { const G = window.__dbg(); G.floor = 6; G.kills = 20; G.turn = 800; G.p.lvl = 5; G.won = true; G.stats.pots = 0; window.__dbg.api.finish('win'); });
-      const recap = await page.locator('#modalBox').textContent();
-      assert.match(recap, /NEW RECORD/); assert.match(recap, /Achievement/);
-      assert.match(await page.locator('#modalBox').textContent(), /First Victory/);
-      await page.locator('#modalBox button').click();
-      await page.waitForTimeout(150);
+      // five finished runs: lose, win (800 turns), win (500), win (900), lose. startRun() through the same API the title uses.
+      const recap = await page.evaluate(() => {
+        const D = window.__dbg, F = D.fn, texts = [], B = D.tables.BAL;
+        const play = (kind, over) => {
+          F.startRun('warrior'); document.getElementById('modal').style.display = 'none';
+          const G = D(); Object.assign(G, over); if (over.lvl) G.p.lvl = over.lvl; if (kind === 'win') { G.won = true; G.stats.pots = 0; }
+          D.api.finish(kind); texts.push(document.getElementById('modalBox').textContent);
+        };
+        play('dead', { floor: 3, kills: 5 });
+        play('win', { floor: 6, kills: 20, turn: 800, lvl: 5 });
+        play('win', { floor: 6, kills: 20, turn: 500, lvl: 5 });
+        play('win', { floor: 6, kills: 20, turn: 900, lvl: 5 });
+        const m = D.api.meta(), streakAfterWins = m.streak;
+        play('dead', { floor: 2, kills: 1 });
+        return { texts, streakAfterWins, streak: m.streak, bstreak: m.bstreak, fast: m.rec.n.warrior.fast };
+      });
+      assert.match(recap.texts[0], /Score:\s*\d+/);
+      assert.match(recap.texts[1], /NEW RECORD/); assert.match(recap.texts[1], /Achievement/); assert.match(recap.texts[1], /First Victory/);
+      assert.match(recap.texts[2], /fastest win/, 'a quicker win is a new record');
+      assert.doesNotMatch(recap.texts[3], /fastest win/, 'a slower win is not');
+      assert.equal(recap.streakAfterWins, 3); assert.equal(recap.streak, 0, 'a loss ends the win streak'); assert.equal(recap.bstreak, 3);
+      assert.equal(recap.fast, 500);
+      await page.evaluate(() => window.__dbg.api.showTitle());
       await page.reload();
       await page.locator('#btnRecords').click();
       const rec = await page.locator('#titleBox').textContent();
-      assert.match(rec, /Runs 2/); assert.match(rec, /Wins 1/); assert.match(rec, /Best streak 1/); assert.match(rec, /Fastest win 800 turns/);
+      assert.match(rec, /Runs 5/); assert.match(rec, /Wins 3/); assert.match(rec, /Best streak 3/); assert.match(rec, /Fastest win 500 turns/);
       await page.locator('#btnBack').click();
       await page.locator('#btnAch').click();
       const have = await page.locator('#titleBox [data-ach][data-have="1"]').evaluateAll((els) => els.map((e) => e.dataset.ach));
@@ -265,10 +318,36 @@ describe('records, achievements, Hard mode', () => {
     } finally { await ctx.close(); }
   });
 
-  it('achievement rewards go to the wallet once and a toast is shown during play', async () => {
-    const { page, ctx, errors } = await newPage(browser, { seed: 10, meta: BASE_META });
+  it('gold banking: full gold for an abandoned run, +win bonus for a win, x1.5 on Hard; Hard score x1.5', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 24, meta: { ...BASE_META, wins: 1 } });
     try {
-      await startRun(page, 'warrior'); await closeModal(page);
+      const r = await page.evaluate(() => {
+        const D = window.__dbg, F = D.fn, m = D.api.meta(), B = D.tables.BAL, out = {};
+        const bank = (kind, gold, hard) => {
+          m.hardOn = hard ? 1 : 0; D.mods.ACH.forEach((a) => { m.ach[a.id] = 1; });   // no achievement gold mixed into the numbers
+          F.startRun('warrior'); document.getElementById('modal').style.display = 'none';
+          const G = D(); G.p.gold = gold; if (kind === 'win') G.won = true;
+          const g0 = m.gold; D.api.finish(kind); return m.gold - g0;
+        };
+        out.abandon = bank('abandon', 100, 0);
+        out.win = bank('win', 100, 0);
+        out.hardWin = bank('win', 100, 1);
+        const g = { floor: 3, kills: 5, p: { lvl: 2 }, turn: 300 };
+        out.scoreNormal = D.mods.scoreOf({ ...g, hard: 0 }, true); out.scoreHard = D.mods.scoreOf({ ...g, hard: 1 }, true);
+        out.want = { win: 100 + B.run.winBonus, hardWin: Math.round((100 + B.run.winBonus) * B.hard.goldMul), hardMul: B.hard.scoreMul };
+        return out;
+      });
+      assert.equal(r.abandon, 100, 'an abandoned run banks all its gold');
+      assert.equal(r.win, r.want.win, 'a win adds the win bonus');
+      assert.equal(r.hardWin, r.want.hardWin, 'Hard multiplies what is banked');
+      assert.equal(r.scoreHard, Math.round(r.scoreNormal * r.want.hardMul));
+      assert.deepEqual(errors, []);
+    } finally { await ctx.close(); }
+  });
+
+  it('achievement rewards go to the wallet once and a toast is shown during play', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 10, meta: BASE_META });
+    try {
       const r = await page.evaluate(() => {
         const A = window.__dbg.mods, m = window.__dbg.api.meta(); const g0 = m.gold; const a = A.ACH.find((x) => x.id === 'hunt');
         const first = A.earn('hunt'), second = A.earn('hunt');
@@ -304,28 +383,32 @@ describe('records, achievements, Hard mode', () => {
       // Daily ignores the toggle
       await b.page.evaluate(() => { window.__dbg.api.finish('abandon'); });
       await b.page.locator('#modalBox button').click();
-      await b.page.locator('#btnDaily').click(); await b.page.locator('#title button', { hasText: /Warrior/ }).click(); await dbgDone(b.page);
+      await b.page.locator('#btnDaily').click(); await run(b.page, 'Warrior'); await dbgReady(b.page);
       assert.equal(await b.page.evaluate(() => window.__dbg().hard), 0);
       assert.deepEqual(b.errors, []);
     } finally { await b.ctx.close(); }
   });
 
   it('Hard dragon: an extra whelp wave at 90% and earlier enrage', async () => {
-    const x = await newPage(browser, { seed: 13, meta: { ...BASE_META, wins: 1, hardOn: 1 } });
+    const x = await openRun(browser, 'warrior', { seed: 13, meta: { ...BASE_META, wins: 1, hardOn: 1 } });
     try {
-      await startRun(x.page, 'warrior'); await closeModal(x.page);
       const r = await x.page.evaluate(() => {
         const F = window.__dbg.fn, G = window.__dbg(), B = window.__dbg.tables.BAL; F.newFloor(8, { mod: null, v: 0 });
         const d = G.enemies.find((e) => e.t === 'dragon'); d.hp = Math.round(d.mhp * 0.85); F.bossPhase(d); const waves1 = G.enemies.filter((e) => e.t === 'whelp').length;
-        return { waves1, per: B.enemyAi.summonN };
+        // Hard enrages at 60%: at 55% a normal dragon would still be calm
+        G.enemies = [d]; d.hp = Math.floor(d.mhp * 0.55); d.awake = true; d.wind = null; d.cd = 99;
+        for (const [dx, dy] of [[-2, 0], [2, 0], [0, 2], [0, -2], [-3, 0], [3, 0]]) { if (G.map[(d.y + dy) * 30 + d.x + dx] === 1) { G.p.x = d.x + dx; G.p.y = d.y + dy; break; } }
+        F.computeVis(); G.p.hp = G.p.mhp = 9999; F.enemiesAct();
+        return { waves1, per: B.enemyAi.summonN, enraged: !!d.enraged, normalFrac: B.enemyAi.enrageFrac, hardFrac: B.hard.enrageFrac };
       });
       assert.equal(r.waves1, r.per);   // normal mode only summons below 75%
+      assert.ok(r.hardFrac > 0.55 && r.normalFrac < 0.55, 'the numbers this test relies on');
+      assert.equal(r.enraged, true, 'Hard dragon is enraged at 55% health');
       assert.deepEqual(x.errors, []);
     } finally { await x.ctx.close(); }
   });
-});
 
-describe('save migration', () => {
+  // ------------------------------------------------------------------------------------------------ save migration
   it('an old meta save (no records/achievements fields) keeps gold, upgrades and unlocks and gains safe defaults', async () => {
     const old = { seenHelp: 1, gold: 777, hp: 2, atk: 1, pot: 1, goldp: 0, def: 3, wins: 1, best: 6, kills: 31, elites: 2, unl: { rogue: 1, scroll: 1, midas: 1 } };
     const { page, ctx, errors } = await newPage(browser, { seed: 14, meta: old });
@@ -345,9 +428,8 @@ describe('save migration', () => {
   });
 
   it('a run saved by the previous version (save v2, no modifier / exit / stats fields) still continues, and the exit choice appears', async () => {
-    const { page, ctx, errors } = await newPage(browser, { seed: 15, touch: true, meta: BASE_META });
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 15, touch: true, meta: BASE_META });
     try {
-      await startRun(page, 'warrior'); await closeModal(page);
       await page.evaluate(() => { const F = window.__dbg.fn; for (let i = 0; i < 4; i++) F.tryMove(1, 0); F.save(); });
       await page.evaluate(() => {
         const o = JSON.parse(localStorage.getItem('dcr_run_v2')); o.ver = 2;

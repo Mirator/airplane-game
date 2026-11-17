@@ -1,4 +1,4 @@
-// Heuristic in-page bot used by tests/sim.js and tests/equiv.js. Injected with page.addScriptTag; drives the game
+// Heuristic in-page bot used by tests/sim.js. Injected with page.addScriptTag; drives the game
 // only through window.__dbg and visible buttons. Exposes window.BOT = {runOne, resetMeta, spend, think, handle}.
 (function(){
 const W=30,H=30,DIRS=[[1,0],[-1,0],[0,1],[0,-1]];

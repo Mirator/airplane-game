@@ -12,9 +12,11 @@ const committed = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 describe('build', () => {
   it('committed index.html is identical to a fresh `node build.js`', () => {
-    const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'emberfall-')), 'index.html');
-    execFileSync(process.execPath, [path.join(root, 'build.js'), tmp], { cwd: root });
-    assert.equal(fs.readFileSync(tmp, 'utf8') === committed, true, 'index.html is stale: run `node build.js` and commit the result');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'emberfall-build-'));
+    try {
+      execFileSync(process.execPath, [path.join(root, 'build.js'), path.join(dir, 'index.html')], { cwd: root });
+      assert.equal(fs.readFileSync(path.join(dir, 'index.html'), 'utf8') === committed, true, 'index.html is stale: run `node build.js` and commit the result');
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
   it('starts with the generated-file notice', () => {
     assert.match(committed.slice(0, 200), /GENERATED FILE - DO NOT EDIT/);
