@@ -16,6 +16,7 @@ document.addEventListener('keydown',function(ev){
  else if(k==='arrowleft'||k==='a')d=[-1,0];else if(k==='arrowright'||k==='d')d=[1,0];
  else if(k===' '||k==='.'){walkTok++;if(G.map[ix(G.p.x,G.p.y)]===2)descend();else wait();ev.preventDefault();return;}
  else if(k==='e'){explore();return;}
+ else if(k>='1'&&k<='4'){toggleAbility(kit()[+k-1]);return;}
  else if(k==='q'){walkTok++;drink();return;}
  if(d){ev.preventDefault();walkTok++;tryMove(d[0],d[1]);}
 });

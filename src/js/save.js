@@ -20,6 +20,10 @@ function checkAch(){
  if(any)saveMeta();
 }
 checkAch();if(migrated)saveMeta();
+// run saves are versioned (SAVE_VER). A run saved by an older version is discarded on boot (no migration) and the title shows a notice.
+try{for(const k of OLD_RUN_KEYS){if(localStorage.getItem(k)!==null){localStorage.removeItem(k);noticeOld=true;}}}catch(e){}
+function runStrOk(s){try{const o=JSON.parse(s);return !!o&&o.ver===SAVE_VER&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H;}catch(e){return false;}}
+try{const r=localStorage.getItem(RUN_KEY);if(r&&!runStrOk(r)){localStorage.removeItem(RUN_KEY);noticeOld=true;}}catch(e){}
 function cost(s){const l=meta[s.k];return Math.round(s.base*(l+1)*(1+l*BAL.meta.costGrowth));}
 // Chromium commits localStorage to disk in batches at most about once a minute, so after a hard kill of the browser (crash,
 // OS killing the tab/app, "restart") the newest run saves - up to the whole run - are gone and Continue is missing. The run is
@@ -41,7 +45,7 @@ function idbFlush(){
   const v=idbWant;idbWant=undefined;
   if(!db){idbBusy=false;return;}
   const done=function(){idbBusy=false;idbFlush();};
-  try{const tx=db.transaction('s','readwrite');tx.objectStore('s').put(v,'run');tx.oncomplete=tx.onerror=tx.onabort=done;}catch(e){idbBusy=false;}
+  try{const tx=db.transaction('s','readwrite');tx.objectStore('s').put(v,'run2');tx.oncomplete=tx.onerror=tx.onabort=done;}catch(e){idbBusy=false;}
  });
 }
 function idbPutRun(v){idbWant=v;idbFlush();}
@@ -54,22 +58,35 @@ function save(){
 function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}idbPutRun('');}
 // boot: if the IndexedDB mirror is newer than (or contradicts) localStorage, adopt it and refresh the title screen
 function syncRunFromIdb(){
- idbOpen(function(db){if(!db)return;let g;try{g=db.transaction('s','readonly').objectStore('s').get('run');}catch(e){return;}g.onsuccess=function(){
+ idbOpen(function(db){if(!db)return;let g;try{g=db.transaction('s','readonly').objectStore('s').get('run2');}catch(e){return;}g.onsuccess=function(){
+  try{db.transaction('s','readwrite').objectStore('s').delete('run');}catch(e){}   // stale pre-v2 mirror entry
   const v=g.result;if(v===undefined||G)return;
   let ls=null,lsTs=-1;try{const r=localStorage.getItem(RUN_KEY);if(r){ls=r;lsTs=JSON.parse(r).ts||0;}}catch(e){}
   try{
    if(v===''){if(ls)localStorage.removeItem(RUN_KEY);else return;}
-   else{const o=JSON.parse(v);if(ls&&lsTs>=(o.ts||0))return;localStorage.setItem(RUN_KEY,v);}
+   else{if(!runStrOk(v))return;const o=JSON.parse(v);if(ls&&lsTs>=(o.ts||0))return;localStorage.setItem(RUN_KEY,v);}
   }catch(e){return;}
   if($('title').style.display!=='none'&&$('modal').style.display==='none')showTitle(1);
  };});
 }
-function hasSave(){try{return !!localStorage.getItem(RUN_KEY);}catch(e){return false;}}
+function hasSave(){try{const r=localStorage.getItem(RUN_KEY);return !!r&&runStrOk(r);}catch(e){return false;}}
 function continueRun(){
  try{
-  const g=JSON.parse(localStorage.getItem(RUN_KEY));
-  if(!g||!g.p||!g.map||g.map.length!==W*H)throw 0;
-  G=g;G.stopWalk=false;G.perks=G.perks||{};G.cd=Object.assign({dash:0,bolt:0,bash:0,vanish:0},G.cd||{});G.vanish=G.vanish||0;G.syn=G.syn||{};if(!CLS[G.p.cls])G.p.cls='warrior';G.p.wt=TR[G.p.wt]?G.p.wt:null;G.p.at=TR[G.p.at]?G.p.at:null;G.enemies=(G.enemies||[]).filter(e=>EN[e.t]);for(const e of G.enemies)if(e.wind&&!(Array.isArray(e.wind.tiles)&&e.wind.tiles.every(t=>Array.isArray(t)&&inb(t[0],t[1]))))e.wind=null;gearQ=null;G.bl=G.bl||0;G.traps=Array.isArray(G.traps)?G.traps.filter(t=>t&&inb(t.x,t.y)&&TRAPS[t.k]):[];G.shrine=(G.shrine&&inb(G.shrine.x,G.shrine.y))?G.shrine:null;G.merchant=(G.merchant&&inb(G.merchant.x,G.merchant.y)&&Array.isArray(G.merchant.stock))?G.merchant:null;G.treasure=G.treasure||null;G.keys=G.keys||0;G.ppois=(G.ppois&&G.ppois.t>0)?G.ppois:null;G.killer=G.killer||'';shrineQ=false;trapConfirm=-1;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
+  const raw=localStorage.getItem(RUN_KEY);if(!runStrOk(raw))throw 0;
+  const g=JSON.parse(raw);
+  G=g;G.stopWalk=false;G.perks=G.perks||{};G.syn=G.syn||{};G.vanish=G.vanish||0;
+  if(!CLS[G.p.cls])G.p.cls='warrior';
+  G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
+  for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}
+  G.enemies=(G.enemies||[]).filter(e=>EN[e.t]);
+  for(const e of G.enemies)if(e.wind&&!(Array.isArray(e.wind.tiles)&&e.wind.tiles.every(t=>Array.isArray(t)&&inb(t[0],t[1]))))e.wind=null;
+  gearQ=null;G.bl=G.bl||0;G.knives=G.knives||0;G.smoke=Array.isArray(G.smoke)?G.smoke:[];G.brace=G.brace||null;
+  G.traps=Array.isArray(G.traps)?G.traps.filter(t=>t&&inb(t.x,t.y)&&TRAPS[t.k]):[];
+  G.shrine=(G.shrine&&inb(G.shrine.x,G.shrine.y))?G.shrine:null;
+  G.merchant=(G.merchant&&inb(G.merchant.x,G.merchant.y)&&Array.isArray(G.merchant.stock))?G.merchant:null;
+  G.treasure=G.treasure||null;G.keys=G.keys||0;G.ppois=(G.ppois&&G.ppois.t>0)?G.ppois:null;G.killer=G.killer||'';
+  shrineQ=false;trapConfirm=-1;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;
+  armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
   if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
 }

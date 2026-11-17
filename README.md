@@ -1,8 +1,10 @@
 # Depths of Emberfall
 
 A turn-based fantasy roguelite dungeon crawler that runs in a browser: descend 8 floors, slay the dragon, die often, grow
-stronger. Played by tap/click on a phone (portrait, ~390px wide) or laptop. Warrior / Rogue / Mage classes, perks and
-synergies, gear traits, traps, shrines, a merchant, a locked treasure room, a permanent upgrade shop, autosave/Continue.
+stronger. Played by tap/click on a phone (portrait, ~390px wide) or laptop. Warrior / Rogue / Mage classes with four
+abilities each (Rage, Mana and cooldown-plus-knives resource models), four equipment slots (weapon, armor, class-locked
+off-hand, charm) whose items change the rules, enemy types that make different abilities the right answer, perks and
+synergies, traps, shrines, a merchant, a locked treasure room, a permanent upgrade shop, autosave/Continue.
 
 It ships as **one self-contained `index.html`** (inline CSS + JS, zero external requests, works offline). GitHub Pages
 publishes it via `.github/workflows/pages.yml`.
@@ -31,13 +33,13 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 
 | file | holds |
 |---|---|
-| `balance.js` | **All tunables.** `BAL` (scalar knobs by system: map, spawn, traps, combat, perks, AI, abilities, shop, shrine, meta...) plus the tables: enemies `EN`, classes `CLS`/`LG`, perks `PERKS`, synergies `SYN`, gear traits `TR`, traps, unlocks, shop |
-| `content.js` | themes (colours), sound tables, name lists, ability button defs |
+| `balance.js` | **All tunables.** `BAL` (scalar knobs by system: map, spawn, traps, combat, perks, AI, rage/mana, the 12 abilities, off-hand and charm numbers, shop, shrine, meta...) plus the tables: enemies `EN`, classes `CLS` (with their ability `kit`), perks `PERKS`, synergies `SYN`, gear kinds `WP` / `ARM` / `OFF` / `CH`, traits `TR`, traps, unlocks, shop |
+| `content.js` | themes (colours), sound tables, name lists, ability button defs `ABIL`, and the text generators (`abilityDesc`, `classBlurb`, `wpRule`, `armRule`, `offRule`, `charmRule`) that build every number shown in help / title / item text from `BAL` |
 | `core.js`, `util.js`, `world.js` | storage keys + shared mutable state (`G`, view, effects state), tiny helpers, tile/entity queries |
 | `save.js` | permanent meta save, achievements, run autosave / Continue (localStorage + IndexedDB mirror) |
 | `mapgen.js`, `fov.js` | dungeon layout; line of sight, distance maps, path finding |
-| `enemies.js`, `combat.js`, `abilities.js` | AI and wind-ups; damage, status effects, turn end; dash/bash/vanish/bolt |
-| `items.js`, `perks.js`, `player.js` | gear, drops, consumables; perk granting and synergies; XP |
+| `enemies.js`, `combat.js`, `abilities.js` | AI, wind-ups, healers, dragon phases; damage, shields, status effects, resources, turn end; the 12 class abilities (`DO`), `useAbility`, spear reach |
+| `items.js`, `perks.js`, `player.js` | gear slots, derived stats (`meleeAtk`, `mmax`, `spellMul`...), generation, comparison, pickup, consumables; perk pool / granting / synergies; XP |
 | `features.js`, `run.js` | traps, shrine, merchant; run start, floor population, descend, end screen |
 | `walk.js`, `input.js` | movement, auto-walk, Explore, tap handling; click/key listeners |
 | `modals.js`, `help.js`, `title.js`, `hud.js` | UI screens, bottom bar, HUD |
@@ -56,6 +58,7 @@ Needs Node 22 and Playwright installed globally (`require('playwright')`; Chromi
 
 - `tests/build.test.js` - committed `index.html` equals a fresh build; no external requests.
 - `tests/mapgen.test.js` - 200 generated floors: stairs/boss reachable, locked room sealed but optional, boss arena safe tiles.
+- `tests/kits.test.js` - each class uses each of its four abilities, gear goes into all four slots through the compare modal, gear rules (spear/axe/dagger/plate/robe/charm), an old-version run save is discarded cleanly, every new enemy spawns and acts.
 - `tests/smoke.test.js` - each class at 390x844 and 1280x800 with random taps and bar/modal buttons: zero console/page
   errors, layout fits, reload + Continue restores turn/floor.
 - `tests/save.test.js` - run save survives `kill -9` of the browser (Chromium commits localStorage only about once a minute, so the run is mirrored into IndexedDB), and a finished run is not resurrected.
@@ -66,7 +69,11 @@ Needs Node 22 and Playwright installed globally (`require('playwright')`; Chromi
 
 ## Balance pass
 
-Change numbers in `src/js/balance.js` only, then `node build.js`, `node tests/run.js`, `node tests/sim.js --runs 100 --levels fresh=0,mid=800,heavy=3000` (10-run cells are noise; use 100 per cell, +-5 points).
-Current bot targets: fresh character <=3% wins, dying on floors 3-5; mid (800 banked gold) 10-15%; heavy (3000) 40-50%; no class more than ~1.5x another at heavy; dragon beaten about 35-50% of the time by mid characters that reach floor 8; a win takes about 1300 turns.
-Descriptive text (perk/trait/unlock descriptions, help screen) still contains hand-written copies of some numbers and must
-be updated alongside.
+Change numbers in `src/js/balance.js` only, then `node build.js`, `node tests/run.js`, `node tests/sim.js --runs 60 --levels fresh=0,mid=800,heavy=3000` (cells under 60 runs are noise; +-6 points at 60).
+Current bot targets: fresh character about 3-5% wins; mid (800 banked gold) 10-18%; heavy (3000) 40-50%; no class more than ~1.5x another; dragon beaten about 35-50% of the time by mid characters that reach floor 8; a median win takes at most ~1400 turns. `sim.js` also prints the share of ability uses per class: if one ability is over ~60% of a class's uses the kit has failed its purpose - change costs or enemies until it is not.
+The bot (`tests/lib/botlib.js`) uses all four abilities per class (`warriorAct`, `mageAct`, `rogueAct`) and equips gear with `gscore`; teach it any new ability or item or the numbers mean nothing.
+Help, title, ability, gear and enemy text is generated from `BAL`. The older perk / unlock descriptions (`+12 max HP` etc.) are still hand-written copies.
+
+## Saves
+
+Meta progress (`dcr_meta_v1`: gold, shop levels, unlocks) is never reset. The run save is versioned (`SAVE_VER`, key `dcr_run_v2`, IndexedDB entry `run2`). A run saved by an older version is discarded on boot, with a one-line notice on the title screen; there is no migration.

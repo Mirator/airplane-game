@@ -4,11 +4,11 @@ function buildStock(f){
  const s=[],pr=(a,b)=>Math.round(a+b*f);
  s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(...BAL.merchant.price.potion)});
  s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(...BAL.merchant.price.potion)});
- s.push({k:'fire',n:'📜 Fireball scroll',d:'Damages every enemy in sight.',price:pr(...BAL.merchant.price.fire)});
+ s.push({k:'fire',n:'📜 Flame scroll',d:'Damages every enemy in sight.',price:pr(...BAL.merchant.price.fire)});
  s.push({k:'tele',n:'🌀 Teleport scroll',d:'Jump to a random far spot.',price:pr(...BAL.merchant.price.tele)});
- const slot=Math.random()<BAL.merchant.weaponChance?'weapon':'armor',g=forcedGear(f,slot);
- s.push({k:'gear',slot:slot,v:g.v,tr:g.tr,n:(slot==='weapon'?'⚔️ ':'🛡 ')+gearName(slot,g.v,g.tr),d:'+'+g.v+(slot==='weapon'?' attack. ':' defense. ')+TR[g.tr].d+' Replaces your current '+(slot==='weapon'?'weapon.':'armor.'),price:pr(...BAL.merchant.price.gear)});
- const pool=PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&pc(pk.id)<pk.max);
+ const slot=pick(BAL.merchant.gearSlots),g=forcedGear(f,slot);
+ s.push({k:'gear',item:g,n:itemIcon(g)+' '+gearName(g),d:itemDesc(g)+' Replaces your current '+SLOT_LABEL[slot].toLowerCase()+'.',price:pr(...BAL.merchant.price.gear)});
+ const pool=perkPool();
  if(pool.length){const pk=pick(pool);s.push({k:'perk',id:pk.id,n:'✨ Perk: '+pk.n,d:pk.d,price:pr(...BAL.merchant.price.perk)});}
  if(meta.unl.elixir)s.push({k:'elixir',n:'🧿 Elixir of Vigor',d:'+'+BAL.merchant.elixirHp+' max HP and a full heal.',price:pr(...BAL.merchant.price.elixir)});
  return s;
@@ -67,7 +67,7 @@ function buy(i){
  if(it.k==='pot'){if(G.inv.pot>=p.potCap){msg('Your potion belt is full.');return;}G.inv.pot++;}
  else if(it.k==='fire')G.inv.fire++;
  else if(it.k==='tele')G.inv.tele++;
- else if(it.k==='gear'){const w=it.slot==='weapon',nn=gearName(it.slot,it.v,it.tr);if(w){p.wb=it.v;p.wn=nn;p.wt=it.tr;}else{p.ab=it.v;p.an=nn;p.at=it.tr;}}
+ else if(it.k==='gear'){equipItem(it.item);}
  else if(it.k==='perk'){if(!addPerk(it.id)){msg('You cannot take that perk.');return;}}
  else if(it.k==='elixir'){p.mhp+=BAL.merchant.elixirHp;p.hp=p.mhp;}
  p.gold-=it.price;it.sold=1;msg('Bought: '+it.n.replace(/^\S+ /,'')+'.');save();render();showShop();

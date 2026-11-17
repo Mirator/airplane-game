@@ -5,7 +5,7 @@ function genFloor(f){
   const m=new Array(W*H).fill(0),rooms=[];
   for(let i=0;i<BAL.map.roomTries&&rooms.length<BAL.map.maxRooms;i++){
    const big=f===MAXF&&rooms.length===0;
-   const w=big?BAL.map.bossRoomW:rnd(BAL.map.roomMinW,BAL.map.roomMaxW),h=big?BAL.map.bossRoomH:rnd(BAL.map.roomMinH,BAL.map.roomMaxH),x=rnd(1,W-w-1),y=rnd(1,H-h-1);
+   const w=big?BAL.map.bossRoomW:rnd(BAL.map.roomMinW,BAL.map.roomMaxW),h=big?BAL.map.bossRoomH:rnd(BAL.map.roomMinH,BAL.map.roomMaxH),x=rnd(1,Math.min(W,BAL.map.span)-w-1),y=rnd(1,Math.min(H,BAL.map.span)-h-1);   // rooms only use the top-left span x span corner: shorter corridors, shorter runs
    if(rooms.some(r=>x<r.x+r.w+1&&x+w+1>r.x&&y<r.y+r.h+1&&y+h+1>r.y))continue;
    const rcx=x+(w>>1),rcy=y+(h>>1);
    rooms.push({x,y,w,h,cx:rcx,cy:rcy});

@@ -44,7 +44,7 @@ describe('smoke', { concurrency: 3 }, () => {
         await playRandomly(page, cls, ACTIONS);
         // layout: no page scroll, whole bottom bar inside the viewport
         const lay = await page.evaluate(() => {
-          const r = [...document.querySelectorAll('#bar button')].map((b) => b.getBoundingClientRect());
+          const r = [...document.querySelectorAll('#bar button, #bar2 button')].map((b) => b.getBoundingClientRect());
           return {
             sw: document.documentElement.scrollWidth, iw: window.innerWidth, sh: document.documentElement.scrollHeight, ih: window.innerHeight,
             barRight: Math.max(...r.map((x) => x.right)), barBottom: Math.max(...r.map((x) => x.bottom)),

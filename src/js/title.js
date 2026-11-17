@@ -4,8 +4,8 @@ function showClassPicker(){
  const t=$('titleBox');t.innerHTML='';
  const h=document.createElement('h1');h.textContent='Choose your class';t.appendChild(h);
  for(const k of Object.keys(CLS)){
-  const C=CLS[k],b=document.createElement('button'),open=k==='warrior'||!!meta.unl[k];b.style.minHeight='96px';
-  if(open){b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+C.d+'</span><span><br><i>'+C.ab+'</i></span>';b.addEventListener('click',function(){startRun(k);});}
+  const C=CLS[k],b=document.createElement('button'),open=k==='warrior'||!!meta.unl[k];b.style.minHeight='120px';
+  if(open){b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+classBlurb(k)+'</span><span><br><i>'+C.kit.map(a=>ABIL[a].e+' '+ABIL[a].n+' ('+abCost(a)+')').join(' · ')+'</i></span>';b.addEventListener('click',function(){startRun(k);});}
   else{const u=UNLOCKS.find(x=>x.id===k);b.disabled=true;b.innerHTML='<b style="font-size:18px">🔒 '+C.e+' '+C.n+'</b><span>Locked. Buy it in the title screen shop for <span class="gold">'+(u?u.cost:'?')+' 💰</span> (you have '+meta.gold+').</span>';}
   t.appendChild(b);
  }
@@ -16,8 +16,9 @@ function showTitle(keep){
  const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','🗡 Depths of Emberfall');
- add('p','Descend 8 floors. Slay the dragon. Die often, grow stronger.').style.textAlign='center';
+ add('p','Descend '+MAXF+' floors. Slay the dragon. Die often, grow stronger.').style.textAlign='center';
  add('div','Banked gold: <span class="gold">'+meta.gold+' 💰</span> &nbsp; Best floor: '+meta.best+' &nbsp; Wins: '+meta.wins,'row').style.justifyContent='center';
+ if(noticeOld)add('p','A run saved by an older version of the game could not be loaded and was discarded. Your gold, upgrades and unlocks are untouched.').style.cssText='font-size:13px;text-align:center;color:#ffd24a';
  if(hasSave()){const b=add('button','Continue run','c');b.addEventListener('click',continueRun);}
  const nb=add('button','New run','c');nb.addEventListener('click',function(){
   if(hasSave()&&!nb.dataset.arm){nb.dataset.arm=1;nb.textContent='Overwrite saved run? Tap again';return;}

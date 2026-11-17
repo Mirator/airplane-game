@@ -73,8 +73,8 @@ const tz=trapSet();
  startWalk(path.reverse(),{explore:true});
 }
 function itemName(it){
- return {gold:'Gold pile',potion:'Health potion',fire:'Fireball scroll',tele:'Teleport scroll'}[it.t]||
-  (gearName(it.t,it.v,it.tr)+' (+'+it.v+(it.t==='weapon'?' atk)':' def)')+(it.tr?' - '+TR[it.tr].d.replace(/\.$/,''):''));
+ const base={gold:'Gold pile',potion:'Health potion',fire:'Flame scroll',tele:'Teleport scroll',knife:'Throwing knife'}[it.t];
+ return base||(gearName(it)+': '+itemDesc(it).replace(/\.$/,''));
 }
 function onTap(tx,ty){
  walkTok++;
@@ -82,9 +82,9 @@ function onTap(tx,ty){
  const p=G.p;
  if(armed){
   if(!inb(tx,ty))return;
-  if(tx===p.x&&ty===p.y){armed=null;msg('Cancelled.');render();return;}
+  if(tx===p.x&&ty===p.y){cancelTarget();return;}
   tapMark={x:tx,y:ty,t:performance.now()};
-  if(armed==='dash')useDash(tx,ty);else if(armed==='bash')useBash(tx,ty);else useBolt(tx,ty);
+  useAbility(armed,tx,ty);
   render();return;
  }
  if(inb(tx,ty)){tapMark={x:tx,y:ty,t:performance.now()};render();}
@@ -111,8 +111,9 @@ function onTap(tx,ty){
  const e=enemyAt(tx,ty);
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
+  if(reachOk(e)){reachAttack(e);return;}
   const d=EN[e.t];
-  msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':'')+(e.stun>0?' Stunned ('+e.stun+'t).':'')+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
+  msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':'')+(e.stun>0?' Stunned ('+e.stun+'t).':'')+(e.frz>0?' Frozen ('+e.frz+'t).':'')+(e.blind>0?' Blinded.':'')+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
   const path=bfsPath(p.x,p.y,tx,ty);
   if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
   return;

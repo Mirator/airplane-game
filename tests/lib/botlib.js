@@ -38,24 +38,38 @@ function stepK(G,k){
  const p=G.p,x=k%W,y=(k/W)|0;
  return F().tryMove(x-p.x,y-p.y);
 }
-const PW={Vitality:8,Might:8,Bulwark:7,Vampirism:6,'Keen Eye':4,Renewal:6,Thorns:3,'Deep Pockets':4,Evasion:3,Scholar:3,Pyromancer:5,Regeneration:5,'Treasure Hunter':2,Cleave:7,Venom:7,'Chain Lightning':5,Bloodlust:4,Riposte:5,Dash:1,'Arcane Bolt':5,'Second Wind':8,'Glass Cannon':3,Scavenger:4,Berserk:5,'Stone Skin':6,Executioner:6,Warlord:9,'Phoenix Heart':9,Trapfinder:3,'Midas Touch':3,Alchemist:4};
+const PW={Vitality:8,Might:8,Bulwark:7,Vampirism:6,'Keen Eye':4,Renewal:6,Thorns:3,'Deep Pockets':4,Evasion:3,Scholar:3,Pyromancer:3,Regeneration:5,'Treasure Hunter':2,Tempo:6,Venom:7,'Chain Lightning':5,Bloodlust:4,Riposte:5,'Second Wind':8,'Glass Cannon':3,Scavenger:4,Berserk:5,Executioner:6,Warlord:9,'Phoenix Heart':9,Trapfinder:3,'Midas Touch':3,Alchemist:4,
+ Fury:6,Retribution:6,Stampede:4,'Arcane Mastery':8,Wellspring:8,'Deep Freeze':4,'Phase Step':4,Assassin:8,Bandolier:4,'Shadow Cloak':5};
 const PKEYS=Object.keys(PW).sort((a,b)=>b.length-a.length);
 function pickPerk(G,btns){
  let best=null,bs=-1;
  for(const b of btns){
   const nm=(b.querySelector('b').textContent||'').trim();let k=PKEYS.find(k=>nm.startsWith(k));let s=(PW[k]||1)+Math.random()*0.5;
   if(G.p.cls==='mage'&&(k==='Vitality'||k==='Bulwark'))s+=2;
+  if(G.p.cls==='mage'&&k==='Pyromancer')s+=3;
   if(k==='Glass Cannon'&&G.p.mhp<45)s-=3;
   if(s>bs){bs=s;best=b;}
  }
  (best||btns[0]).click();
 }
-const TB={cursed:-2,vamp:1.5,brutal:-0.5,keen:0.8,heavy:-2,spiked:0.5,light:0.8,leaden:-1.5};
-const gscore=(v,tr)=>v+(tr&&TB[tr]!=null?TB[tr]:0);
+// ---- gear heuristic: score = rough "worth" of an item for this class; equip when clearly better ----
+const TB={cursed:-2,vamp:1.5,brutal:-0.5,keen:0.8,heavy:-2,spiked:0.5,leaden:-1.5};
+const WAFF={warrior:{sword:0.5,axe:1.5,spear:1,dagger:-1.5,staff:-4},mage:{sword:0,axe:-1,spear:-1,dagger:-2,staff:5},rogue:{sword:0,axe:-0.5,spear:0.5,dagger:3,staff:-4}};
+const AAFF={warrior:{mail:0,plate:0.5,robe:0,leather:1.2},mage:{mail:0,plate:-3,robe:4,leather:0.5},rogue:{mail:0,plate:-0.5,robe:0,leather:2}};
+const OAFF={tower:3,bulwark:2.5,totem:2.5,tome:3,prism:3,lens:2.5,dagger2:4,satchel:3,quiver:3};
+const CAFF={fang:3,ward:4,eye:1,hourglass:3.5,veil:2.5,flask:3,soul:3};
+function gscore(cls,slot,it){
+ if(!it)return slot==='weapon'||slot==='armor'?0:-1;
+ const T=window.__dbg.tables,tb=it.tr&&TB[it.tr]!=null?TB[it.tr]:0;
+ if(slot==='weapon')return it.v+T.WP[it.k].atk+WAFF[cls][it.k]+tb;
+ if(slot==='armor'){const a=T.ARM[it.k];const d=a.noDef?0:Math.max(0,it.v+(a.def||0));return d+AAFF[cls][it.k]+(it.k==='robe'?it.v*0.3:0)+tb;}
+ if(slot==='off')return OAFF[it.k]||2;
+ return CAFF[it.k]||2;
+}
 function handleGear(G,btns){
- const p=G.p,it=G.items.find(i=>i.x===p.x&&i.y===p.y&&(i.t==='weapon'||i.t==='armor'));
+ const p=G.p,it=G.items.find(i=>i.x===p.x&&i.y===p.y&&['weapon','armor','off','charm'].indexOf(i.t)>=0);
  let take=false;
- if(it){const w=it.t==='weapon',cv=w?p.wb:p.ab,ct=w?p.wt:p.at;take=gscore(it.v,it.tr)>gscore(cv,ct)+0.3;
+ if(it){take=gscore(p.cls,it.t,it)>gscore(p.cls,it.t,p.eq[it.t])+0.3;
   if(!take)BS.ignore.add(it.x+','+it.y+','+G.floor);}
  const eq=btns.find(b=>/Equip/.test(b.textContent)),lv=btns.find(b=>/Leave/.test(b.textContent));
  (take?eq:lv).click();
@@ -81,7 +95,7 @@ function shopping(G){
    else if(it.k==='elixir')v=9;
    else if(it.k==='perk')v=8;
    else if(it.k==='fire')v=G.inv.fire<2?5:2;
-   else if(it.k==='gear'){const w=it.slot==='weapon',cv=w?p.wb:p.ab,ct=w?p.wt:p.at;const d=gscore(it.v,it.tr)-gscore(cv,ct);v=d>0.5?3+d*2:0;}
+   else if(it.k==='gear'){const sl=it.item.t,d=gscore(p.cls,sl,it.item)-gscore(p.cls,sl,p.eq[sl]);v=d>0.5?3+d*2:0;}
    if(v>bv){bv=v;bi=i;}
   });
   if(bi<0)break;
@@ -99,7 +113,7 @@ function handleModal(G){
  else (btns[btns.length-1]||{click(){$('modal').style.display='none';}}).click();
 }
 const lab=(s,v)=>{BS.lb=s;return v;};
-const BOT_CFG={kite:1,snipe:1,kiteCap:150,kiteWaitCap:14,choke:1};
+const BOT_CFG={kite:1,snipe:1,kiteCap:150,kiteWaitCap:14,choke:1,mageRest:45};
 let BS={ignore:new Set(),shopDone:{},wait:0,bad:new Set()};
 function sidestep(G,dz){
  const p=G.p;let best=null,bs=-1e9;
@@ -147,7 +161,87 @@ function kiteStep(G,foes,dz){
  return best;
 }
 const openN=(G,x,y)=>{let n=0;for(const d of DIRS)if(walk(G,x+d[0],y+d[1]))n++;return n;};
-const RANGED=new Set(['archer','warlock']),TOUGH=new Set(['troll','ogre','dragon','skeleton']);
+const RANGED=new Set(['archer','warlock','cultist']),TOUGH=new Set(['troll','ogre','dragon','skeleton','guard']),BIG=new Set(['troll','ogre','dragon']);
+const TB_=()=>window.__dbg.tables;
+const U=(k,x,y)=>{const f8=GG().floor===8,ok=F().use(k,x,y);if(ok){BS.uses[k]=(BS.uses[k]||0)+1;if(f8)BS.uses8[k]=(BS.uses8[k]||0)+1;}return ok;};
+const can=k=>!F().whyNot(k);
+const cheb1=(G,e)=>Math.max(Math.abs(e.x-G.p.x),Math.abs(e.y-G.p.y))<=1;
+const dist1=(G,e)=>Math.abs(e.x-G.p.x)+Math.abs(e.y-G.p.y);
+const behind=(G,e)=>!!e.face&&e.face[0]*(G.p.x-e.x)+e.face[1]*(G.p.y-e.y)<0;
+const unaware=(G,e)=>!e.awake||e.stun>0||e.frz>0||e.blind>0||behind(G,e);
+const guarded=(G,e)=>e.t==='guard'&&!e.stun&&!e.frz&&!behind(G,e);
+const prio=(G,e)=>(e.t==='cultist'?-200:RANGED.has(e.t)?-100:0)+(guarded(G,e)?150:0)+e.hp;
+const enemyOf=(G,t)=>G.enemies.find(e=>e.x===t[0]&&e.y===t[1]);
+// ---- per-class ability choices. Each returns true if it used the turn. ----
+function warriorAct(G,awake,adj,hpf){
+ const p=G.p,nearA=awake.filter(e=>cheb1(G,e));
+ const big=adj.some(e=>BIG.has(e.t)||e.elite);
+ if(can('brace')&&!G.brace&&(nearA.length>=2||(big&&hpf<0.9))&&U('brace'))return true;
+ if(can('cleave')&&(nearA.length>=2||(nearA.length===1&&p.rage>=TB_().BAL.rage.max-10))&&U('cleave'))return true;
+ if(can('bash')){
+  const cand=adj.filter(e=>e.awake||hpf<0.6);
+  let t=cand.find(e=>e.wind)||cand.find(e=>guarded(G,e))||cand.find(e=>BIG.has(e.t)||e.elite)||(hpf<0.6?cand[0]:null);
+  if(!t&&p.eq.off&&p.eq.off.k==='tower'&&cand.length>=2)t=cand[0];
+  if(t&&U('bash',t.x,t.y))return true;
+ }
+ if(can('charge')){
+  const ts=F().targetTiles('charge').map(c=>enemyOf(G,c)).filter(e=>e&&e.awake);
+  const t=ts.sort((a,b)=>prio(G,a)-prio(G,b)).find(e=>RANGED.has(e.t)||guarded(G,e)||e.t==='dragon'||(BIG.has(e.t)&&e.wind));
+  if(t&&U('charge',t.x,t.y))return true;
+ }
+ return false;
+}
+function mageAct(G,awake,adj,hpf){
+ const p=G.p,B=TB_().BAL.ability,nearA=awake.filter(e=>cheb1(G,e));
+ if((hpf<0.7||p.mana>=40)&&nearA.some(e=>!e.stun&&!e.frz)&&p.mana>=B.blink.mana+B.bolt.mana+4&&can('blink')){
+  const ed=multiBfs(G,awake.map(e=>[e.x,e.y]));let best=null,bs=-1e9;
+  for(const t of F().targetTiles('blink')){const k=ix(t[0],t[1]),dd=ed[k];if(dd<3||G.traps.some(a=>a.x===t[0]&&a.y===t[1]&&a.rev&&!a.done))continue;
+   const sc=Math.min(dd,8)+escapeSpace(G,t[0],t[1],ed,30)*0.1;if(sc>bs){bs=sc;best=t;}}
+  if(best&&U('blink',best[0],best[1]))return true;
+ }
+ if(can('nova')&&(nearA.length>=2||(nearA.length===1&&nearA[0].t!=='rat'&&nearA[0].t!=='bat'))&&p.mana>=B.nova.mana+3&&U('nova'))return true;
+ if(can('fire')){
+  const R=B.fire.radius+(p.eq.off&&p.eq.off.k==='prism'?TB_().BAL.offhand.prismRadius:0);
+  let best=null,bc=0,bw=0;
+  for(const t of F().targetTiles('fire')){
+   let c=0,w=0;for(const e of awake)if(Math.max(Math.abs(e.x-t[0]),Math.abs(e.y-t[1]))<=R){c++;w+=e.t==='dragon'?3:1;}
+   if(w>bw||(w===bw&&c>bc)){bw=w;bc=c;best=t;}
+  }
+  const tough=awake.find(e=>(BIG.has(e.t)||e.elite||e.t==='skeleton'||e.t==='guard')&&e.hp>=25&&dist1(G,e)>=2);
+  if(best&&(bw>=2||(awake.some(e=>e.t==='dragon')&&bw>=3))&&U('fire',best[0],best[1]))return true;
+  if(tough&&p.mana>=B.fire.mana+6&&F().targetTiles('fire').some(t=>t[0]===tough.x&&t[1]===tough.y)&&U('fire',tough.x,tough.y))return true;
+ }
+ if(can('bolt')){
+  const res=nearA.length?0:(hpf<0.6?0:6);
+  if(p.mana>=B.bolt.mana+res){
+   const ts=F().targetTiles('bolt').map(t=>enemyOf(G,t)).filter(e=>e&&e.awake).sort((a,b)=>prio(G,a)-prio(G,b));
+   const t=ts.find(e=>!guarded(G,e))||ts[0];
+   if(t&&U('bolt',t.x,t.y))return true;
+  }
+ }
+ return false;
+}
+function rogueAct(G,awake,adj,hpf){
+ const p=G.p,B=TB_().BAL.ability,near=awake.filter(e=>dist1(G,e)<=4);
+ const big=near.some(e=>e.elite||BIG.has(e.t)||e.t==='guard');
+ if(can('smoke')&&(near.length>=2||(big&&hpf<0.7&&near.length>=1)||near.some(e=>e.t==='dragon'&&!e.blind&&dist1(G,e)<=4))){
+  const R=B.smoke.radius+(p.eq.off&&p.eq.off.k==='satchel'?TB_().BAL.offhand.satchelRadius:0);
+  let best=null,bw=0;
+  for(const t of F().targetTiles('smoke')){let w=0;for(const e of awake)if(!e.blind&&Math.max(Math.abs(e.x-t[0]),Math.abs(e.y-t[1]))<=R)w+=e.t==='dragon'?3:1;if(w>bw){bw=w;best=t;}}
+  if(best&&bw>=2&&U('smoke',best[0],best[1]))return true;
+ }
+ if(can('backstab')){
+  const c=adj.filter(e=>unaware(G,e)).sort((a,b)=>prio(G,b)-prio(G,a))[0];
+  if(c&&U('backstab',c.x,c.y))return true;
+ }
+ if(can('vanish')&&adj.length&&(hpf<0.55||(big&&hpf<0.8)||adj.length>=3)&&U('vanish'))return true;
+ if(!adj.length&&can('knife')){
+  const ts=F().targetTiles('knife').map(t=>enemyOf(G,t)).filter(e=>e&&e.awake&&dist1(G,e)>=2).sort((a,b)=>prio(G,a)-prio(G,b));
+  const t=ts.find(e=>RANGED.has(e.t));
+  if(t&&U('knife',t.x,t.y))return true;
+ }
+ return false;
+}
 function think(G){
  const p=G.p,fl=G.floor,hpf=p.hp/p.mhp;
  const vis=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
@@ -165,24 +259,21 @@ function think(G){
   if(G.ppois&&G.inv.pot>0&&p.hp<=G.ppois.d*G.ppois.t+3&&p.hp<p.mhp){click('b_pot');return;}
   if(hpf<0.4&&G.inv.pot>0){click('b_pot');return;}
   if(hpf<0.3&&G.inv.pot<=0){
-   if(p.cls==='rogue'&&G.cd.vanish<=0&&adj.length){F().useVanish();return;}
+   if(p.cls==='rogue'&&can('vanish')&&adj.length&&U('vanish'))return;
    if(G.inv.tele>0&&adj.length){click('b_tele');return;}
   }
   const big=awake.some(e=>e.elite||e.t==='dragon'||e.t==='troll'||e.t==='ogre');
   if(G.inv.fire>0&&awake.length>=1&&(awake.length>=3||(big&&awake.some(e=>Math.abs(e.x-p.x)+Math.abs(e.y-p.y)<=6))||(hpf<0.55&&awake.length>=2))){click('b_fire');return;}
   // abilities
-  if(p.cls==='rogue'&&G.cd.vanish<=0&&awake.length&&awake.some(e=>Math.abs(e.x-p.x)+Math.abs(e.y-p.y)<=3)&&(hpf<0.75||awake.some(e=>e.elite||e.t==='dragon'||TOUGH.has(e.t)))){F().useVanish();return;}
-  if(pk('arcane')&&G.cd.bolt<=0&&awake.length){
-   const tg=awake.filter(e=>Math.abs(e.x-p.x)+Math.abs(e.y-p.y)<=8).sort((a,b)=>(RANGED.has(a.t)?-100:0)+a.hp-(RANGED.has(b.t)?-100:0)-b.hp)[0];
-   if(tg){F().useBolt(tg.x,tg.y);return;}
-  }
-  // KITING (any class with a ranged ability): bolt on cooldown -> keep a gap to tough melee enemies instead of trading blows
-  if(BOT_CFG.kite&&pk('arcane')&&G.cd.bolt>0&&(BS.kites||0)<BOT_CFG.kiteCap&&!awake.some(e=>RANGED.has(e.t)&&los(G,e.x,e.y,p.x,p.y))){
-   const foes=awake.filter(e=>!RANGED.has(e.t)&&e.t!=='rat'&&e.t!=='dragon'&&!e.stun&&e.hp>2*Math.max(1,p.atk+p.wb));
+  {const act=p.cls==='warrior'?warriorAct:p.cls==='mage'?mageAct:rogueAct;if(act(G,awake,adj,hpf))return;}
+  // spear: free hit from two tiles away
+  {const rt=awake.find(e=>F().reachOk(e));if(rt&&!adj.length){F().reachAttack(rt);return;}}
+  // KITING (mage, out of mana): keep a gap to tough melee enemies while mana comes back
+  if(BOT_CFG.kite&&p.cls==='mage'&&p.mana<TB_().BAL.ability.bolt.mana&&(BS.kites||0)<BOT_CFG.kiteCap&&!awake.some(e=>RANGED.has(e.t)&&los(G,e.x,e.y,p.x,p.y))){
+   const foes=awake.filter(e=>!RANGED.has(e.t)&&e.t!=='rat'&&e.t!=='bat'&&e.t!=='dragon'&&!e.stun&&!e.frz&&e.hp>2*Math.max(1,p.atk));
    if(foes.length){
     const ed0=multiBfs(G,foes.map(e=>[e.x,e.y])),md=ed0[ix(p.x,p.y)];
     if(md<=2){const st=kiteStep(G,foes,dz);if(st&&F().tryMove(st[0],st[1])){BS.kites=(BS.kites||0)+1;return;}}
-    else if(md<=7&&(BS.kw||0)<BOT_CFG.kiteWaitCap&&G.cd.bolt<=md+1){BS.kw=(BS.kw||0)+1;click('b_wait');return;}
    }
   }
   // CHOKEPOINT: several melee enemies coming and none adjacent yet -> step into a corridor/doorway they reach later than I do, and hold there
@@ -203,11 +294,6 @@ function think(G){
    }
   }
   const adjE=adj.filter(e=>e.awake||hpf>0.5);
-  if(p.cls==='warrior'&&G.cd.bash<=0&&adjE.length){
-   const t=adjE.find(e=>e.t==='dragon'||e.t==='troll'||e.t==='ogre'||e.elite)||(hpf<0.6?adjE[0]:null);
-   if(t&&!(t.t==='dragon')){F().useBash(t.x,t.y);return;}
-   if(t&&t.t==='dragon'){F().useBash(t.x,t.y);return;}
-  }
   if(adjE.length){
    const t=adjE.sort((a,b)=>(RANGED.has(a.t)?-100:0)+a.hp-(RANGED.has(b.t)?-100:0)-b.hp)[0];
    if(!(t.t==='ogre'&&false)){BS.wait=0;F().tryMove(t.x-p.x,t.y-p.y);return;}
@@ -256,7 +342,7 @@ function think(G){
  const front=rr=>{for(const k of rr.order){if(k===ix(p.x,p.y)||BS.bad.has('front:'+(k%W)+','+((k/W)|0)))continue;if(!G.exp[k]||G.map[k]===3)return k;}return -1;};
  const valid=g=>{
   if(!g||g.f!==fl)return -1;
-  if(g.t==='item'){const it=G.items.find(i=>i.x===g.x&&i.y===g.y);if(!it||r.dist[ix(g.x,g.y)]<=0||BS.ignore.has(g.x+','+g.y+','+fl)||(it.t==='potion'&&G.inv.pot>=p.potCap))return -1;return ix(g.x,g.y);}
+  if(g.t==='item'){const it=G.items.find(i=>i.x===g.x&&i.y===g.y);if(!it||r.dist[ix(g.x,g.y)]<=0||BS.ignore.has(g.x+','+g.y+','+fl)||(it.t==='potion'&&G.inv.pot>=p.potCap)||(it.t==='knife'&&G.knives>=window.__dbg.gear.maxKnives()))return -1;return ix(g.x,g.y);}
   if(g.t==='sleeper'){const e=G.enemies.find(e=>e.id===g.id);if(!e||e.awake||hpf<=0.45)return -1;const [bk,bdd]=nearAdj(e.x,e.y);return bdd>0?bk:-1;}
   if(g.t==='front'){const k=ix(g.x,g.y);if(r.dist[k]<=0||!(!G.exp[k]||G.map[k]===3))return -1;return k;}
   return -1;
@@ -269,6 +355,7 @@ function think(G){
   const k=ix(it.x,it.y);if(!G.seen[k]||r.dist[k]<0||r.dist[k]>=bd)continue;
   if(BS.ignore.has(it.x+','+it.y+','+fl)||BS.bad.has('item:'+it.x+','+it.y))continue;
   if(it.t==='potion'&&G.inv.pot>=p.potCap)continue;
+  if(it.t==='knife'&&G.knives>=window.__dbg.gear.maxKnives())continue;
   bd=r.dist[k];bi=k;
  }
  if(bi>=0&&bd>0){BS.goal={t:'item',x:bi%W,y:(bi/W)|0,f:fl};if(lab('item',go(bi)))return;}
@@ -292,15 +379,20 @@ function think(G){
   const k=ix(sh.x,sh.y);
   if(r.dist[k]>0&&lab('shrine',go(k)))return;
  }
- // mage-style sniping: bolt unaware enemies from range (free first strike), wait for the cooldown if it is nearly back
- if(BOT_CFG.snipe&&pk('arcane')&&hpf>0.5){
-  const sv=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]&&Math.abs(e.x-p.x)+Math.abs(e.y-p.y)<=8&&!BS.bad.has('sleeper:'+e.id));
-  if(sv.length){
-   const tg=sv.sort((a,b)=>(RANGED.has(a.t)?-100:0)-b.hp-((RANGED.has(b.t)?-100:0)-a.hp))[0];
-   if(G.cd.bolt<=0){F().useBolt(tg.x,tg.y);return;}
-   if(G.cd.bolt<=3&&(BS.sw||0)<12&&tg.hp>2*Math.max(1,p.atk+p.wb)){BS.sw=(BS.sw||0)+1;click('b_wait');return;}
+ // sniping unaware enemies from range: mage bolts them, rogue knives the ranged ones (a free first strike either way)
+ if(BOT_CFG.snipe&&hpf>0.5){
+  const sv=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]&&dist1(G,e)<=8&&!BS.bad.has('sleeper:'+e.id));
+  if(p.cls==='mage'&&sv.length&&can('bolt')&&p.mana>=TB_().BAL.ability.bolt.mana+8){
+   const tg=sv.filter(e=>F().targetTiles('bolt').some(t=>t[0]===e.x&&t[1]===e.y)).sort((a,b)=>prio(G,a)-prio(G,b))[0];
+   if(tg&&U('bolt',tg.x,tg.y))return;
+  }
+  if(p.cls==='rogue'&&sv.length&&G.knives>0){
+   const tg=sv.filter(e=>RANGED.has(e.t)&&dist1(G,e)>=2&&F().targetTiles('knife').some(t=>t[0]===e.x&&t[1]===e.y))[0];
+   if(tg&&U('knife',tg.x,tg.y))return;
   }
  }
+ // mage: let mana come back before walking into the next room
+ if(p.cls==='mage'&&p.mana<0.5*window.__dbg.gear.mmax()&&(BS.mrest||0)<BOT_CFG.mageRest&&!awake.length&&hpf>0.3){BS.mrest=(BS.mrest||0)+1;click('b_wait');return;}
  // sleepers
  const sl=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]&&!BS.bad.has('sleeper:'+e.id));
  if(sl.length&&hpf>(sl.some(e=>e.elite)?0.75:0.55)){
@@ -358,7 +450,7 @@ function normKiller(k){
 }
 function runOne(cls,cfg){
  cfg=cfg||{};const cap=cfg.cap||12000,fcap=cfg.fcap||1600;
- BS={ignore:new Set(),shopDone:{},wait:0,rest:0,nogoal:0,bad:new Set(),loops:0,hold:0};
+ BS={ignore:new Set(),shopDone:{},wait:0,rest:0,nogoal:0,bad:new Set(),loops:0,hold:0,uses:{},uses8:{}};
  const meta=A().meta(),g0=meta.gold;
  if(!cfg.resume)F().startRun(cls);
  $('modal').style.display='none';
@@ -366,7 +458,7 @@ function runOne(cls,cfg){
  while(true){
   G=GG();if(!G||G.over)break;
   if(++acts>cap){stall='actions';break;}
-  if(G.floor!==lastF){lastF=G.floor;if(cfg.onFloor)cfg.onFloor(G);fStart=G.turn;BS.rest=0;BS.nogoal=0;BS.bad=new Set();BS.goal=null;BS.hunt=null;BS.hides=0;BS.hide=null;BS.kites=0;BS.kw=0;BS.sw=0;BS.cw=0;}
+  if(G.floor!==lastF){lastF=G.floor;if(cfg.onFloor)cfg.onFloor(G);fStart=G.turn;BS.rest=0;BS.nogoal=0;BS.bad=new Set();BS.goal=null;BS.hunt=null;BS.hides=0;BS.hide=null;BS.kites=0;BS.kw=0;BS.sw=0;BS.cw=0;BS.mrest=0;}
   if(G.turn-fStart>fcap){stall='floor'+G.floor;break;}
   if(BS.nogoal>60){stall='nogoal'+G.floor;break;}
   if(cfg.onTurn)cfg.onTurn(G);
@@ -377,7 +469,7 @@ function runOne(cls,cfg){
  G=GG();let res;
  let dbg=null;if(stall){const q=GG();dbg={st:(()=>{const k=q.map.indexOf(2);return k<0?null:[k%30,(k/30)|0,q.seen[k],q.exp[k]];})(),full:(()=>{let o=[];for(let y=0;y<30;y++){let l='';for(let x=0;x<30;x++){const k=y*30+x,t=q.map[k];let c=!q.seen[k]?(t===0?' ':'?'):t===0?'#':t===2?'>':t===3?'+':t===5?'L':t===4?'-':(q.exp[k]?'.':',');if(q.traps.some(a=>a.x===x&&a.y===y&&a.rev&&!a.done))c='T';if(q.enemies.some(e=>e.x===x&&e.y===y))c='E';if(q.p.x===x&&q.p.y===y)c='@';l+=c;}o.push(l);}return o.join('\n');})(),goal:BS.goal,exp:(BS.goal&&BS.goal.t==='front')?[q.exp[BS.goal.y*30+BS.goal.x],q.map[BS.goal.y*30+BS.goal.x],q.seen[BS.goal.y*30+BS.goal.x]]:null,tre:q.treasure,mp:(()=>{let o='';for(let y=q.p.y-3;y<=q.p.y+3;y++){for(let x=q.p.x-6;x<=q.p.x+6;x++)o+=(x<0||y<0||x>29||y>29)?'#':(x===q.p.x&&y===q.p.y)?'@':['#','.','>','+','-','L'][q.map[y*30+x]];o+='/';}return o;})(),tr:BS.tr.join(' '),itl:q.items.map(i=>i.t+':'+i.x+','+i.y).join(' '),shr:q.shrine,mer:q.merchant&&[q.merchant.x,q.merchant.y],log:q.log.slice(-4),pos:[q.p.x,q.p.y],hp:q.p.hp,en:q.enemies.map(e=>[e.t,e.x,e.y,e.awake?1:0,e.hp,e.wind?1:0,!!(q.vis[e.y*30+e.x])]),items:q.items.length,keys:q.keys,pot:q.inv.pot,onStairs:q.map[q.p.y*30+q.p.x]===2,seenStairs:q.map.some((t,k)=>t===2&&q.seen[k])};A().finish('abandon');}
  G=GG();
- res={cls,floor:G.floor,won:!!G.won,turns:G.turn,killer:normKiller(G.killer),stall,lvl:G.p.lvl,kills:G.kills,perks:Object.keys(G.perks).join(','),wn:G.p.wn,an:G.p.an};
+ res={cls,floor:G.floor,won:!!G.won,turns:G.turn,killer:normKiller(G.killer),stall,lvl:G.p.lvl,kills:G.kills,perks:Object.keys(G.perks).join(','),uses:BS.uses,uses8:BS.uses8,gear:['weapon','armor','off','charm'].map(sl=>G.p.eq[sl]?G.p.eq[sl].k:'-').join('/')};
  res.gold=meta.gold-g0;res.loops=BS.loops;res.dbg=dbg;
  // back to title
  const bb=$('modalBox').querySelector('button');if(bb)bb.click();

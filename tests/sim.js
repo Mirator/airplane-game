@@ -71,7 +71,7 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
   if (JSONL) fs.writeFileSync(JSONL, results.map((r) => JSON.stringify(r)).join('\n') + '\n');
   for (const lv of LEVELS) {
     console.log(`\n== ${lv.name} (${lv.gold} banked gold spent on upgrades)`);
-    console.log('class     n   win%  stall%  medTurns  medGold  deathFloor(1..8)  top killers');
+    console.log('class     n   win%  stall%  medTurns  winTurns  dragon%  deathFloor(1..8)  top killers');
     for (const cls of CLASSES) {
       const rows = results.filter((r) => r.level === lv.name && r.cls === cls);
       if (!rows.length) continue;
@@ -82,9 +82,28 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
       rows.filter((r) => !r.won && !r.stall).forEach((r) => { kc[r.killer] = (kc[r.killer] || 0) + 1; });
       const ks = Object.entries(kc).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0] + ':' + x[1]).join(' ');
       console.log(cls.padEnd(9) + String(n).padStart(3) + String((100 * won / n).toFixed(0) + '%').padStart(7) + String((100 * st / n).toFixed(0) + '%').padStart(8)
-        + String(med(rows.map((r) => r.turns))).padStart(10) + String(med(rows.map((r) => r.gold))).padStart(9) + '  ' + fl.slice(1).join(',').padEnd(17) + ks);
+        + String(med(rows.map((r) => r.turns))).padStart(10) + String(med(rows.filter((r) => r.won).map((r) => r.turns))).padStart(10)
+        + String(((r8) => r8.length ? (100 * r8.filter((r) => r.won).length / r8.length).toFixed(0) + '%(' + r8.length + ')' : '-')(rows.filter((r) => r.floor === 8))).padStart(11) + '  ' + fl.slice(1).join(',').padEnd(17) + ks);
     }
   }
+  // ability usage share per class (all levels pooled): how often each of the four abilities was used, as a share of all uses
+  console.log('\n== ability usage share per class (uses per run in brackets)');
+  for (const cls of CLASSES) {
+    const rows = results.filter((r) => r.cls === cls && r.uses);
+    const tot = {}; let all = 0;
+    rows.forEach((r) => { for (const k in r.uses) { tot[k] = (tot[k] || 0) + r.uses[k]; all += r.uses[k]; } });
+    const parts = Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / all).toFixed(0)}% (${(v / rows.length).toFixed(1)})`);
+    console.log(cls.padEnd(9) + (parts.join('  ') || 'none'));
+  }
+  console.log('\n== ability uses per run ON FLOOR 8 (the dragon fight), runs that reached it');
+  for (const cls of CLASSES) {
+    const rows = results.filter((r) => r.cls === cls && r.floor === 8 && r.uses8);
+    const tot = {}; rows.forEach((r) => { for (const k in r.uses8) tot[k] = (tot[k] || 0) + r.uses8[k]; });
+    console.log(cls.padEnd(9) + `(n=${rows.length}) ` + (Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(v / Math.max(1, rows.length)).toFixed(1)}`).join('  ') || 'none'));
+  }
+  const gc = {};
+  results.forEach((r) => { if (r.gear) { const [w, a, o, c] = r.gear.split('/'); const k = r.cls + ' ' + w; gc[k] = (gc[k] || 0) + 1; } });
+  if (process.argv.includes('--gear')) console.log('\nfinal weapon by class:', JSON.stringify(gc));
   console.log(`\n${results.length}/${tasks.length} runs finished in ${((Date.now() - t0) / 1000).toFixed(0)}s, ${errors.length} page errors/crashes${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`);
   process.exit(errors.length ? 1 : 0);
 })();

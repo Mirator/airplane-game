@@ -1,4 +1,4 @@
-// combat.js - damage, kills, status effects (poison, stun), knockback, turn end processing.
+// combat.js - damage, kills, status effects (poison, stun, freeze), shields, knockback, resource ticks and turn end processing.
 
 function secondWind(){
  const p=G.p;
@@ -16,7 +16,11 @@ function killEnemy(e,src){
  const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');if(!rmo())puffs.push({x:e.x,y:e.y,t:performance.now(),s:Math.random()*6});
  gainXp(d.xp+G.floor);
  if(d.boss){G.won=true;return;}
- if(G.p.wt==='cursed')curseDrain();
+ if(traitOf('weapon')==='cursed')curseDrain();
+ {const p=G.p,ch=eqKind('charm');
+  if(ch==='fang'){const h=BAL.charm.fangHeal+Math.floor(G.floor/BAL.charm.fangFloorDiv);p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');}
+  if(ch==='soul'){if(p.cls==='warrior')gainRage(BAL.charm.soulRage,true);else if(p.cls==='mage')p.mana=Math.min(mmax(),p.mana+BAL.charm.soulMana);else for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;}
+  if(p.cls==='mage'){let m=BAL.mana.perKill+(pc('well')?BAL.perk.wellKill:0);if(G.syn.ow)m*=2;p.mana=Math.min(mmax(),p.mana+m);}}
  if(e.elite){dropAt(e.x,e.y,{t:'key',v:0});floatFx(e.x,e.y,'KEY','#ffd24a');msg('The elite drops a brass key!');}
  else if(Math.random()<BAL.drops.potionChance)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  else if(Math.random()<BAL.drops.goldChance)G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(BAL.drops.goldMin,BAL.drops.goldMax)+G.floor});
@@ -25,8 +29,15 @@ function killEnemy(e,src){
  if(pc('blood'))G.bl=1;
  if(pc('chain')&&!inChain)chainZap(e);
 }
-function hurtEnemy(e,dmg,col,crit){
+// kind: 'melee' | 'ranged' | 'magic' (shields care), undefined = poison / traps / impact (never reduced)
+function hurtEnemy(e,dmg,col,crit,kind){
  if(e.dead)return;
+ if(kind&&EN[e.t].shield&&!(e.stun>0||e.frz>0)){
+  let m=1;
+  if(isFront(e))m=BAL.weapon.shieldFront;
+  if(kind!=='melee')m=Math.min(m,BAL.weapon.shieldRanged);
+  if(m<1){dmg=Math.max(1,Math.round(dmg*m));floatFx(e.x,e.y,'shield','#9ab');}
+ }
  e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now();floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
 }
 // resolve a hit: kill if dead, else maybe execute
@@ -44,8 +55,8 @@ function poison(e){
 function tickPoison(){
  for(const e of G.enemies.slice()){
   if(e.dead||!e.pois)continue;
-  const d=e.pois.d;e.pois.t--;if(e.pois.t<=0)delete e.pois;
-  hurtEnemy(e,d,'#7be04b');settle(e,'Poison');
+  const d=e.pois.d,col=e.pois.burn?'#ff9a3a':'#7be04b';e.pois.t--;if(e.pois.t<=0)delete e.pois;
+  hurtEnemy(e,d,col);settle(e,e.pois&&e.pois.burn?'Burning':'Poison');
  }
 }
 function chainZap(from){
@@ -60,8 +71,8 @@ function chainZap(from){
    settle(best,'Lightning');}
  }finally{inChain=false;}
 }
-function playerDmg(){
- const p=G.p;let d=Math.max(1,p.atk+p.wb+atkMod()+rnd(-BAL.combat.dmgVar,BAL.combat.dmgVar));
+function playerDmg(spell){
+ const p=G.p;let d=Math.max(1,(spell?spellBase():meleeAtk())+rnd(-BAL.combat.dmgVar,BAL.combat.dmgVar));
  if(pc('berserk'))d*=1+BAL.perk.berserkMax*(1-Math.max(0,p.hp)/p.mhp);
  return Math.max(1,Math.round(d));
 }
@@ -71,40 +82,50 @@ function lifeSteal(dmg){
  if(pc('berserk')&&pc('vamp')&&p.hp<p.mhp*BAL.perk.bloodFrenzyHp)h*=BAL.perk.bloodFrenzyMul;
  p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');
 }
+function sneakMul(){const wk=wpK();return (G.p.cls==='rogue'?BAL.combat.sneakMul:1)+(wk&&wk.sneak||0);}
 function playerAttack(e){
- const p=G.p;let dmg=playerDmg(),crit=Math.random()<critChance();
+ const p=G.p,wk=wpK();let dmg=playerDmg(),crit=Math.random()<critChance();
  if(crit)dmg*=BAL.combat.critMul;
- if(p.cls==='rogue'&&!e.awake){dmg*=BAL.combat.sneakMul;msg('Sneak attack!');}
+ const sn=sneakMul();
+ if(sn>1&&!e.awake){dmg*=sn;msg('Sneak attack!');}
  if(G.vanish>0){G.vanish=0;msg('You step out of the shadows.');}
  if(G.bl){dmg=Math.round(dmg*BAL.perk.bloodlustMul);G.bl=0;msg('Bloodlust! Your strike is empowered.');}
- hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a',crit);
+ dmg=Math.max(1,Math.round(dmg));
+ hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a',crit,'melee');
  sfx(crit?'crit':'hit');if(crit||dmg>=Math.max(8,e.mhp*0.5))shake(crit?5:3);
  msg((crit?'Critical! ':'')+'You hit the '+nm(e)+' for '+dmg+'.');
- lifeSteal(dmg);
+ lifeSteal(dmg);gainRage(BAL.rage.dealt);
  poison(e);
  settle(e);
- if(pc('cleave')){
-  const half=Math.max(1,Math.floor(dmg*BAL.perk.cleaveFrac));
+ if(wk&&wk.sweep){
+  const half=Math.max(1,Math.floor(dmg*wk.sweep));
   for(const o of G.enemies.slice()){
-   if(o===e||o.dead||Math.max(Math.abs(o.x-p.x),Math.abs(o.y-p.y))>1)continue;
-   hurtEnemy(o,half,'#ffb04a');msg('Cleave hits the '+nm(o)+' for '+half+'.');
-   if(pc('venom'))poison(o);
-   settle(o);
+   if(o===e||o.dead||(cheb(o,p)>1&&cheb(o,e)>1))continue;
+   hurtEnemy(o,half,'#ffb04a',false,'melee');msg('Your axe sweeps the '+nm(o)+' for '+half+'.');poison(o);settle(o);
   }
  }
 }
 function hurtPlayer(e,dmg,melee,verb){
  const p=G.p;
+ if(e&&e.x!=null){e.face=[Math.sign(p.x-e.x),Math.sign(p.y-e.y)];}
+ if(e&&e.blind>0&&Math.random()<BAL.ability.smoke.miss){floatFx(e.x,e.y,'miss','#ccc');msg('The blinded '+nm(e)+' swings wildly and misses.');return false;}
  if(Math.random()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+nm(e)+'.');return false;}
- if(pc('stone')&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Stone Skin negates the '+nm(e)+"'s hit.");return false;}
- dmg=Math.max(1,Math.round(dmg*BAL.combat.armorK/(BAL.combat.armorK+p.def+p.ab))+rnd(-BAL.combat.enemyDmgVar,BAL.combat.enemyDmgVar));
+ if(eqKind('charm')==='ward'&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Your Ward Sigil negates the '+nm(e)+"'s hit.");return false;}
+ dmg=Math.max(1,Math.round(dmg*BAL.combat.armorK/(BAL.combat.armorK+defTotal()))+rnd(-BAL.combat.enemyDmgVar,BAL.combat.enemyDmgVar));
  if(dmg<1)dmg=1;
+ const raw=dmg;let refl=0;
+ if(G.brace){
+  dmg=Math.max(1,Math.round(dmg*BAL.ability.brace.reduce));refl=melee?Math.round(raw*G.brace.reflect):0;
+  floatFx(p.x,p.y,'braced','#9cf');if(--G.brace.hits<=0)G.brace=null;
+ }
  p.hp-=dmg;G.killer=nm(e);flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
  msg('The '+nm(e)+' '+(verb||(melee?'hits':'blasts'))+' you for '+dmg+'.');playerHurtFx(dmg);
+ gainRage(BAL.rage.taken);
  secondWind();
+ if(refl>0&&!e.dead){hurtEnemy(e,refl,'#9cf');msg('Your brace reflects '+refl+' damage.');settle(e,'Reflection');}
  if(melee&&thornsDmg()>0&&!e.dead){hurtEnemy(e,thornsDmg(),'#8f8');settle(e,'Thorns');}
  if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&Math.random()<BAL.perk.riposteChance*pc('riposte')){
-  const d2=playerDmg();hurtEnemy(e,d2,'#fff');msg('Riposte! You counter for '+d2+'.');settle(e);}
+  const d2=playerDmg();hurtEnemy(e,d2,'#fff',false,'melee');msg('Riposte! You counter for '+d2+'.');settle(e);}
  return true;
 }
 function kbDmg(){return BAL.combat.knockBase+Math.floor(G.floor/BAL.combat.knockFloorDiv);}
@@ -137,6 +158,11 @@ function endTurn(){
  if(G.won){finish('win');return;}
  G.turn++;
  for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;
+ if(eqKind('charm')==='hourglass'&&G.turn%BAL.charm.hourglassEvery===0)for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;
+ if(p.cls==='mage'){p.mf=(p.mf||0)+manaRegen();const w=Math.floor(p.mf);p.mf-=w;p.mana=Math.min(mmax(),p.mana+w);}
+ if(p.cls==='warrior'&&(p.rage||0)>0&&!G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)]))p.rage=Math.max(0,p.rage-BAL.rage.decay);
+ if(G.brace&&--G.brace.t<=0)G.brace=null;
+ if(G.smoke){for(const c of G.smoke)c.t--;G.smoke=G.smoke.filter(c=>c.t>0);}
  if(p.hp<p.mhp){
   if(p.regen&&G.turn%BAL.player.regenEvery===0)p.hp=Math.min(p.mhp,p.hp+p.regen);
   if(G.turn%BAL.player.baseRegenEvery===0)p.hp=Math.min(p.mhp,p.hp+1);
@@ -145,7 +171,7 @@ function endTurn(){
  tickPoison();
  if(G.won){finish('win');return;}
  enemiesAct();
- if(p.at==='heavy'&&G.turn%BAL.trait.heavyEvery===0&&p.hp>0&&!G.won&&G.enemies.some(e=>e.awake)){msg('Your heavy armor slows you: enemies get a free turn.');enemiesAct(true);}
+ if(traitOf('armor')==='heavy'&&G.turn%BAL.trait.heavyEvery===0&&p.hp>0&&!G.won&&G.enemies.some(e=>e.awake)){msg('Your heavy armor slows you: enemies get a free turn.');enemiesAct(true);}
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}

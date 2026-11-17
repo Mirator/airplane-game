@@ -11,6 +11,6 @@ function addPerk(id){
  msg('Perk gained: '+pk.n+(pk.max>1?' (Lv '+pc(id)+')':'')+'.');checkSyn();return true;
 }
 
-function randomPerkId(){
- const pool=PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&pc(pk.id)<pk.max);return pool.length?pick(pool).id:null;
-}
+// perks the current player can still be offered: unlocked, not maxed, and for their class
+function perkPool(){return PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&(!pk.cls||pk.cls===G.p.cls)&&pc(pk.id)<pk.max);}
+function randomPerkId(){const pool=perkPool();return pool.length?pick(pool).id:null;}

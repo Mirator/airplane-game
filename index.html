@@ -15,16 +15,23 @@ body{position:fixed;inset:0}
 @keyframes pls{0%{box-shadow:0 0 0 0 rgba(255,220,90,.9)}100%{box-shadow:0 0 0 14px rgba(255,220,90,0)}}
 #hpbar.pulse{animation:pls .7s ease-out}
 @media (prefers-reduced-motion: reduce){#hpbar.pulse{animation:none}}
-#hpbar{flex:1;height:22px;background:#2a1418;border-radius:6px;position:relative;overflow:hidden;border:1px solid #522}
+#hpbar{flex:11;min-width:0;height:22px;background:#2a1418;border-radius:6px;position:relative;overflow:hidden;border:1px solid #522}
 #hpfill{height:100%;background:linear-gradient(#e24b4b,#a82424);width:100%;transition:width .15s}
 #hptxt{position:absolute;inset:0;text-align:center;font-size:13px;line-height:22px;font-weight:700;text-shadow:0 1px 2px #000}
+#resbar{flex:9;min-width:0;height:22px;background:#161a2a;border-radius:6px;position:relative;overflow:hidden;border:1px solid #3a4060}
+#resfill{height:100%;width:0;transition:width .15s}
+.res.rage #resfill{background:linear-gradient(#ff9a3a,#c4561a)}.res.rage{border-color:#7a4a22}
+.res.mana #resfill{background:linear-gradient(#5aa0ff,#2a5ac8)}.res.mana{border-color:#2a4a8a}
+.res.knives #resfill{background:linear-gradient(#b8bfd8,#7d86a8)}
+#restxt{position:absolute;inset:0;text-align:center;font-size:12px;line-height:22px;font-weight:700;text-shadow:0 1px 2px #000;white-space:nowrap}
 #xpbar{height:5px;background:#1b2238;border-radius:3px;overflow:hidden}
 #xpfill{height:100%;background:#5aa0ff;width:0}
 #stats{font-size:13px;display:flex;gap:10px;flex-wrap:wrap;color:#cfcde0}
 button{font:inherit;color:#fff;background:#2f3350;border:1px solid #4b5080;border-radius:10px;min-height:48px;min-width:48px;padding:6px 12px;cursor:pointer;touch-action:manipulation}
 button:active{background:#454a78}
 button:disabled{opacity:.4}
-#menuBtn{min-width:48px;font-size:20px;padding:0}
+#menuBtn,#helpBtn,#gearBtn{min-width:44px;width:44px;min-height:44px;font-size:19px;padding:0}
+#hrow{gap:5px}
 #cv{flex:1;min-height:0;position:relative}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block;background:#000}
 #log{height:76px;padding:4px 10px;font-size:13px;line-height:16px;overflow:hidden;color:#bbb9cc;display:flex;flex-direction:column;justify-content:flex-end}
@@ -36,9 +43,11 @@ button:disabled{opacity:.4}
 #bar button small,#bar2 button small{display:block;font-size:10px;opacity:.95;white-space:nowrap;margin:0}
 #bar button.dis,#bar2 button.dis{opacity:.4}
 .bd{position:absolute;top:1px;right:2px;min-width:16px;padding:0 4px;border-radius:8px;background:#6a3fb5;font-size:10px;font-weight:700;line-height:16px;color:#fff;text-align:center}
-#helpBtn{min-width:48px;font-size:20px;padding:0}
-#bar2{display:none;gap:6px;padding:2px 6px 0}
-#bar2 button{flex:1;min-height:46px;font-size:18px;padding:2px;line-height:1.1}
+#bar2{display:flex;gap:6px;padding:2px 6px 0}
+#bar2 button{flex:1;min-width:0;min-height:56px;padding:2px 1px;line-height:1.05}
+#bar2 .ai{font-size:19px;display:block;line-height:1.1}
+#bar2 small.sub{font-size:10px;opacity:.8;color:#ffe9a8}
+#cancelBtn{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:3;min-height:44px;padding:6px 18px;background:#7a2a2a;border-color:#ff8a8a;font-weight:700;box-shadow:0 2px 10px #000a}
 button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a inset}
 .tag{display:inline-block;font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:#6a3fb5;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
 .tag.act{background:#b5731f}.tag.syn{background:#2a8a5a}
@@ -59,11 +68,11 @@ button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24
 </style></head><body>
 <div id="app">
  <div id="hud">
-  <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><button id="helpBtn" aria-label="Controls">?</button><button id="menuBtn" aria-label="Menu">☰</button></div>
+  <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><div id="resbar" class="res"><div id="resfill"></div><div id="restxt"></div></div><button id="gearBtn" aria-label="Equipment">🎒</button><button id="helpBtn" aria-label="Controls">?</button><button id="menuBtn" aria-label="Menu">☰</button></div>
   <div id="xpbar"><div id="xpfill"></div></div>
   <div id="stats"></div>
  </div>
- <div id="cv"><canvas id="c"></canvas></div>
+ <div id="cv"><canvas id="c"></canvas><button id="cancelBtn" style="display:none">Cancel</button></div>
  <div id="log"></div>
  <div id="bar2"></div>
  <div id="bar"></div>
@@ -84,6 +93,7 @@ const W=30,H=30,MAXF=8;   // map size and number of floors (floor 8 = dragon lai
 const BAL = {
   // --- dungeon layout (mapgen.js) ---
   map: {
+    span: 22,              // rooms are placed inside the top-left span x span corner of the 30x30 grid (shorter floors)
     attempts: 50,          // full regenerations before the open-room fallback
     roomTries: 80,         // room placement tries per attempt
     maxRooms: 4, minRooms: 3,
@@ -97,19 +107,19 @@ const BAL = {
   // --- floor population (run.js) ---
   floor: { treasureFrom: 2, treasureChance: 0.7, shrineFrom: 2, shrineChance: 0.55 },
   enemy: {
-    hpPerFloor: 0.45, atkPerFloor: 0.45,        // +45% of base per floor above 1
+    hpPerFloor: 0.78, atkPerFloor: 0.73,        // +78% / +73% of base per floor above 1
     rangedHpFactor: 0.6, rangedAtkFactor: 0.7,  // ranged enemies scale slower
     eliteHpMul: 2, eliteAtkMul: 1.2, eliteAtkAdd: 1
   },
   spawn: {
-    enemyBase: 4, enemyPerFloor: 0.9, enemyExtraMax: 2, ratLastFloor: 5,
+    enemyBase: 5, enemyPerFloor: 1.0, enemyExtraMax: 2, ratLastFloor: 5,
     goldPiles: 3, goldMin: 3, goldMax: 6, goldPerFloor: 2,
     extraPotionChance: 0.4,
     weaponChance: 0.5, weaponMin: 1, weaponMax: 2, weaponPerFloor: 0.7,
     armorChance: 0.5, armorRand: 2, armorDiv: 2, armorBase: 1,
     fireChance: 0.5, teleChance: 0.35
   },
-  treasure: { weaponChance: 0.5, gold1Base: 12, gold1PerFloor: 4, gold2Base: 10, gold2PerFloor: 3, potionChance: 0.6 },
+  treasure: { gearSlots: ['weapon', 'weapon', 'armor', 'armor', 'off', 'charm'], gold1Base: 12, gold1PerFloor: 4, gold2Base: 10, gold2PerFloor: 3, potionChance: 0.6 },
   forcedGear: {                 // trait gear in treasure rooms / merchant
     minTraitFloor: 2, weaponMin: 2, weaponMax: 3, weaponPerFloor: 0.7,
     armorRandMin: 1, armorRandMax: 3, armorDiv: 2, armorBase: 1
@@ -127,9 +137,10 @@ const BAL = {
     keenCrit: 0.15, brutalCrit: -0.1, vampLife: 0.25, lightDodge: 0.12,
     spikedThorns: 3, spikedAtk: -1, cursedDrain: 1, heavyEvery: 4
   },
+  gear: { offChance: 0.18, charmChance: 0.2, tierDiv: 2 },   // floor drop chances for an off-hand (own class) / a charm; weapon tier = floor(v/tierDiv)
   item: { weakSaleBase: 3 },    // weak plain gear is sold for (weakSaleBase + floor) gold
   potion: { minHeal: 12, healFrac: 0.4, sageBonus: 0.5, leadenMul: 0.6 },
-  fireball: { base: 10, perFloor: 3 },
+  fireball: { base: 10, perFloor: 3 },   // the Flame SCROLL item (hits everything in sight); the mage's Fireball spell is BAL.ability.fire
   teleport: { minDist: 8 },
   // --- combat core (combat.js) ---
   combat: { critMul: 2, sneakMul: 2, dmgVar: 1, enemyDmgVar: 1, armorK: 12, dodgeCap: 0.75, knockBase: 3, knockFloorDiv: 2 },
@@ -139,35 +150,66 @@ const BAL = {
     execBase: 0.2, execBlood: 0.3,
     chainBase: 4, chainPerFloor: 2, chainRange: 8,
     berserkMax: 0.8, bloodFrenzyMul: 2, bloodFrenzyHp: 0.5, bloodlustMul: 1.75,
-    cleaveFrac: 0.5, riposteChance: 0.2, phoenixFrac: 0.5
+    riposteChance: 0.2, phoenixFrac: 0.5,
+    furyMul: 0.4, retribHits: 2, retribReflect: 1, stampedeCost: 10,
+    arcanaSpell: 0.25, wellMana: 10, wellKill: 2, freezeExtra: 2, phaseCost: 3, tempoCut: 1, pyroFire: 0.4,
+    assassinMul: 0.5, assassinCd: 2, bandoMax: 3, shadowCd: 3, shadowTurns: 2, bloodRageMul: 2
   },
   player: { regenEvery: 5, baseRegenEvery: 16, potCap: 3 },
   xp: { base: 12, perLevel: 11 },           // XP to next level = base + perLevel * level
   // --- enemy AI (enemies.js) ---
   enemyAi: {
     sightRange: 9, loseTrackDist: 14,
-    smashCooldown: 2, breathCooldown: 3, defaultWindMul: 2, breathRange: 7, breathLength: 8,
+    smashCooldown: 2, breathCooldown: 2, defaultWindMul: 2, breathRange: 7, breathLength: 8,
     fleeSteps: 2, tiredTurns: 3,
+    healEvery: 3, healFrac: 0.35, healBelow: 0.75, healRange: 8,   // Cultist: heals a hurt ally instead of attacking
     lungeEvery: 3,                 // goblins/skeletons (EN lunge:true) take an extra step every Nth turn while chasing: a kiter cannot back away forever
-    enrageFrac: 0.5, enrageAtkMul: 1.4, enrageBreathCd: 2   // boss below this HP fraction: hits harder, breathes more often
+    enrageFrac: 0.5, enrageAtkMul: 1.5, enrageBreathCd: 2,  // boss below this HP fraction: hits harder, breathes more often
+    sweepMul: 1.2, sweepCd: 3,                              // enraged dragon: telegraphed tail sweep over the 8 tiles around it
+    summonAt: [0.75, 0.5, 0.25], summonN: 4                      // dragon calls whelps when its HP first drops below each fraction
   },
-  // --- active abilities (abilities.js) ---
+  // --- resources (combat.js endTurn) ---
+  rage: { max: 100, dealt: 8, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
+  mana: { regen: 1, perKill: 2 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
+  // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
-    dashRange: 3, dashCd: 6, phaseHunterCut: 2,
-    bashCd: 7, bashStun: 2, bashStunBoss: 1,
-    vanishCd: 9, vanishTurns: 3,
-    boltCd: 7, boltCdMage: 6, boltMul: 1.4, boltAdd: 2, boltRange: 8
+    bash:     { cd: 6, stun: 2, stunBoss: 1, mul: 1.0 },
+    cleave:   { rage: 30, mul: 1.0, cd: 0 },
+    charge:   { rage: 20, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
+    brace:    { rage: 35, cd: 0, hits: 3, turns: 6, reduce: 0.5, reflect: 0.5 },
+    bolt:     { mana: 7, cd: 0, mul: 1.3, add: 1, range: 8 },
+    nova:     { mana: 8, cd: 3, freeze: 3, freezeBoss: 1, mul: 0.6 },
+    blink:    { mana: 4, cd: 2, range: 5 },
+    fire:     { mana: 13, cd: 0, base: 10, perFloor: 3, range: 7, radius: 1 },
+    backstab: { cd: 5, mul: 2.4, weakMul: 0.5 },
+    vanish:   { cd: 10, turns: 3 },
+    knife:    { cd: 0, max: 4, mul: 0.7, add: 1, range: 6 },
+    smoke:    { cd: 14, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 }   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
   },
+  // --- off-hand and charm numbers (items.js, abilities.js) ---
+  offhand: {
+    towerLine: 3,                         // Tower Shield: Bash hits this many tiles in a line
+    bulwarkHits: 2, bulwarkReflect: 1,    // Iron Bulwark: Brace blocks +hits and reflects this fraction
+    totemRage: 6,                         // Blood Totem: Cleave refunds this much rage per enemy hit
+    tomeBurnTurns: 3, tomeBurnBase: 2, tomeBurnFloorDiv: 3,   // Tome: Nova also burns
+    prismRadius: 1, prismMul: 0.8,        // Prism: Fireball radius +, but damage multiplied
+    lensPierce: 2,                        // Lens: Bolt also hits this many extra enemies behind the target in line
+    dagger2Frac: 0.6,                     // Second dagger: Backstab strikes twice, the second hit at this fraction
+    satchelRadius: 1, satchelTurns: 2,    // Alchemist satchel: Smoke Bomb radius + and turns +
+    quiverKnives: 3                       // Quiver: +knives
+  },
+  charm: { fangHeal: 3, fangFloorDiv: 2, veilSight: 3, soulRage: 12, soulMana: 5, hourglassEvery: 2 },
+  weapon: { shieldFront: 0.4, shieldRanged: 0.5 },   // shielded enemies: damage multipliers (front melee / any ranged hit); stunned or frozen = no guard
   // --- floor features (features.js) ---
   merchant: {
-    floors: [3, 6], weaponChance: 0.5, elixirHp: 10,
+    floors: [3, 6], gearSlots: ['weapon', 'weapon', 'armor', 'armor', 'off', 'charm'], elixirHp: 10,   // gearSlots: one stocked per visit, drawn from this list (repeat = likelier)
     price: { potion: [12, 2], fire: [22, 3], tele: [18, 2], gear: [40, 8], perk: [60, 10], elixir: [65, 8] }   // [base, per floor]
   },
   shrine: { healBase: 0.6, healBetter: 0.75, lossBase: 0.25, lossBetter: 0.15, sacrificeGold: 30, pactHp: 8, pactMinHp: 10, pactAtk: 3, blessHeal: 0.3 },
   // --- permanent progression (save.js, run.js) ---
   meta: {
-    hpPerLevel: 6, atkPerLevel: 1, defPerLevel: 1, potPerLevel: 1, potMaxLevel: 4, goldPerLevel: 0.15,
-    costGrowth: 0.5,                 // shop price = base * (level+1) * (1 + level * costGrowth)
+    hpPerLevel: 8, atkPerLevel: 1, defPerLevel: 1, potPerLevel: 1, potMaxLevel: 4, goldPerLevel: 0.15,
+    costGrowth: 0.3,                 // shop price = base * (level+1) * (1 + level * costGrowth)
     startScrollFireChance: 0.5
   },
   run: { winBonus: 150 }
@@ -175,19 +217,19 @@ const BAL = {
 
 // ===== Tables: enemies, perks, synergies, classes, gear traits, traps, shop, unlocks =====
 const SHOP=[
- {k:'hp',n:'Hardy',d:'+6 starting HP',base:30},
- {k:'atk',n:'Sharpened',d:'+1 starting attack',base:55},
- {k:'pot',n:'Supplies',d:'+1 starting potion (and belt space), up to Lv '+BAL.meta.potMaxLevel,base:40,max:BAL.meta.potMaxLevel},
- {k:'goldp',n:'Greed',d:'+15% gold found',base:50},
- {k:'def',n:'Padded',d:'+1 starting defense',base:70}
+ {k:'hp',n:'Hardy',d:'+'+BAL.meta.hpPerLevel+' starting HP',base:30},
+ {k:'atk',n:'Sharpened',d:'+'+BAL.meta.atkPerLevel+' starting attack',base:55},
+ {k:'pot',n:'Supplies',d:'+'+BAL.meta.potPerLevel+' starting potion (and belt space), up to Lv '+BAL.meta.potMaxLevel,base:40,max:BAL.meta.potMaxLevel},
+ {k:'goldp',n:'Greed',d:'+'+Math.round(BAL.meta.goldPerLevel*100)+'% gold found',base:50},
+ {k:'def',n:'Padded',d:'+'+BAL.meta.defPerLevel+' starting defense',base:70}
 ];
 const SHOPMAX=8;
 function shopMax(s){return s.max||SHOPMAX;}   // per-item level cap (Supplies is capped lower: potions are limited by belt space)
 const UNLOCKS=[
- {id:'rogue',n:'🗡 Rogue class',d:'High crit, double damage on unaware enemies, Vanish ability.',cost:150},
- {id:'mage',n:'🧙 Mage class',d:'Arcane Bolt from the start and an extra fireball scroll.',cost:200},
- {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord (+3 attack, +1 defense) to the level-up pool.',cost:180},
- {id:'elixir',n:'Merchant: Elixir',d:'Merchants also stock an Elixir of Vigor (+10 max HP, full heal).',cost:110},
+ {id:'rogue',n:'🗡 Rogue class',d:'Backstab, Vanish, Throwing Knife and Smoke Bomb. No resource bar: cooldowns, knives and positioning.',cost:150},
+ {id:'mage',n:'🧙 Mage class',d:'Arcane Bolt, Frost Nova, Blink and Fireball, fuelled by a mana pool. Starts with an extra flame scroll.',cost:200},
+ {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord to the level-up pool.',cost:180},
+ {id:'elixir',n:'Merchant: Elixir',d:'Merchants also stock an Elixir of Vigor (+'+BAL.merchant.elixirHp+' max HP, full heal).',cost:110},
  {id:'scroll',n:'Starting scroll',d:'Begin every run with a random scroll (fireball or teleport).',cost:90},
  {id:'pick4',n:'Fourth choice',d:'Level-ups offer 4 perks to choose from instead of 3.',cost:220},
  {id:'shrine',n:'Shrine favour',d:'Shrines offer a safe Blessing and better odds when you pray.',cost:110},
@@ -197,15 +239,21 @@ const UNLOCKS=[
  {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist (potions heal 50% more) to the pool.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
 ];
 const EN={
- rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,xp:3,minF:1,tr:'Fast pack animal: moves twice per turn and tries to surround you.'},
+ rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Swarm animal: arrives in packs, moves twice per turn and surrounds you. Weak alone; Cleave, Frost Nova and Fireball shred a pack.'},
  goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain melee brute. Lunges: takes an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing, so you cannot back away from it for long.'},
  archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from up to 6 tiles (needs a clear line). Keeps its distance and flees when you get close.'},
+ hound:{n:'Hound',e:'🐺',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Fast closer: moves twice per turn, so it crosses the room before a stationary shooter can kill it. Fight it in melee or stun it.'},
+ guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shielded: takes only '+Math.round(BAL.weapon.shieldFront*100)+'% damage from the front and '+Math.round(BAL.weapon.shieldRanged*100)+'% from ranged hits. Stun or freeze it, or strike it from behind (opposite the way it faces).'},
  skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter. Lunges like the goblin (an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing).'},
  ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts only every other turn, but hits very hard. The hourglass shows it is recovering.'},
  troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow, lots of HP. Winds up a club smash (red tiles) that hurts and knocks you back.'},
+ cultist:{n:'Cultist',e:'🧛',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Caster that stays behind its friends. Heals a wounded ally instead of attacking, otherwise blasts from 6 tiles. Priority target: dive it.'},
+ bat:{n:'Bat',e:'🦇',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Swarm: a flock of fragile, fast biters. Area attacks wipe them out.'},
  warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts blasts from 6 tiles (needs a clear line). Keeps its distance.'},
- dragon:{n:'Dragon',e:'🐉',hp:520,atk:36,breath:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: winds up a 3-wide fire breath (red tiles). Step out of it. Too heavy to push. Enrages at half health: hits much harder and breathes more often.'}
+ whelp:{n:'Whelp',e:'🦎',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'A dragon whelp, called by the Dragon. Fast and fragile in numbers.'},
+ dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: winds up a 3-wide fire breath (red tiles). Calls whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join(' and ')+' health. Too heavy to push; stun, freeze or blind it to cancel an attack. Enraged at half health: hits harder, breathes more often and sweeps the tiles around it.'}
 };
+// perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
  {id:'vit',n:'Vitality',d:'+12 max HP and heal 12',f:p=>{p.mhp+=12;p.hp=Math.min(p.mhp,p.hp+12);}},
  {id:'might',n:'Might',d:'+2 attack',f:p=>{p.atk+=2;}},
@@ -217,23 +265,31 @@ const PERKS=[
  {id:'pockets',n:'Deep Pockets',d:'+2 potion capacity',f:p=>{p.potCap+=2;}},
  {id:'evade',n:'Evasion',d:'+8% chance to dodge attacks',f:p=>{p.dodge+=0.08;}},
  {id:'scholar',n:'Scholar',d:'+30% XP gained',f:p=>{p.xpMul+=0.3;}},
- {id:'pyro',n:'Pyromancer',d:'Fireball +50% damage, +1 scroll',f:p=>{p.fireMul+=0.5;G.inv.fire++;}},
+ {id:'pyro',n:'Pyromancer',d:'Flame scrolls and the Fireball spell deal +'+Math.round(BAL.perk.pyroFire*100)+'% damage; +1 flame scroll',f:p=>{p.fireMul+=BAL.perk.pyroFire;G.inv.fire++;}},
  {id:'regen',n:'Regeneration',d:'+1 HP every 5 turns',f:p=>{p.regen+=1;}},
  {id:'treasure',n:'Treasure Hunter',d:'+25% gold found',f:p=>{p.goldMul+=0.25;}},
+ {id:'tempo',n:'Tempo',d:'All ability cooldowns are '+BAL.perk.tempoCut+' turn shorter (min 1)',beh:1},
  // behaviour perks
- {id:'cleave',n:'Cleave',beh:1,d:'Melee hits also strike adjacent enemies for half damage'},
  {id:'venom',n:'Venom',beh:1,max:3,d:'Hits poison for 3 turns (+1 poison damage per level; halved on bosses)'},
  {id:'chain',n:'Chain Lightning',beh:1,d:'Kills zap the nearest visible enemy (once, no further chains)'},
  {id:'blood',n:'Bloodlust',beh:1,d:'After a kill, your next hit deals +75% damage'},
  {id:'riposte',n:'Riposte',beh:1,max:3,d:'20% chance per level to counterattack when hit in melee'},
- {id:'dash',n:'Dash',beh:1,act:1,d:'ACTIVE: move up to '+BAL.ability.dashRange+' tiles in a line as one turn (usable every '+BAL.ability.dashCd+' turns)'},
- {id:'arcane',n:'Arcane Bolt',beh:1,act:1,d:'ACTIVE: ranged blast at a visible enemy (usable every '+BAL.ability.boltCd+' turns; Mage '+BAL.ability.boltCdMage+')'},
  {id:'second',n:'Second Wind',beh:1,d:'Once per floor, a lethal hit leaves you at 1 HP instead'},
  {id:'glass',n:'Glass Cannon',beh:1,d:'+5 attack but -25% max HP',f:p=>{p.atk+=5;p.mhp=Math.max(8,Math.round(p.mhp*0.75));p.hp=Math.min(p.hp,p.mhp);}},
  {id:'scav',n:'Scavenger',beh:1,max:2,d:'Slain enemies drop an extra potion 20% of the time (per level)'},
  {id:'berserk',n:'Berserk',beh:1,d:'Up to +80% damage as your HP drops'},
- {id:'stone',n:'Stone Skin',beh:1,d:'The first hit you take each floor is negated'},
  {id:'exec',n:'Executioner',beh:1,d:'Instantly slay non-boss enemies below 20% HP after a hit'},
+ // class perks: they modify the class kit
+ {id:'fury',cls:'warrior',n:'Fury',beh:1,d:'Rage gain +'+Math.round(BAL.perk.furyMul*100)+'%'},
+ {id:'retrib',cls:'warrior',n:'Retribution',beh:1,d:'Brace blocks '+BAL.perk.retribHits+' more hits and reflects '+Math.round(BAL.perk.retribReflect*100)+'% of the damage'},
+ {id:'stampede',cls:'warrior',n:'Stampede',beh:1,d:'Charge costs '+BAL.perk.stampedeCost+' less rage and stuns every enemy next to where you land'},
+ {id:'arcana',cls:'mage',n:'Arcane Mastery',beh:1,d:'+'+Math.round(BAL.perk.arcanaSpell*100)+'% spell power'},
+ {id:'well',cls:'mage',n:'Wellspring',beh:1,d:'+'+BAL.perk.wellMana+' max mana and +'+BAL.perk.wellKill+' mana per kill',f:p=>{p.mbase+=BAL.perk.wellMana;if(G)p.mana+=BAL.perk.wellMana;}},
+ {id:'deepfreeze',cls:'mage',n:'Deep Freeze',beh:1,d:'Frost Nova freezes '+BAL.perk.freezeExtra+' turns longer'},
+ {id:'phase',cls:'mage',n:'Phase Step',beh:1,d:'Blink costs '+BAL.perk.phaseCost+' less mana and has no cooldown'},
+ {id:'assassin',cls:'rogue',n:'Assassin',beh:1,d:'Backstab deals +'+Math.round(BAL.perk.assassinMul*100)+'% damage and recharges '+BAL.perk.assassinCd+' turns sooner'},
+ {id:'bando',cls:'rogue',n:'Bandolier',beh:1,d:'+'+BAL.perk.bandoMax+' throwing knives carried'},
+ {id:'shadow',cls:'rogue',n:'Shadow Cloak',beh:1,d:'Vanish recharges '+BAL.perk.shadowCd+' turns sooner and lasts '+BAL.perk.shadowTurns+' turns longer'},
  // unlockable perks (only in the pool once unlocked in the title shop / by achievements)
  {id:'warlord',n:'Warlord',lock:'warlord',max:2,d:'+3 attack and +1 defense',f:p=>{p.atk+=3;p.def+=1;}},
  {id:'phoenix',n:'Phoenix Heart',lock:'phoenix',beh:1,d:'Once per run, a lethal hit revives you at half HP'},
@@ -243,28 +299,75 @@ const PERKS=[
 ];
 PERKS.forEach(p=>{if(!p.max)p.max=p.beh?1:5;});
 const SYN=[
- {id:'vc',a:'venom',b:'cleave',n:'Toxic Sweep',d:'Cleave also spreads poison'},
  {id:'bv',a:'berserk',b:'vamp',n:'Blood Frenzy',d:'Lifesteal is doubled below half HP'},
  {id:'be',a:'blood',b:'exec',n:'Bloody Verdict',d:'Executioner threshold rises to 30%'},
  {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons its target'},
- {id:'db',a:'dash',b:'arcane',n:'Phase Hunter',d:'Dash cuts Arcane Bolt cooldown by '+BAL.ability.phaseHunterCut}
+ {id:'fb',a:'fury',b:'berserk',n:'Blood Rage',d:'Rage gain is x'+BAL.perk.bloodRageMul+' below half HP'},
+ {id:'ow',a:'arcana',b:'well',n:'Overflow',d:'Kills restore double mana'},
+ {id:'sd',a:'assassin',b:'bando',n:'Silent Death',d:'A throwing knife that kills returns to your hand'}
 ];
+// kit = the four ability keys (defs in content.js ABIL); start = starting weapon kind; mana = base mana pool (0 = none)
 const CLS={
- warrior:{n:'Warrior',e:'🛡',hp:42,atk:4,def:3,crit:0.05,fire:1,d:'42 HP, +3 defense, slow attack growth.',ab:'Shield Bash: hit an adjacent enemy, stun it for '+BAL.ability.bashStun+' turns and knock it back one tile (usable every '+BAL.ability.bashCd+' turns).'},
- mage:{n:'Mage',e:'🧙',hp:24,atk:4,def:0,crit:0.05,fire:2,d:'24 HP. Starts with Arcane Bolt (stronger, faster than the perk) and an extra fireball scroll.',ab:'Arcane Bolt: ranged blast at a visible enemy (usable every '+BAL.ability.boltCdMage+' turns).'},
- rogue:{n:'Rogue',e:'🗡',hp:34,atk:4,def:0,crit:0.12,fire:1,d:'34 HP, high crit. Your first attack on an enemy that has not noticed you deals double damage.',ab:'Vanish: enemies lose track of you for '+BAL.ability.vanishTurns+' turns (usable every '+BAL.ability.vanishCd+' turns). Attacking breaks it.'}
+ warrior:{n:'Warrior',e:'🛡',hp:46,atk:4,def:3,crit:0.05,fire:1,mana:0,kit:['bash','cleave','charge','brace'],start:'sword',res:'Rage'},
+ mage:{n:'Mage',e:'🧙',hp:28,atk:4,def:0,crit:0.05,fire:2,mana:28,kit:['bolt','nova','blink','fire'],start:'staff',res:'Mana'},
+ rogue:{n:'Rogue',e:'🗡',hp:32,atk:4,def:0,crit:0.12,fire:1,mana:0,kit:['backstab','vanish','knife','smoke'],start:'dagger',res:'Knives'}
 };
-const LG={warrior:{hp:4,atkE:4},mage:{hp:3,atkE:3},rogue:{hp:3,atkE:2}};
+const LG={warrior:{hp:4,atkE:4},mage:{hp:5,atkE:3},rogue:{hp:3,atkE:2}};
+// weapon kinds: atk = melee attack offset (spells ignore it); crit/sneak/spell/mana = extras; sweep = splash fraction; reach = attack distance
+const WP={
+ sword:{n:'Sword',e:'⚔️',w:3,atk:0},
+ axe:{n:'Axe',e:'🪓',w:2,atk:-1,sweep:0.5},
+ spear:{n:'Spear',e:'🔱',w:2,atk:-1,reach:2},
+ dagger:{n:'Dagger',e:'🗡',w:2,atk:-2,crit:0.12,sneak:1},
+ staff:{n:'Staff',e:'🪄',w:2,atk:-3,spell:0.25,mana:4}
+};
+// armor kinds: def = defense offset on top of its tier value; noDef = no defense at all; mana/spell/dodge/manaRegenMul/rageMul = resource trade-offs
+const ARM={
+ mail:{n:'Mail',e:'🛡',w:3,def:0},
+ plate:{n:'Plate',e:'🛡',w:2,def:2,manaRegenMul:0.5,rageMul:0.75,mana:-6},
+ robe:{n:'Robe',e:'👘',w:2,noDef:1,spell:0.15,manaBase:6,manaPerV:2},
+ leather:{n:'Leather',e:'🥋',w:2,def:-1,dodge:0.1}
+};
+const TIERS=['Old','Plain','Fine','Steel','Runed','Dragon'];
+// class-locked off-hands, each modifies one ability (numbers: BAL.offhand)
+const OFF={
+ tower:{cls:'warrior',n:'Tower Shield',e:'🛡',ab:'bash'},
+ bulwark:{cls:'warrior',n:'Iron Bulwark',e:'🧱',ab:'brace'},
+ totem:{cls:'warrior',n:'Blood Totem',e:'🩸',ab:'cleave'},
+ tome:{cls:'mage',n:'Ember Tome',e:'📖',ab:'nova'},
+ prism:{cls:'mage',n:'Fire Prism',e:'💎',ab:'fire'},
+ lens:{cls:'mage',n:'Piercing Lens',e:'🔭',ab:'bolt'},
+ dagger2:{cls:'rogue',n:'Second Dagger',e:'🗡',ab:'backstab'},
+ satchel:{cls:'rogue',n:"Smoker's Satchel",e:'🎒',ab:'smoke'},
+ quiver:{cls:'rogue',n:'Deep Quiver',e:'🎯',ab:'knife'}
+};
+// charms: one passive rule each (numbers: BAL.charm)
+const CH={
+ fang:{n:'Vampire Fang',e:'🦷'},
+ ward:{n:'Ward Sigil',e:'🔰'},
+ eye:{n:'Seer Eye',e:'👁'},
+ hourglass:{n:'Hourglass',e:'⏳'},
+ veil:{n:'Shadow Veil',e:'🌑'},
+ flask:{n:'Bottomless Flask',e:'⚗️'},
+ soul:{n:'Soulstone',e:'🔮'}
+};
 const TR={
- cursed:{slot:'weapon',n:'Cursed',dv:3,minF:2,d:'+3 attack, but you lose 1 HP per kill.'},
- vamp:{slot:'weapon',n:'Vampiric',dv:-2,minF:1,d:'-2 attack, but heal 25% of damage dealt.'},
- brutal:{slot:'weapon',n:'Brutal',dv:2,minF:2,d:'+2 attack, but -10% crit chance.'},
- keen:{slot:'weapon',n:'Keen',dv:-1,minF:1,d:'-1 attack, but +15% crit chance.'},
- heavy:{slot:'armor',n:'Heavy',dv:2,minF:2,d:'+2 defense, but enemies get a free turn every 4th turn.'},
- spiked:{slot:'armor',n:'Spiked',dv:0,minF:1,d:'Melee attackers take 3 damage, but -1 attack.'},
- light:{slot:'armor',n:'Light',dv:-1,minF:1,d:'-1 defense, but +12% dodge.'},
- leaden:{slot:'armor',n:'Leaden',dv:2,minF:3,d:'+2 defense, but potions heal 40% less.'}
+ cursed:{slot:'weapon',n:'Cursed',dv:3,minF:2},
+ vamp:{slot:'weapon',n:'Vampiric',dv:-2,minF:1},
+ brutal:{slot:'weapon',n:'Brutal',dv:2,minF:2},
+ keen:{slot:'weapon',n:'Keen',dv:-1,minF:1},
+ heavy:{slot:'armor',n:'Heavy',dv:2,minF:2},
+ spiked:{slot:'armor',n:'Spiked',dv:0,minF:1},
+ leaden:{slot:'armor',n:'Leaden',dv:2,minF:3}
 };
+{const sg=n=>(n>=0?'+':'')+n,pc100=x=>Math.round(Math.abs(x)*100)+'%',B=BAL.trait;
+ TR.cursed.d=sg(TR.cursed.dv)+' attack, but you lose '+B.cursedDrain+' HP per kill.';
+ TR.vamp.d=sg(TR.vamp.dv)+' attack, but heal '+pc100(B.vampLife)+' of damage dealt.';
+ TR.brutal.d=sg(TR.brutal.dv)+' attack, but '+sg(Math.round(B.brutalCrit*100))+'% crit chance.';
+ TR.keen.d=sg(TR.keen.dv)+' attack, but +'+pc100(B.keenCrit)+' crit chance.';
+ TR.heavy.d=sg(TR.heavy.dv)+' defense, but enemies get a free turn every '+B.heavyEvery+'th turn.';
+ TR.spiked.d='Melee attackers take '+B.spikedThorns+' damage, but '+sg(B.spikedAtk)+' attack.';
+ TR.leaden.d=sg(TR.leaden.dv)+' defense, but potions heal '+pc100(1-BAL.potion.leadenMul)+' less.';}
 const TRAPS={spike:{n:'Spike trap',c:'#ff5a5a'},dart:{n:'Dart trap',c:'#7be04b'},alarm:{n:'Alarm trap',c:'#ffd24a'}};
 
 // content.js - non-numeric content: themes (colours), sound effect tables, name lists, ability button defs.
@@ -279,8 +382,6 @@ const SFX={
  death:[[300,.16,'sawtooth',.09,200],[200,.2,'sawtooth',.09,110],[110,.45,'sawtooth',.09,40]],
  win:[[523,.12,'triangle',.09],[659,.12,'triangle',.09],[784,.12,'triangle',.09],[1047,.35,'triangle',.09]]
 };
-const WNAMES=['Dagger','Short Sword','Mace','Longsword','Warhammer','Runeblade'];
-const ANAMES=['Rags','Leather','Chainmail','Scale Mail','Plate','Dragon Mail'];
 const THEMES=[
  {n:'The Crypt',wl:'#3d4678',wt:'#6d7ab8',we:'#252b52',wld:'#171a2e',wtd:'#272c4a',wed:'#0d0f1c',fa:'#a8996f',fb:'#b2a37a',fda:'#35322a',fdb:'#38352d',mw:'#3a4270',mf:'#cbbd90',mfd:'#8a8060'},
  {n:'The Caverns',wl:'#2d4a45',wt:'#5f9484',we:'#173029',wld:'#13211e',wtd:'#1f3631',wed:'#0a1411',fa:'#8a9a78',fb:'#94a482',fda:'#2b3328',fdb:'#2e362b',mw:'#2f5a50',mf:'#a8b890',mfd:'#6a7a5a'},
@@ -288,14 +389,99 @@ const THEMES=[
 ];
 function themeOf(f){return f<=3?THEMES[0]:f<=6?THEMES[1]:THEMES[2];}
 const ENAMES=['Gorak','Vexa','Morn','Sable','Thrain','Ilsa','Brakk','Nyx'],ETITLES=['the Cruel','the Bloodied','Ironhide','the Hungry','Gravecaller','Emberhand'];
-const ABIL=[{k:'bash',cls:'warrior',e:'🛡',n:'Bash'},{k:'vanish',cls:'rogue',e:'👻',n:'Vanish'},{k:'dash',perk:'dash',e:'💨',n:'Dash'},{k:'bolt',perk:'arcane',e:'🔮',n:'Bolt'}];
+// Ability button defs per key: icon, short name, targeting (adj = adjacent enemy, line = enemy in a straight line,
+// enemy = visible enemy, tile = visible tile, self = no target). The class kit order lives in CLS[cls].kit.
+const ABIL={
+ bash:{e:'🛡',n:'Bash',tg:'adj'},cleave:{e:'💢',n:'Cleave',tg:'self'},charge:{e:'⚡',n:'Charge',tg:'line'},brace:{e:'🧱',n:'Brace',tg:'self'},
+ bolt:{e:'🔮',n:'Bolt',tg:'enemy'},nova:{e:'❄️',n:'Nova',tg:'self'},blink:{e:'✨',n:'Blink',tg:'tile'},fire:{e:'🔥',n:'Fireball',tg:'tile'},
+ backstab:{e:'🗡',n:'Backstab',tg:'adj'},vanish:{e:'👻',n:'Vanish',tg:'self'},knife:{e:'🔪',n:'Knife',tg:'enemy'},smoke:{e:'🌫',n:'Smoke',tg:'tile'}
+};
+// ---- descriptive text: every number below is read from BAL / the tables, never hand-copied ----
+const pct=x=>Math.round(x*100)+'%',sgn=n=>(n>=0?'+':'')+n;
+function abCost(k){const a=BAL.ability[k];return a.rage?a.rage+' rage':a.mana?a.mana+' mana':k==='knife'?'1 knife':a.cd?'cooldown '+a.cd:'free';}
+function abCdTxt(k){const c=BAL.ability[k].cd;return c?' Recharges in '+c+' turns.':'';}
+function abilityDesc(k){
+ const a=BAL.ability[k],O=BAL.offhand;
+ switch(k){
+  case 'bash':return 'Hit an adjacent enemy, stun it '+a.stun+' turns ('+a.stunBoss+' on bosses) and knock it back a tile. Free.'+abCdTxt(k);
+  case 'cleave':return 'Hit EVERY adjacent enemy for '+pct(a.mul)+' damage. Costs '+a.rage+' rage.';
+  case 'charge':return 'Rush '+a.minDist+'-'+a.maxDist+' tiles in a straight line to an enemy, hit it for '+pct(a.mul)+' and stun it '+a.stun+' turns. Costs '+a.rage+' rage.'+abCdTxt(k);
+  case 'brace':return 'Halve the next '+a.hits+' hits you take (for up to '+a.turns+' turns) and reflect '+pct(a.reflect)+' of melee damage back. Costs '+a.rage+' rage.';
+  case 'bolt':return 'Ranged blast at a visible enemy up to '+a.range+' tiles away. Cheap filler: '+a.mana+' mana.';
+  case 'nova':return 'Freeze every adjacent enemy for '+a.freeze+' turns ('+a.freezeBoss+' on bosses) and deal '+pct(a.mul)+' damage. Costs '+a.mana+' mana.'+abCdTxt(k);
+  case 'blink':return 'Teleport up to '+a.range+' tiles to a visible tile you choose. Costs '+a.mana+' mana.'+abCdTxt(k);
+  case 'fire':return 'Explode a tile within '+a.range+': every enemy within '+a.radius+' tile'+(a.radius>1?'s':'')+' takes '+Math.round(a.base+a.perFloor)+' damage on floor 1, more deeper. Costs '+a.mana+' mana.';
+  case 'backstab':return 'Strike an adjacent enemy for x'+a.mul+' damage if it is unaware, stunned, frozen, blinded, or you are behind it. Otherwise only '+pct(a.weakMul)+'.'+abCdTxt(k);
+  case 'vanish':return 'Enemies lose track of you for '+a.turns+' turns. Attacking breaks it.'+abCdTxt(k);
+  case 'knife':return 'Throw a knife (range '+a.range+', '+pct(a.mul)+' damage). It drops on the target tile: walk over it to pick it up. You carry up to '+a.max+'.';
+  case 'smoke':return 'Blind enemies in a '+(a.radius*2+1)+'x'+(a.radius*2+1)+' cloud (range '+a.range+'): they lose track, and for '+a.turns+' turns the cloud makes enemies miss '+pct(a.miss)+' of attacks.'+abCdTxt(k);
+ }
+ return '';
+}
+function classBlurb(k){
+ const C=CLS[k],R=BAL.rage,M=BAL.mana;
+ if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds when you hit or get hit and fades out of combat. Wants to stand in the middle of a pack.';
+ if(k==='mage')return C.hp+' HP. Mana pool of '+C.mana+', +'+M.regen+' per turn and +'+M.perKill+' per kill. Wants distance and careful mana management. Starts with '+C.fire+' flame scrolls.';
+ return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' damage on enemies that have not noticed you. No resource bar: cooldowns, '+BAL.ability.knife.max+' throwing knives and positioning. Never takes a fair fight.';
+}
+function classKitHtml(k,full){
+ return CLS[k].kit.map(a=>{const A=ABIL[a];return '<div class="pl"><b>'+A.e+' '+A.n+'</b> <small>('+abCost(a)+')'+(full?'<br>'+abilityDesc(a):'')+'</small></div>';}).join('');
+}
+function wpRule(k){
+ const w=WP[k],t=[];
+ if(w.atk)t.push(sgn(w.atk)+' melee attack');
+ if(w.sweep)t.push('melee hits also strike other enemies next to you or the target for '+pct(w.sweep));
+ if(w.reach)t.push('reach '+w.reach+': attacks an enemy two tiles away in a straight line');
+ if(w.crit)t.push(sgn(Math.round(w.crit*100))+'% crit');
+ if(w.sneak)t.push('sneak attacks and Backstab get +'+w.sneak+' to their multiplier');
+ if(w.spell)t.push(sgn(Math.round(w.spell*100))+'% spell power');
+ if(w.mana)t.push(sgn(w.mana)+' max mana');
+ return t.length?t.join('; ')+'.':'Balanced: no modifiers.';
+}
+function armRule(k){
+ const a=ARM[k],t=[];
+ if(a.noDef)t.push('no defense');else if(a.def)t.push(sgn(a.def)+' defense');
+ if(a.dodge)t.push(sgn(Math.round(a.dodge*100))+'% dodge');
+ if(a.spell)t.push(sgn(Math.round(a.spell*100))+'% spell power');
+ if(a.manaBase)t.push('+'+a.manaBase+' max mana, more with tier');
+ if(a.mana)t.push(sgn(a.mana)+' max mana');
+ if(a.manaRegenMul)t.push('mana regenerates at '+pct(a.manaRegenMul));
+ if(a.rageMul)t.push('rage gain at '+pct(a.rageMul));
+ return t.length?t.join('; ')+'.':'Balanced: no modifiers.';
+}
+function offRule(k){
+ const O=BAL.offhand,A=BAL.ability;
+ return {
+  tower:'Bash hits the target and the enemies behind it in a line of '+O.towerLine+' tiles.',
+  bulwark:'Brace blocks '+O.bulwarkHits+' more hits and reflects '+pct(O.bulwarkReflect)+' of the damage.',
+  totem:'Cleave refunds '+O.totemRage+' rage per enemy hit.',
+  tome:'Frost Nova also burns every enemy it freezes ('+O.tomeBurnTurns+' turns).',
+  prism:'Fireball radius +'+O.prismRadius+', but '+pct(1-O.prismMul)+' less damage.',
+  lens:'Bolt pierces: also hits up to '+O.lensPierce+' more enemies behind the target in a line.',
+  dagger2:'Backstab strikes twice (the second hit at '+pct(O.dagger2Frac)+').',
+  satchel:'Smoke Bomb radius +'+O.satchelRadius+' and lasts '+O.satchelTurns+' turns longer.',
+  quiver:'+'+O.quiverKnives+' knives carried.'
+ }[k]||'';
+}
+function charmRule(k){
+ const C=BAL.charm;
+ return {
+  fang:'Heal '+C.fangHeal+' HP (more on deeper floors) whenever you kill an enemy.',
+  ward:'The first hit you take on each floor is free.',
+  eye:'Every trap on the floor is revealed when you arrive.',
+  hourglass:'Ability cooldowns recharge faster: one extra turn every '+C.hourglassEvery+' turns.',
+  veil:'Enemies notice you from '+C.veilSight+' tiles closer.',
+  flask:'The first potion you drink on each floor takes no turn.',
+  soul:'Each kill refunds: '+C.soulRage+' rage (Warrior), '+C.soulMana+' mana (Mage), 1 turn off every cooldown (Rogue).'
+ }[k]||'';
+}
 
 // core.js - storage keys, DOM handles and the shared mutable state that every other module reads/writes.
 
-const RUN_KEY='dcr_run_v1',META_KEY='dcr_meta_v1',IDB_NAME='dcr_run_mirror';
+const RUN_KEY='dcr_run_v2',OLD_RUN_KEYS=['dcr_run_v1'],SAVE_VER=2,META_KEY='dcr_meta_v1',IDB_NAME='dcr_run_mirror';
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
-let G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,oy:0,cw:300,ch:300,dpr:1},walkTok=0,dest=null,tapMark=null,bigMap=false,armed=null,inChain=false;
+let noticeOld=false,G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,oy:0,cw:300,ch:300,dpr:1},walkTok=0,dest=null,tapMark=null,bigMap=false,armed=null,inChain=false;
 let AC=null,flashes={},shakeUntil=0,shakeAmt=0,puffs=[],pulseUntil=0,stepAnim=null,lastPos=null,visX=0,visY=0;
 let shrineQ=false,trapConfirm=-1,bannerText='',bannerUntil=0;
 let gearQ=null;
@@ -346,6 +532,10 @@ function checkAch(){
  if(any)saveMeta();
 }
 checkAch();if(migrated)saveMeta();
+// run saves are versioned (SAVE_VER). A run saved by an older version is discarded on boot (no migration) and the title shows a notice.
+try{for(const k of OLD_RUN_KEYS){if(localStorage.getItem(k)!==null){localStorage.removeItem(k);noticeOld=true;}}}catch(e){}
+function runStrOk(s){try{const o=JSON.parse(s);return !!o&&o.ver===SAVE_VER&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H;}catch(e){return false;}}
+try{const r=localStorage.getItem(RUN_KEY);if(r&&!runStrOk(r)){localStorage.removeItem(RUN_KEY);noticeOld=true;}}catch(e){}
 function cost(s){const l=meta[s.k];return Math.round(s.base*(l+1)*(1+l*BAL.meta.costGrowth));}
 // Chromium commits localStorage to disk in batches at most about once a minute, so after a hard kill of the browser (crash,
 // OS killing the tab/app, "restart") the newest run saves - up to the whole run - are gone and Continue is missing. The run is
@@ -367,7 +557,7 @@ function idbFlush(){
   const v=idbWant;idbWant=undefined;
   if(!db){idbBusy=false;return;}
   const done=function(){idbBusy=false;idbFlush();};
-  try{const tx=db.transaction('s','readwrite');tx.objectStore('s').put(v,'run');tx.oncomplete=tx.onerror=tx.onabort=done;}catch(e){idbBusy=false;}
+  try{const tx=db.transaction('s','readwrite');tx.objectStore('s').put(v,'run2');tx.oncomplete=tx.onerror=tx.onabort=done;}catch(e){idbBusy=false;}
  });
 }
 function idbPutRun(v){idbWant=v;idbFlush();}
@@ -380,22 +570,35 @@ function save(){
 function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}idbPutRun('');}
 // boot: if the IndexedDB mirror is newer than (or contradicts) localStorage, adopt it and refresh the title screen
 function syncRunFromIdb(){
- idbOpen(function(db){if(!db)return;let g;try{g=db.transaction('s','readonly').objectStore('s').get('run');}catch(e){return;}g.onsuccess=function(){
+ idbOpen(function(db){if(!db)return;let g;try{g=db.transaction('s','readonly').objectStore('s').get('run2');}catch(e){return;}g.onsuccess=function(){
+  try{db.transaction('s','readwrite').objectStore('s').delete('run');}catch(e){}   // stale pre-v2 mirror entry
   const v=g.result;if(v===undefined||G)return;
   let ls=null,lsTs=-1;try{const r=localStorage.getItem(RUN_KEY);if(r){ls=r;lsTs=JSON.parse(r).ts||0;}}catch(e){}
   try{
    if(v===''){if(ls)localStorage.removeItem(RUN_KEY);else return;}
-   else{const o=JSON.parse(v);if(ls&&lsTs>=(o.ts||0))return;localStorage.setItem(RUN_KEY,v);}
+   else{if(!runStrOk(v))return;const o=JSON.parse(v);if(ls&&lsTs>=(o.ts||0))return;localStorage.setItem(RUN_KEY,v);}
   }catch(e){return;}
   if($('title').style.display!=='none'&&$('modal').style.display==='none')showTitle(1);
  };});
 }
-function hasSave(){try{return !!localStorage.getItem(RUN_KEY);}catch(e){return false;}}
+function hasSave(){try{const r=localStorage.getItem(RUN_KEY);return !!r&&runStrOk(r);}catch(e){return false;}}
 function continueRun(){
  try{
-  const g=JSON.parse(localStorage.getItem(RUN_KEY));
-  if(!g||!g.p||!g.map||g.map.length!==W*H)throw 0;
-  G=g;G.stopWalk=false;G.perks=G.perks||{};G.cd=Object.assign({dash:0,bolt:0,bash:0,vanish:0},G.cd||{});G.vanish=G.vanish||0;G.syn=G.syn||{};if(!CLS[G.p.cls])G.p.cls='warrior';G.p.wt=TR[G.p.wt]?G.p.wt:null;G.p.at=TR[G.p.at]?G.p.at:null;G.enemies=(G.enemies||[]).filter(e=>EN[e.t]);for(const e of G.enemies)if(e.wind&&!(Array.isArray(e.wind.tiles)&&e.wind.tiles.every(t=>Array.isArray(t)&&inb(t[0],t[1]))))e.wind=null;gearQ=null;G.bl=G.bl||0;G.traps=Array.isArray(G.traps)?G.traps.filter(t=>t&&inb(t.x,t.y)&&TRAPS[t.k]):[];G.shrine=(G.shrine&&inb(G.shrine.x,G.shrine.y))?G.shrine:null;G.merchant=(G.merchant&&inb(G.merchant.x,G.merchant.y)&&Array.isArray(G.merchant.stock))?G.merchant:null;G.treasure=G.treasure||null;G.keys=G.keys||0;G.ppois=(G.ppois&&G.ppois.t>0)?G.ppois:null;G.killer=G.killer||'';shrineQ=false;trapConfirm=-1;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
+  const raw=localStorage.getItem(RUN_KEY);if(!runStrOk(raw))throw 0;
+  const g=JSON.parse(raw);
+  G=g;G.stopWalk=false;G.perks=G.perks||{};G.syn=G.syn||{};G.vanish=G.vanish||0;
+  if(!CLS[G.p.cls])G.p.cls='warrior';
+  G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
+  for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}
+  G.enemies=(G.enemies||[]).filter(e=>EN[e.t]);
+  for(const e of G.enemies)if(e.wind&&!(Array.isArray(e.wind.tiles)&&e.wind.tiles.every(t=>Array.isArray(t)&&inb(t[0],t[1]))))e.wind=null;
+  gearQ=null;G.bl=G.bl||0;G.knives=G.knives||0;G.smoke=Array.isArray(G.smoke)?G.smoke:[];G.brace=G.brace||null;
+  G.traps=Array.isArray(G.traps)?G.traps.filter(t=>t&&inb(t.x,t.y)&&TRAPS[t.k]):[];
+  G.shrine=(G.shrine&&inb(G.shrine.x,G.shrine.y))?G.shrine:null;
+  G.merchant=(G.merchant&&inb(G.merchant.x,G.merchant.y)&&Array.isArray(G.merchant.stock))?G.merchant:null;
+  G.treasure=G.treasure||null;G.keys=G.keys||0;G.ppois=(G.ppois&&G.ppois.t>0)?G.ppois:null;G.killer=G.killer||'';
+  shrineQ=false;trapConfirm=-1;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;
+  armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
   if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
 }
@@ -440,39 +643,104 @@ function playerHurtFx(d){
 
 function floatFx(x,y,text,color,big){fx.push({x,y,text,color,big:!!big,t:performance.now()});}
 
-// items.js - gear names and traits, derived combat stats from traits, item drops, pickup, consumables.
+// items.js - gear (weapon / armor / off-hand / charm): names, derived stats, generation, comparison, drops, pickup, consumables.
 
-function gearName(slot,v,tr){
- const base=slot==='weapon'?WNAMES[Math.min(5,Math.floor(v/2))]:ANAMES[Math.min(5,Math.floor(v))];
- if(tr&&TR[tr]){if(tr==='vamp')return 'Vampiric Dagger';return TR[tr].n+' '+base;}
- return base;
+const SLOTS=['weapon','armor','off','charm'];
+const SLOT_LABEL={weapon:'Weapon',armor:'Armor',off:'Off-hand',charm:'Charm'};
+function eqi(slot){return G.p.eq[slot]||null;}
+function eqKind(slot){const i=eqi(slot);return i?i.k:null;}
+function traitOf(slot){const i=eqi(slot);return i&&i.tr?i.tr:null;}
+function kindTable(slot){return slot==='weapon'?WP:slot==='armor'?ARM:slot==='off'?OFF:CH;}
+function itemIcon(it){const t=it&&kindTable(it.t)[it.k];return t?t.e:'❔';}
+function gearName(it){
+ if(!it)return 'Nothing';
+ const kt=kindTable(it.t)[it.k];if(!kt)return 'Strange item';
+ let base=kt.n;
+ if(it.t==='weapon')base=TIERS[Math.min(5,Math.floor(it.v/BAL.gear.tierDiv))]+' '+base;
+ else if(it.t==='armor')base=TIERS[Math.min(5,it.v)]+' '+base;
+ return it.tr&&TR[it.tr]?TR[it.tr].n+' '+base:base;
 }
+function itemRule(it){
+ if(!it)return '';
+ return it.t==='weapon'?wpRule(it.k):it.t==='armor'?armRule(it.k):it.t==='off'?offRule(it.k):charmRule(it.k);
+}
+function armorDef(it){if(!it)return 0;const a=ARM[it.k];if(!a||a.noDef)return 0;return Math.max(0,it.v+(a.def||0));}
+function wpK(){const w=eqi('weapon');return w?WP[w.k]:null;}
+function armK(){const a=eqi('armor');return a?ARM[a.k]:null;}
+function wv(){const w=eqi('weapon');return w?w.v:0;}
+function atkMod(){return traitOf('armor')==='spiked'?BAL.trait.spikedAtk:0;}
+function meleeAtk(){const k=wpK();return Math.max(1,G.p.atk+wv()+(k?k.atk:0)+atkMod());}
+function spellBase(){return Math.max(1,G.p.atk+wv()+atkMod());}   // spells ignore the weapon's melee offset
+function defTotal(){return G.p.def+armorDef(eqi('armor'));}
+function critChance(){const p=G.p,k=wpK(),t=traitOf('weapon');return Math.max(0,Math.min(1,p.crit+(k&&k.crit||0)+(t==='keen'?BAL.trait.keenCrit:0)+(t==='brutal'?BAL.trait.brutalCrit:0)));}
+function lifeRate(){return Math.max(0,G.p.life+(traitOf('weapon')==='vamp'?BAL.trait.vampLife:0));}
+function dodgeChance(){const k=armK();return Math.min(BAL.combat.dodgeCap,G.p.dodge+(k&&k.dodge||0));}
+function thornsDmg(){return G.p.thorns+(traitOf('armor')==='spiked'?BAL.trait.spikedThorns:0);}
+function spellMul(){const k=wpK(),a=armK();return 1+(k&&k.spell||0)+(a&&a.spell||0)+pc('arcana')*BAL.perk.arcanaSpell;}
+function mmax(){
+ const p=G.p;if(!(p.mbase>0))return 0;
+ const k=wpK(),a=armK(),ar=eqi('armor');let m=p.mbase+(k&&k.mana||0);
+ if(a){m+=(a.mana||0);if(a.manaBase)m+=a.manaBase+a.manaPerV*ar.v;}
+ return Math.max(1,m);
+}
+function manaRegen(){const a=armK();return BAL.mana.regen*(a&&a.manaRegenMul||1);}
+function maxKnives(){return BAL.ability.knife.max+(eqKind('off')==='quiver'?BAL.offhand.quiverKnives:0)+(pc('bando')?BAL.perk.bandoMax:0);}
+// stat vector used by the equip comparison: what changes if `it` replaces the current item in its slot
+function statVec(){return {attack:meleeAtk(),defense:defTotal(),crit:Math.round(critChance()*100),dodge:Math.round(dodgeChance()*100),spell:Math.round((spellMul()-1)*100),mana:mmax()};}
+function gearDelta(it){
+ const p=G.p,old=p.eq[it.t],a=statVec();p.eq[it.t]={t:it.t,k:it.k,v:it.v,tr:it.tr||null};const b=statVec();p.eq[it.t]=old;
+ const o=[];for(const k in a){const d=b[k]-a[k];if(d)o.push(k+' '+sgn(d)+((k==='crit'||k==='dodge'||k==='spell')?'%':''));}
+ return o;
+}
+function itemDesc(it){
+ let t=it.t==='weapon'?'+'+it.v+' attack. ':it.t==='armor'?'Defense '+armorDef(it)+'. ':'';
+ t+=itemRule(it);if(it.tr)t+=' '+traitLine(it.tr);return t;
+}
+function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'';}
+function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
 function rollTrait(slot,f){
  if(Math.random()>=Math.min(BAL.trait.chanceCap,BAL.trait.chanceBase+BAL.trait.chancePerFloor*f))return null;
  const pool=Object.keys(TR).filter(k=>TR[k].slot===slot&&TR[k].minF<=f);
  return pool.length?pick(pool):null;
 }
-function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
-function atkMod(){const p=G.p;return p.at==='spiked'?BAL.trait.spikedAtk:0;}
-function critChance(){const p=G.p;return Math.max(0,Math.min(1,p.crit+(p.wt==='keen'?BAL.trait.keenCrit:0)+(p.wt==='brutal'?BAL.trait.brutalCrit:0)));}
-function lifeRate(){const p=G.p;return Math.max(0,p.life+(p.wt==='vamp'?BAL.trait.vampLife:0));}
-function dodgeChance(){const p=G.p;return Math.min(BAL.combat.dodgeCap,p.dodge+(p.at==='light'?BAL.trait.lightDodge:0));}
-function thornsDmg(){const p=G.p;return p.thorns+(p.at==='spiked'?BAL.trait.spikedThorns:0);}
-function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'No trait.';}
-function forcedGear(f,slot){
- const pool=Object.keys(TR).filter(k=>TR[k].slot===slot&&TR[k].minF<=Math.max(f,BAL.forcedGear.minTraitFloor)),tr=pick(pool);
- return {t:slot,tr:tr,v:applyTrait(slot==='weapon'?rnd(BAL.forcedGear.weaponMin,BAL.forcedGear.weaponMax)+Math.floor(f*BAL.forcedGear.weaponPerFloor):Math.floor((f+rnd(BAL.forcedGear.armorRandMin,BAL.forcedGear.armorRandMax))/BAL.forcedGear.armorDiv)+BAL.forcedGear.armorBase,tr)};
+function pickW(tbl){
+ const ks=Object.keys(tbl);let tot=0;for(const k of ks)tot+=tbl[k].w||1;
+ let r=Math.random()*tot;for(const k of ks){r-=tbl[k].w||1;if(r<0)return k;}return ks[0];
 }
+function classOffs(cls){return Object.keys(OFF).filter(k=>OFF[k].cls===cls);}
+// a fresh piece of gear for floor f. forced = treasure room / merchant: weapon and armor always carry a trait.
+function newGear(slot,f,forced){
+ if(slot==='off')return {t:'off',k:pick(classOffs(G.p.cls)),v:0,tr:null};
+ if(slot==='charm')return {t:'charm',k:pick(Object.keys(CH)),v:0,tr:null};
+ const fg=BAL.forcedGear,sp=BAL.spawn;
+ let tr=null;
+ if(forced){const pool=Object.keys(TR).filter(k=>TR[k].slot===slot&&TR[k].minF<=Math.max(f,fg.minTraitFloor));tr=pick(pool);}
+ else tr=rollTrait(slot,f);
+ if(slot==='weapon'){
+  const raw=forced?rnd(fg.weaponMin,fg.weaponMax)+Math.floor(f*fg.weaponPerFloor):rnd(sp.weaponMin,sp.weaponMax)+Math.floor(f*sp.weaponPerFloor);
+  return {t:'weapon',k:pickW(WP),v:applyTrait(raw,tr),tr:tr};
+ }
+ const raw=forced?Math.floor((f+rnd(fg.armorRandMin,fg.armorRandMax))/fg.armorDiv)+fg.armorBase:Math.floor((f+rnd(0,sp.armorRand))/sp.armorDiv)+sp.armorBase;
+ return {t:'armor',k:pickW(ARM),v:applyTrait(raw,tr),tr:tr};
+}
+function forcedGear(f,slot){return newGear(slot,f,true);}
 function dropAt(x,y,it){
  let t=[x,y];
  if(itemAt(x,y)){for(const [dx,dy] of DIRS){const a=x+dx,b=y+dy;if(inb(a,b)&&G.map[ix(a,b)]===1&&!itemAt(a,b)&&!trapAt(a,b)&&!merchantAt(a,b)){t=[a,b];break;}}}
  it.x=t[0];it.y=t[1];G.items.push(it);
 }
+function clampRes(){const p=G.p;p.mana=Math.min(p.mana||0,mmax());G.knives=Math.min(G.knives||0,maxKnives());}
+// put `it` on the player and return what it replaced
+function equipItem(it){
+ const p=G.p,old=p.eq[it.t];p.eq[it.t]={t:it.t,k:it.k,v:it.v,tr:it.tr||null};clampRes();return old;
+}
+function worthKeeping(old){return !!old&&(old.v>0||!!old.tr||old.t==='off'||old.t==='charm');}
 function pickup(){
  const p=G.p;stepEffects();
  const here=G.items.filter(i=>i.x===p.x&&i.y===p.y);
  for(const it of here)pickOne(it);
 }
+function sellGear(it,why){const g=Math.round((BAL.item.weakSaleBase+G.floor)*G.p.goldMul);G.p.gold+=g;msg(why+' '+gearName(it)+' sold for '+g+' gold.');}
 function pickOne(it){
  const p=G.p;
  let take=true;
@@ -481,14 +749,19 @@ function pickOne(it){
   if(G.inv.pot<p.potCap){G.inv.pot++;msg('You pick up a health potion.');}
   else{msg('Potion belt is full.');take=false;}
  }
- else if(it.t==='weapon'||it.t==='armor'){
-  const w=it.t==='weapon',cv=w?p.wb:p.ab,ct=w?p.wt:p.at,nm=gearName(it.t,it.v,it.tr);
-  if(!it.tr&&!ct){
-   if(it.v>cv){if(w){p.wb=it.v;p.wn=nm;}else{p.ab=it.v;p.an=nm;}msg('Equipped '+nm+' (+'+it.v+(w?' attack).':' defense).'));}
-   else{const g=Math.round((BAL.item.weakSaleBase+G.floor)*p.goldMul);p.gold+=g;msg('Weak '+nm+' sold for '+g+' gold.');}
+ else if(it.t==='knife'){
+  if(G.knives<maxKnives()){G.knives++;msg('You pick up a throwing knife.');}
+  else take=false;
+ }
+ else if(SLOTS.indexOf(it.t)>=0){
+  const cur=p.eq[it.t];
+  if(cur&&cur.k===it.k&&!it.tr&&!cur.tr){
+   if(it.t==='off'||it.t==='charm')sellGear(it,'You already own this:');
+   else if(it.v>cur.v){equipItem(it);msg('Equipped '+gearName(it)+'.');}
+   else sellGear(it,'Weak');
   }else{gearQ=it;take=false;}
  }
- else if(it.t==='fire'){G.inv.fire++;msg('Found a Fireball scroll.');}
+ else if(it.t==='fire'){G.inv.fire++;msg('Found a flame scroll.');}
  else if(it.t==='tele'){G.inv.tele++;msg('Found a Teleport scroll.');}
  else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('You pick up a brass key!');}
  if(take){G.items=G.items.filter(o=>o!==it);sfx('pickup');}
@@ -498,16 +771,18 @@ function drink(){
  const p=G.p;
  if(G.inv.pot<=0){msg('No potions. Find them in the dungeon.');return;}
  if(p.hp>=p.mhp){msg('Already at full health.');return;}
- G.ppois=null;G.inv.pot--;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(p.at==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
- floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');endTurn();
+ G.ppois=null;G.inv.pot--;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
+ floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');
+ if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('The flask refills itself: no turn used.');save();render();return;}
+ endTurn();
 }
 function fireball(){
- if(G.inv.fire<=0){msg('No fireball scrolls. Find them in the dungeon.');return;}
+ if(G.inv.fire<=0){msg('No flame scrolls. Find them in the dungeon.');return;}
  const t=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
  if(!t.length){msg('No visible enemies - scroll kept.');return;}
  G.inv.fire--;const dmg=Math.round((BAL.fireball.base+G.floor*BAL.fireball.perFloor)*G.p.fireMul);
- msg('Fireball! '+dmg+' damage to all in sight.');
- for(const e of t){hurtEnemy(e,dmg,'#ff7a2a');settle(e);}
+ msg('Flames! '+dmg+' damage to all in sight.');
+ for(const e of t){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
  endTurn();
 }
 function teleport(){
@@ -532,9 +807,9 @@ function addPerk(id){
  msg('Perk gained: '+pk.n+(pk.max>1?' (Lv '+pc(id)+')':'')+'.');checkSyn();return true;
 }
 
-function randomPerkId(){
- const pool=PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&pc(pk.id)<pk.max);return pool.length?pick(pool).id:null;
-}
+// perks the current player can still be offered: unlocked, not maxed, and for their class
+function perkPool(){return PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&(!pk.cls||pk.cls===G.p.cls)&&pc(pk.id)<pk.max);}
+function randomPerkId(){const pool=perkPool();return pool.length?pick(pool).id:null;}
 
 // fov.js - line of sight, field of view, breadth-first distance maps and click-to-walk path finding.
 
@@ -592,7 +867,7 @@ function genFloor(f){
   const m=new Array(W*H).fill(0),rooms=[];
   for(let i=0;i<BAL.map.roomTries&&rooms.length<BAL.map.maxRooms;i++){
    const big=f===MAXF&&rooms.length===0;
-   const w=big?BAL.map.bossRoomW:rnd(BAL.map.roomMinW,BAL.map.roomMaxW),h=big?BAL.map.bossRoomH:rnd(BAL.map.roomMinH,BAL.map.roomMaxH),x=rnd(1,W-w-1),y=rnd(1,H-h-1);
+   const w=big?BAL.map.bossRoomW:rnd(BAL.map.roomMinW,BAL.map.roomMaxW),h=big?BAL.map.bossRoomH:rnd(BAL.map.roomMinH,BAL.map.roomMaxH),x=rnd(1,Math.min(W,BAL.map.span)-w-1),y=rnd(1,Math.min(H,BAL.map.span)-h-1);   // rooms only use the top-left span x span corner: shorter corridors, shorter runs
    if(rooms.some(r=>x<r.x+r.w+1&&x+w+1>r.x&&y<r.y+r.h+1&&y+h+1>r.y))continue;
    const rcx=x+(w>>1),rcy=y+(h>>1);
    rooms.push({x,y,w,h,cx:rcx,cy:rcy});
@@ -654,7 +929,7 @@ function carveTreasure(rooms,f){
  return null;
 }
 
-// enemies.js - enemy AI: waking, movement, kiting, pack surround, wind-up telegraphed attacks.
+// enemies.js - enemy AI: waking, movement, kiting, pack surround, healing casters, wind-up telegraphed attacks, dragon phases.
 
 function dangerSet(){const st=new Set();if(!G)return st;for(const e of G.enemies)if(e.wind&&!e.dead)for(const t of e.wind.tiles)st.add(ix(t[0],t[1]));return st;}
 function dangerNear(dz){const p=G.p;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dz.has(ix(p.x+dx,p.y+dy))&&inb(p.x+dx,p.y+dy))return true;return false;}
@@ -690,18 +965,40 @@ function breathWind(e){
  }
  return null;
 }
+// enraged dragon: telegraphed sweep over the ring of tiles around it (only started when you are next to it and can step out)
+function sweepWind(e){
+ const tiles=[];
+ for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const x=e.x+dx,y=e.y+dy;
+  if(inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==3&&G.map[ix(x,y)]!==5)tiles.push([x,y]);}
+ if(!canEscape(tiles))return null;
+ return {k:'sweep',tiles:tiles,dx:0,dy:0};
+}
+function summonWhelps(e){
+ const c=[];
+ for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=e.x+dx,y=e.y+dy;
+  if(inb(x,y)&&G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!(x===G.p.x&&y===G.p.y)&&!trapAt(x,y))c.push([x,y]);}
+ c.sort(()=>Math.random()-0.5);
+ let n=0;
+ for(const t of c){if(n>=BAL.enemyAi.summonN)break;const w=makeEnemy('whelp',t[0],t[1],G.floor);w.awake=true;n++;}
+ msg('The '+EN[e.t].n+' calls its brood: '+n+' whelps!');floatFx(e.x,e.y,'BROOD','#f95',true);
+}
+function bossPhase(e){
+ const at=BAL.enemyAi.summonAt;
+ while((e.sm||0)<at.length&&e.hp<e.mhp*at[e.sm||0]){e.sm=(e.sm||0)+1;summonWhelps(e);}
+}
 function resolveWind(e,d){
- const w=e.wind,p=G.p;e.wind=null;e.cd=w.k==='smash'?BAL.enemyAi.smashCooldown:(e.enraged?BAL.enemyAi.enrageBreathCd:BAL.enemyAi.breathCooldown);
+ const w=e.wind,p=G.p;e.wind=null;e.cd=w.k==='smash'?BAL.enemyAi.smashCooldown:w.k==='sweep'?BAL.enemyAi.sweepCd:(e.enraged?BAL.enemyAi.enrageBreathCd:BAL.enemyAi.breathCooldown);
  if(w.tiles.some(t=>t[0]===p.x&&t[1]===p.y)){
-  const dmg=Math.round(e.atk*(d.windMul||BAL.enemyAi.defaultWindMul));
-  if(w.k==='smash'){if(hurtPlayer(e,dmg,true,'SMASHES')&&p.hp>0)knock(p,w.dx,w.dy);}
+  const dmg=Math.round(e.atk*(w.k==='sweep'?BAL.enemyAi.sweepMul:(d.windMul||BAL.enemyAi.defaultWindMul)));
+  if(w.k==='sweep')hurtPlayer(e,dmg,true,'sweeps');
+  else if(w.k==='smash'){if(hurtPlayer(e,dmg,true,'SMASHES')&&p.hp>0)knock(p,w.dx,w.dy);}
   else hurtPlayer(e,dmg,false,'scorches');
  }else{msg('The '+d.n+"'s attack hits empty ground.");floatFx(e.x,e.y,'miss','#ccc');}
 }
 function moveEnemy(e,x,y){
  const i=ix(x,y);
  if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
- e.x=x;e.y=y;
+ e.face=[Math.sign(x-e.x),Math.sign(y-e.y)];e.x=x;e.y=y;
  const tp=trapAt(x,y);if(tp)springEnemy(e,tp);
 }
 function fleeStep(e,p){
@@ -729,22 +1026,34 @@ function enemiesAct(free){
  const p=G.p,dist=bfsDist(p.x,p.y);claimed=new Set();
  for(const e of G.enemies.slice()){
   if(p.hp<=0)break;if(e.dead)continue;
-  const d=EN[e.t];if(!free&&e.cd>0)e.cd--;
-  if(e.stun>0){e.wind=null;if(!free)e.stun--;continue;}
+  const d=EN[e.t];if(!free&&e.cd>0)e.cd--;if(!free&&e.hcd>0)e.hcd--;
+  if(d.boss&&!free)bossPhase(e);
+  if(e.stun>0||e.frz>0){e.wind=null;if(!free){if(e.stun>0)e.stun--;if(e.frz>0)e.frz--;}continue;}
+  if(G.smoke&&inSmoke(e.x,e.y))e.blind=Math.max(e.blind||0,2);
+  const blindNow=e.blind>0;if(!free&&e.blind>0)e.blind--;
   if(G.vanish>0){e.awake=false;e.wind=null;continue;}
   if(free&&(e.wind||d.slowAct))continue;
   if(e.wind){resolveWind(e,d);continue;}
   const md=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
-  const see=md<=BAL.enemyAi.sightRange&&los(e.x,e.y,p.x,p.y);
+  const sightR=BAL.enemyAi.sightRange-(eqKind('charm')==='veil'?BAL.charm.veilSight:0);
+  const see=!blindNow&&md<=(G.smoke&&inSmoke(p.x,p.y)?1:sightR)&&los(e.x,e.y,p.x,p.y);
   if(see)e.awake=true;
   if(!e.awake)continue;
   if(!see&&!e.alarm&&dist[ix(e.x,e.y)]>BAL.enemyAi.loseTrackDist){e.awake=false;continue;}
   if(d.slowAct){if(e.rest){e.rest=0;continue;}e.rest=1;}
   if(d.boss&&!e.enraged&&e.hp<e.mhp*BAL.enemyAi.enrageFrac){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');floatFx(e.x,e.y,'ENRAGED','#f55');}
+  if(d.heal&&!free&&!(e.hcd>0)){
+   let tg=null,bf=BAL.enemyAi.healBelow;
+   for(const o of G.enemies){if(o===e||o.dead)continue;const fr=o.hp/o.mhp;
+    if(fr<bf&&manh(o,e)<=BAL.enemyAi.healRange&&los(e.x,e.y,o.x,o.y)){bf=fr;tg=o;}}
+   if(tg){const h=Math.max(1,Math.round(tg.mhp*BAL.enemyAi.healFrac));tg.hp=Math.min(tg.mhp,tg.hp+h);e.hcd=BAL.enemyAi.healEvery;
+    floatFx(tg.x,tg.y,'+'+h,'#8f8');if(G.vis[ix(tg.x,tg.y)])msg('The '+d.n+' mends the '+nm(tg)+'.');continue;}
+  }
   const steps=(d.speed||1)+((d.lunge&&!free&&md>1&&(G.turn+e.id)%BAL.enemyAi.lungeEvery===0)?1:0);
   for(let s=0;s<steps;s++){
    if(e.dead)break;
    const dd=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
+   if(d.sweep&&e.enraged&&!free&&dd===1&&e.cd<=0){const w=sweepWind(e);if(w){e.wind=w;msg('The '+d.n+' whips its tail around!');floatFx(e.x,e.y,'!','#f55');break;}}
    if(d.breath&&!free&&e.cd<=0&&see){const w=breathWind(e);if(w){e.wind=w;msg(d.windMsg);floatFx(e.x,e.y,'!','#f55');break;}}
    if(d.wind&&!free&&dd===1&&e.cd<=0){const w=smashWind(e);if(w){e.wind=w;msg(d.windMsg);floatFx(e.x,e.y,'!','#f55');break;}}
    if(dd===1){
@@ -767,7 +1076,7 @@ function enemiesAct(free){
  }
 }
 
-// combat.js - damage, kills, status effects (poison, stun), knockback, turn end processing.
+// combat.js - damage, kills, status effects (poison, stun, freeze), shields, knockback, resource ticks and turn end processing.
 
 function secondWind(){
  const p=G.p;
@@ -785,7 +1094,11 @@ function killEnemy(e,src){
  const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');if(!rmo())puffs.push({x:e.x,y:e.y,t:performance.now(),s:Math.random()*6});
  gainXp(d.xp+G.floor);
  if(d.boss){G.won=true;return;}
- if(G.p.wt==='cursed')curseDrain();
+ if(traitOf('weapon')==='cursed')curseDrain();
+ {const p=G.p,ch=eqKind('charm');
+  if(ch==='fang'){const h=BAL.charm.fangHeal+Math.floor(G.floor/BAL.charm.fangFloorDiv);p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');}
+  if(ch==='soul'){if(p.cls==='warrior')gainRage(BAL.charm.soulRage,true);else if(p.cls==='mage')p.mana=Math.min(mmax(),p.mana+BAL.charm.soulMana);else for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;}
+  if(p.cls==='mage'){let m=BAL.mana.perKill+(pc('well')?BAL.perk.wellKill:0);if(G.syn.ow)m*=2;p.mana=Math.min(mmax(),p.mana+m);}}
  if(e.elite){dropAt(e.x,e.y,{t:'key',v:0});floatFx(e.x,e.y,'KEY','#ffd24a');msg('The elite drops a brass key!');}
  else if(Math.random()<BAL.drops.potionChance)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  else if(Math.random()<BAL.drops.goldChance)G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(BAL.drops.goldMin,BAL.drops.goldMax)+G.floor});
@@ -794,8 +1107,15 @@ function killEnemy(e,src){
  if(pc('blood'))G.bl=1;
  if(pc('chain')&&!inChain)chainZap(e);
 }
-function hurtEnemy(e,dmg,col,crit){
+// kind: 'melee' | 'ranged' | 'magic' (shields care), undefined = poison / traps / impact (never reduced)
+function hurtEnemy(e,dmg,col,crit,kind){
  if(e.dead)return;
+ if(kind&&EN[e.t].shield&&!(e.stun>0||e.frz>0)){
+  let m=1;
+  if(isFront(e))m=BAL.weapon.shieldFront;
+  if(kind!=='melee')m=Math.min(m,BAL.weapon.shieldRanged);
+  if(m<1){dmg=Math.max(1,Math.round(dmg*m));floatFx(e.x,e.y,'shield','#9ab');}
+ }
  e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now();floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
 }
 // resolve a hit: kill if dead, else maybe execute
@@ -813,8 +1133,8 @@ function poison(e){
 function tickPoison(){
  for(const e of G.enemies.slice()){
   if(e.dead||!e.pois)continue;
-  const d=e.pois.d;e.pois.t--;if(e.pois.t<=0)delete e.pois;
-  hurtEnemy(e,d,'#7be04b');settle(e,'Poison');
+  const d=e.pois.d,col=e.pois.burn?'#ff9a3a':'#7be04b';e.pois.t--;if(e.pois.t<=0)delete e.pois;
+  hurtEnemy(e,d,col);settle(e,e.pois&&e.pois.burn?'Burning':'Poison');
  }
 }
 function chainZap(from){
@@ -829,8 +1149,8 @@ function chainZap(from){
    settle(best,'Lightning');}
  }finally{inChain=false;}
 }
-function playerDmg(){
- const p=G.p;let d=Math.max(1,p.atk+p.wb+atkMod()+rnd(-BAL.combat.dmgVar,BAL.combat.dmgVar));
+function playerDmg(spell){
+ const p=G.p;let d=Math.max(1,(spell?spellBase():meleeAtk())+rnd(-BAL.combat.dmgVar,BAL.combat.dmgVar));
  if(pc('berserk'))d*=1+BAL.perk.berserkMax*(1-Math.max(0,p.hp)/p.mhp);
  return Math.max(1,Math.round(d));
 }
@@ -840,40 +1160,50 @@ function lifeSteal(dmg){
  if(pc('berserk')&&pc('vamp')&&p.hp<p.mhp*BAL.perk.bloodFrenzyHp)h*=BAL.perk.bloodFrenzyMul;
  p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');
 }
+function sneakMul(){const wk=wpK();return (G.p.cls==='rogue'?BAL.combat.sneakMul:1)+(wk&&wk.sneak||0);}
 function playerAttack(e){
- const p=G.p;let dmg=playerDmg(),crit=Math.random()<critChance();
+ const p=G.p,wk=wpK();let dmg=playerDmg(),crit=Math.random()<critChance();
  if(crit)dmg*=BAL.combat.critMul;
- if(p.cls==='rogue'&&!e.awake){dmg*=BAL.combat.sneakMul;msg('Sneak attack!');}
+ const sn=sneakMul();
+ if(sn>1&&!e.awake){dmg*=sn;msg('Sneak attack!');}
  if(G.vanish>0){G.vanish=0;msg('You step out of the shadows.');}
  if(G.bl){dmg=Math.round(dmg*BAL.perk.bloodlustMul);G.bl=0;msg('Bloodlust! Your strike is empowered.');}
- hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a',crit);
+ dmg=Math.max(1,Math.round(dmg));
+ hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a',crit,'melee');
  sfx(crit?'crit':'hit');if(crit||dmg>=Math.max(8,e.mhp*0.5))shake(crit?5:3);
  msg((crit?'Critical! ':'')+'You hit the '+nm(e)+' for '+dmg+'.');
- lifeSteal(dmg);
+ lifeSteal(dmg);gainRage(BAL.rage.dealt);
  poison(e);
  settle(e);
- if(pc('cleave')){
-  const half=Math.max(1,Math.floor(dmg*BAL.perk.cleaveFrac));
+ if(wk&&wk.sweep){
+  const half=Math.max(1,Math.floor(dmg*wk.sweep));
   for(const o of G.enemies.slice()){
-   if(o===e||o.dead||Math.max(Math.abs(o.x-p.x),Math.abs(o.y-p.y))>1)continue;
-   hurtEnemy(o,half,'#ffb04a');msg('Cleave hits the '+nm(o)+' for '+half+'.');
-   if(pc('venom'))poison(o);
-   settle(o);
+   if(o===e||o.dead||(cheb(o,p)>1&&cheb(o,e)>1))continue;
+   hurtEnemy(o,half,'#ffb04a',false,'melee');msg('Your axe sweeps the '+nm(o)+' for '+half+'.');poison(o);settle(o);
   }
  }
 }
 function hurtPlayer(e,dmg,melee,verb){
  const p=G.p;
+ if(e&&e.x!=null){e.face=[Math.sign(p.x-e.x),Math.sign(p.y-e.y)];}
+ if(e&&e.blind>0&&Math.random()<BAL.ability.smoke.miss){floatFx(e.x,e.y,'miss','#ccc');msg('The blinded '+nm(e)+' swings wildly and misses.');return false;}
  if(Math.random()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+nm(e)+'.');return false;}
- if(pc('stone')&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Stone Skin negates the '+nm(e)+"'s hit.");return false;}
- dmg=Math.max(1,Math.round(dmg*BAL.combat.armorK/(BAL.combat.armorK+p.def+p.ab))+rnd(-BAL.combat.enemyDmgVar,BAL.combat.enemyDmgVar));
+ if(eqKind('charm')==='ward'&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Your Ward Sigil negates the '+nm(e)+"'s hit.");return false;}
+ dmg=Math.max(1,Math.round(dmg*BAL.combat.armorK/(BAL.combat.armorK+defTotal()))+rnd(-BAL.combat.enemyDmgVar,BAL.combat.enemyDmgVar));
  if(dmg<1)dmg=1;
+ const raw=dmg;let refl=0;
+ if(G.brace){
+  dmg=Math.max(1,Math.round(dmg*BAL.ability.brace.reduce));refl=melee?Math.round(raw*G.brace.reflect):0;
+  floatFx(p.x,p.y,'braced','#9cf');if(--G.brace.hits<=0)G.brace=null;
+ }
  p.hp-=dmg;G.killer=nm(e);flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
  msg('The '+nm(e)+' '+(verb||(melee?'hits':'blasts'))+' you for '+dmg+'.');playerHurtFx(dmg);
+ gainRage(BAL.rage.taken);
  secondWind();
+ if(refl>0&&!e.dead){hurtEnemy(e,refl,'#9cf');msg('Your brace reflects '+refl+' damage.');settle(e,'Reflection');}
  if(melee&&thornsDmg()>0&&!e.dead){hurtEnemy(e,thornsDmg(),'#8f8');settle(e,'Thorns');}
  if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&Math.random()<BAL.perk.riposteChance*pc('riposte')){
-  const d2=playerDmg();hurtEnemy(e,d2,'#fff');msg('Riposte! You counter for '+d2+'.');settle(e);}
+  const d2=playerDmg();hurtEnemy(e,d2,'#fff',false,'melee');msg('Riposte! You counter for '+d2+'.');settle(e);}
  return true;
 }
 function kbDmg(){return BAL.combat.knockBase+Math.floor(G.floor/BAL.combat.knockFloorDiv);}
@@ -906,6 +1236,11 @@ function endTurn(){
  if(G.won){finish('win');return;}
  G.turn++;
  for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;
+ if(eqKind('charm')==='hourglass'&&G.turn%BAL.charm.hourglassEvery===0)for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;
+ if(p.cls==='mage'){p.mf=(p.mf||0)+manaRegen();const w=Math.floor(p.mf);p.mf-=w;p.mana=Math.min(mmax(),p.mana+w);}
+ if(p.cls==='warrior'&&(p.rage||0)>0&&!G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)]))p.rage=Math.max(0,p.rage-BAL.rage.decay);
+ if(G.brace&&--G.brace.t<=0)G.brace=null;
+ if(G.smoke){for(const c of G.smoke)c.t--;G.smoke=G.smoke.filter(c=>c.t>0);}
  if(p.hp<p.mhp){
   if(p.regen&&G.turn%BAL.player.regenEvery===0)p.hp=Math.min(p.mhp,p.hp+p.regen);
   if(G.turn%BAL.player.baseRegenEvery===0)p.hp=Math.min(p.mhp,p.hp+1);
@@ -914,7 +1249,7 @@ function endTurn(){
  tickPoison();
  if(G.won){finish('win');return;}
  enemiesAct();
- if(p.at==='heavy'&&G.turn%BAL.trait.heavyEvery===0&&p.hp>0&&!G.won&&G.enemies.some(e=>e.awake)){msg('Your heavy armor slows you: enemies get a free turn.');enemiesAct(true);}
+ if(traitOf('armor')==='heavy'&&G.turn%BAL.trait.heavyEvery===0&&p.hp>0&&!G.won&&G.enemies.some(e=>e.awake)){msg('Your heavy armor slows you: enemies get a free turn.');enemiesAct(true);}
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
@@ -928,11 +1263,11 @@ function buildStock(f){
  const s=[],pr=(a,b)=>Math.round(a+b*f);
  s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(...BAL.merchant.price.potion)});
  s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(...BAL.merchant.price.potion)});
- s.push({k:'fire',n:'📜 Fireball scroll',d:'Damages every enemy in sight.',price:pr(...BAL.merchant.price.fire)});
+ s.push({k:'fire',n:'📜 Flame scroll',d:'Damages every enemy in sight.',price:pr(...BAL.merchant.price.fire)});
  s.push({k:'tele',n:'🌀 Teleport scroll',d:'Jump to a random far spot.',price:pr(...BAL.merchant.price.tele)});
- const slot=Math.random()<BAL.merchant.weaponChance?'weapon':'armor',g=forcedGear(f,slot);
- s.push({k:'gear',slot:slot,v:g.v,tr:g.tr,n:(slot==='weapon'?'⚔️ ':'🛡 ')+gearName(slot,g.v,g.tr),d:'+'+g.v+(slot==='weapon'?' attack. ':' defense. ')+TR[g.tr].d+' Replaces your current '+(slot==='weapon'?'weapon.':'armor.'),price:pr(...BAL.merchant.price.gear)});
- const pool=PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&pc(pk.id)<pk.max);
+ const slot=pick(BAL.merchant.gearSlots),g=forcedGear(f,slot);
+ s.push({k:'gear',item:g,n:itemIcon(g)+' '+gearName(g),d:itemDesc(g)+' Replaces your current '+SLOT_LABEL[slot].toLowerCase()+'.',price:pr(...BAL.merchant.price.gear)});
+ const pool=perkPool();
  if(pool.length){const pk=pick(pool);s.push({k:'perk',id:pk.id,n:'✨ Perk: '+pk.n,d:pk.d,price:pr(...BAL.merchant.price.perk)});}
  if(meta.unl.elixir)s.push({k:'elixir',n:'🧿 Elixir of Vigor',d:'+'+BAL.merchant.elixirHp+' max HP and a full heal.',price:pr(...BAL.merchant.price.elixir)});
  return s;
@@ -991,60 +1326,292 @@ function buy(i){
  if(it.k==='pot'){if(G.inv.pot>=p.potCap){msg('Your potion belt is full.');return;}G.inv.pot++;}
  else if(it.k==='fire')G.inv.fire++;
  else if(it.k==='tele')G.inv.tele++;
- else if(it.k==='gear'){const w=it.slot==='weapon',nn=gearName(it.slot,it.v,it.tr);if(w){p.wb=it.v;p.wn=nn;p.wt=it.tr;}else{p.ab=it.v;p.an=nn;p.at=it.tr;}}
+ else if(it.k==='gear'){equipItem(it.item);}
  else if(it.k==='perk'){if(!addPerk(it.id)){msg('You cannot take that perk.');return;}}
  else if(it.k==='elixir'){p.mhp+=BAL.merchant.elixirHp;p.hp=p.mhp;}
  p.gold-=it.price;it.sold=1;msg('Bought: '+it.n.replace(/^\S+ /,'')+'.');save();render();showShop();
 }
 
-// abilities.js - active abilities: dash, shield bash, vanish, arcane bolt, and their arming/cooldowns.
+// abilities.js - the 12 class abilities (4 per class): costs, cooldowns, target rules, effects, arming; plus reach attacks and smoke.
 
-function dashTiles(){
- const p=G.p,out=[];
- for(const [dx,dy] of DIRS){for(let k=1;k<=BAL.ability.dashRange;k++){const x=p.x+dx*k,y=p.y+dy*k;
-  if(!walkable(x,y)||G.map[ix(x,y)]===3||!G.seen[ix(x,y)]||enemyAt(x,y))break;out.push([x,y]);}}
+function kit(){return CLS[G.p.cls].kit;}
+function cheb(a,b){return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));}
+function manh(a,b){return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);}
+function cdFor(k){
+ let c=BAL.ability[k].cd||0;if(!c)return 0;
+ if(k==='blink'&&pc('phase'))return 0;
+ if(pc('tempo'))c-=BAL.perk.tempoCut;
+ if(k==='backstab'&&pc('assassin'))c-=BAL.perk.assassinCd;
+ if(k==='vanish'&&pc('shadow'))c-=BAL.perk.shadowCd;
+ return Math.max(1,c);
+}
+function costOf(k){
+ const a=BAL.ability[k];let rage=a.rage||0,mana=a.mana||0;
+ if(k==='charge'&&pc('stampede'))rage=Math.max(0,rage-BAL.perk.stampedeCost);
+ if(k==='blink'&&pc('phase'))mana=Math.max(0,mana-BAL.perk.phaseCost);
+ return {rage:rage,mana:mana};
+}
+function costLabel(k){const c=costOf(k);return c.rage?c.rage+' rage':c.mana?c.mana+' mana':k==='knife'?'1 knife':cdFor(k)?'cd '+cdFor(k):'free';}
+function inSmoke(x,y){const k=ix(x,y);if(G.smoke)for(const c of G.smoke)if(c.cells.indexOf(k)>=0)return true;return false;}
+function isFront(e){const p=G.p;if(!e.face)return true;return e.face[0]*(p.x-e.x)+e.face[1]*(p.y-e.y)>0;}
+function isBehind(e){const p=G.p;if(!e.face)return false;return e.face[0]*(p.x-e.x)+e.face[1]*(p.y-e.y)<0;}
+function gainRage(n,raw){
+ const p=G.p;if(p.cls!=='warrior'||n<=0)return;
+ if(!raw){n*=(armK()&&armK().rageMul||1)*(1+pc('fury')*BAL.perk.furyMul)*((G.syn&&G.syn.fb&&p.hp<p.mhp*0.5)?BAL.perk.bloodRageMul:1);}
+ p.rage=Math.min(BAL.rage.max,(p.rage||0)+Math.max(1,Math.round(n)));
+}
+function advEnemies(vis){return G.enemies.filter(e=>!e.dead&&manh(e,G.p)===1&&(!vis||G.vis[ix(e.x,e.y)]));}
+function chebEnemies(){return G.enemies.filter(e=>!e.dead&&cheb(e,G.p)===1&&G.vis[ix(e.x,e.y)]);}
+function enemyShots(range){return G.enemies.filter(e=>!e.dead&&G.vis[ix(e.x,e.y)]&&manh(e,G.p)<=range&&los(G.p.x,G.p.y,e.x,e.y,true));}
+function chargeLines(){
+ const p=G.p,a=BAL.ability.charge,out=[];
+ for(const [dx,dy] of DIRS){
+  for(let k=1;k<=a.maxDist;k++){
+   const x=p.x+dx*k,y=p.y+dy*k;
+   if(!inb(x,y)||!walkable(x,y)||G.map[ix(x,y)]===3)break;
+   const e=enemyAt(x,y);
+   if(e){if(k>=a.minDist&&G.vis[ix(x,y)])out.push({e:e,lx:p.x+dx*(k-1),ly:p.y+dy*(k-1),dx:dx,dy:dy});break;}
+  }
+ }
  return out;
 }
-function boltOk(e){return !e.dead&&G.vis[ix(e.x,e.y)]&&Math.abs(e.x-G.p.x)+Math.abs(e.y-G.p.y)<=BAL.ability.boltRange;}
-function useDash(tx,ty){
- if(!dashTiles().some(t=>t[0]===tx&&t[1]===ty)){msg('Dash: tap a highlighted tile (straight line, up to 3).');return;}
- const p=G.p;armed=null;walkTok++;G.cd.dash=BAL.ability.dashCd;p.x=tx;p.y=ty;msg('You dash!');
- if(pc('arcane')&&G.cd.bolt>0){G.cd.bolt=Math.max(0,G.cd.bolt-BAL.ability.phaseHunterCut);msg('Phase Hunter: Bolt recharges faster.');}
- pickup();
- if(G.map[ix(tx,ty)]===2)msg('Stairs! Tap yourself to descend.');
- endTurn();
+function blinkTiles(){
+ const p=G.p,R=BAL.ability.blink.range,out=[],reach=bfsDist(p.x,p.y);   // only tiles you could also walk to: cave walls can leave sealed floor pockets that are visible but unreachable
+ for(let y=p.y-R;y<=p.y+R;y++)for(let x=p.x-R;x<=p.x+R;x++){
+  if(!inb(x,y)||Math.abs(x-p.x)+Math.abs(y-p.y)>R||(x===p.x&&y===p.y)||reach[ix(x,y)]>=9999)continue;
+  const t=G.map[ix(x,y)];
+  if(!G.vis[ix(x,y)]||(t!==1&&t!==2&&t!==4)||enemyAt(x,y)||merchantAt(x,y)||!los(p.x,p.y,x,y))continue;
+  out.push([x,y]);
+ }
+ return out;
 }
-function bashOk(e){return !e.dead&&G.vis[ix(e.x,e.y)]&&Math.abs(e.x-G.p.x)+Math.abs(e.y-G.p.y)===1;}
-function useBash(tx,ty){
- const e=enemyAt(tx,ty);
- if(!e||!bashOk(e)){msg('Shield Bash: tap an adjacent enemy.');return;}
- armed=null;walkTok++;G.cd.bash=BAL.ability.bashCd;
- const dmg=playerDmg();hurtEnemy(e,dmg,'#ffb04a');
- msg('Shield Bash hits the '+nm(e)+' for '+dmg+'.');lifeSteal(dmg);
- if(!e.dead&&e.hp>0){e.stun=EN[e.t].boss?BAL.ability.bashStunBoss:BAL.ability.bashStun;e.wind=null;floatFx(e.x,e.y,'stunned','#ffe066');msg('The '+nm(e)+' is stunned.');
-  if(e.hp>0)knock(e,e.x-G.p.x,e.y-G.p.y);}
- settle(e);endTurn();
+function groundTiles(range){
+ const p=G.p,out=[];
+ for(let y=p.y-range;y<=p.y+range;y++)for(let x=p.x-range;x<=p.x+range;x++){
+  if(!inb(x,y)||Math.abs(x-p.x)+Math.abs(y-p.y)>range||!G.vis[ix(x,y)])continue;
+  const t=G.map[ix(x,y)];if(t===0||t===5||merchantAt(x,y))continue;
+  if(!los(p.x,p.y,x,y))continue;
+  out.push([x,y]);
+ }
+ return out;
 }
-function useVanish(){
- armed=null;walkTok++;G.cd.vanish=BAL.ability.vanishCd;G.vanish=BAL.ability.vanishTurns;
- for(const e of G.enemies)e.awake=false;
- floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish. Enemies lose track of you.');endTurn();
+// valid target tiles for a targeted ability (also drives the highlight)
+function targetTiles(k){
+ if(!G)return [];
+ switch(k){
+  case 'bash':case 'backstab':return advEnemies(true).map(e=>[e.x,e.y]);
+  case 'charge':return chargeLines().map(c=>[c.e.x,c.e.y]);
+  case 'bolt':return enemyShots(BAL.ability.bolt.range).map(e=>[e.x,e.y]);
+  case 'knife':return enemyShots(BAL.ability.knife.range).map(e=>[e.x,e.y]);
+  case 'blink':return blinkTiles();
+  case 'fire':return groundTiles(BAL.ability.fire.range);
+  case 'smoke':return groundTiles(BAL.ability.smoke.range);
+ }
+ return [];
 }
-function useBolt(tx,ty){
- const e=enemyAt(tx,ty);
- if(!e||!boltOk(e)){msg('Arcane Bolt: tap a visible enemy.');return;}
- const mg=G.p.cls==='mage';armed=null;walkTok++;G.cd.bolt=mg?BAL.ability.boltCdMage:BAL.ability.boltCd;
- const dmg=Math.round(playerDmg()*BAL.ability.boltMul)+BAL.ability.boltAdd;
- hurtEnemy(e,dmg,'#b48cff');msg('Arcane Bolt hits the '+nm(e)+' for '+dmg+'.');
- poison(e);settle(e);
- endTurn();
+// reason an ability cannot be used right now ('' = usable)
+function whyNot(k){
+ const A=ABIL[k],c=costOf(k),p=G.p;
+ if(G.cd[k]>0)return A.n+' is recharging ('+G.cd[k]+' turn'+(G.cd[k]>1?'s':'')+').';
+ if(c.rage&&(p.rage||0)<c.rage)return 'Not enough rage for '+A.n+' (need '+c.rage+', have '+Math.floor(p.rage||0)+').';
+ if(c.mana&&(p.mana||0)<c.mana)return 'Not enough mana for '+A.n+' (need '+c.mana+', have '+Math.floor(p.mana||0)+').';
+ if(k==='knife'&&(G.knives||0)<1)return 'No knives left. Walk over a thrown knife to pick it up.';
+ if((k==='cleave'||k==='nova')&&!chebEnemies().length)return A.n+' needs an enemy next to you.';
+ if(A.tg!=='self'&&!targetTiles(k).length){
+  return k==='charge'?'Charge needs an enemy in a straight line, '+BAL.ability.charge.minDist+'-'+BAL.ability.charge.maxDist+' tiles away.':
+   (k==='bash'||k==='backstab')?A.n+' needs an enemy right next to you.':A.n+': no valid target in sight.';
+ }
+ return '';
+}
+function spend(k){
+ const c=costOf(k),p=G.p;
+ if(c.rage)p.rage=Math.max(0,(p.rage||0)-c.rage);
+ if(c.mana)p.mana=Math.max(0,(p.mana||0)-c.mana);
+ if(k==='knife')G.knives--;
+ const cd=cdFor(k);if(cd)G.cd[k]=cd;
+}
+function breakVanish(){if(G.vanish>0){G.vanish=0;msg('You step out of the shadows.');}}
+function stunEnemy(e,t,tb){
+ if(e.dead||e.hp<=0)return;
+ e.stun=Math.max(e.stun||0,EN[e.t].boss?tb:t);e.wind=null;floatFx(e.x,e.y,'stunned','#ffe066');
+}
+function lineDir(e){return [Math.sign(e.x-G.p.x),Math.sign(e.y-G.p.y)];}
+// ---- the abilities. Each spends its cost, acts, then ends the turn. ----
+const DO={
+ bash:function(tx,ty){
+  const e=enemyAt(tx,ty),a=BAL.ability.bash,p=G.p,[dx,dy]=lineDir(e);
+  const victims=[e];
+  if(eqKind('off')==='tower'){for(let k=2;k<=BAL.offhand.towerLine;k++){const x=p.x+dx*k,y=p.y+dy*k;if(!inb(x,y)||G.map[ix(x,y)]===0||G.map[ix(x,y)]===3||G.map[ix(x,y)]===5)break;const o=enemyAt(x,y);if(o)victims.push(o);}}
+  spend('bash');breakVanish();
+  for(const v of victims){
+   const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
+   hurtEnemy(v,dmg,'#ffb04a',false,'melee');msg('Shield Bash hits the '+nm(v)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
+   if(!v.dead&&v.hp>0){stunEnemy(v,a.stun,a.stunBoss);msg('The '+nm(v)+' is stunned.');if(v===e&&v.hp>0)knock(v,dx,dy);}
+   settle(v);
+  }
+  endTurn();
+ },
+ cleave:function(){
+  const a=BAL.ability.cleave,tg=chebEnemies();spend('cleave');breakVanish();
+  msg('You cleave in a wide arc!');
+  for(const e of tg){
+   const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
+   hurtEnemy(e,dmg,'#ffb04a',false,'melee');lifeSteal(dmg);poison(e);
+   gainRage(BAL.rage.dealt/2);if(eqKind('off')==='totem')gainRage(BAL.offhand.totemRage,true);
+   settle(e);
+  }
+  endTurn();
+ },
+ charge:function(tx,ty){
+  const c=chargeLines().find(l=>l.e.x===tx&&l.e.y===ty),a=BAL.ability.charge,p=G.p;
+  spend('charge');breakVanish();walkTok++;
+  p.x=c.lx;p.y=c.ly;msg('You charge!');
+  const e=c.e,dmg=Math.max(1,Math.round(playerDmg()*a.mul));
+  hurtEnemy(e,dmg,'#ffb04a',false,'melee');msg('Charge hits the '+nm(e)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
+  if(!e.dead&&e.hp>0)stunEnemy(e,a.stun,a.stunBoss);
+  if(pc('stampede'))for(const o of G.enemies)if(o!==e&&!o.dead&&cheb(o,p)<=1)stunEnemy(o,a.stun,a.stunBoss);
+  settle(e);
+  pickup();endTurn();
+ },
+ brace:function(){
+  const a=BAL.ability.brace,O=BAL.offhand;
+  const bulwark=eqKind('off')==='bulwark',retrib=pc('retrib');
+  spend('brace');
+  G.brace={hits:a.hits+(bulwark?O.bulwarkHits:0)+(retrib?BAL.perk.retribHits:0),t:a.turns,reflect:Math.max(a.reflect,bulwark?O.bulwarkReflect:0,retrib?BAL.perk.retribReflect:0)};
+  floatFx(G.p.x,G.p.y,'BRACE','#9cf');msg('You brace: the next '+G.brace.hits+' hits are halved and '+Math.round(G.brace.reflect*100)+'% is reflected.');
+  endTurn();
+ },
+ bolt:function(tx,ty){
+  const e=enemyAt(tx,ty),a=BAL.ability.bolt,p=G.p;spend('bolt');breakVanish();
+  const hit=[e];
+  if(eqKind('off')==='lens'){
+   const dx=e.x-p.x,dy=e.y-p.y,n=Math.max(Math.abs(dx),Math.abs(dy));
+   for(let s=n+1;s<=n+BAL.ability.bolt.range&&hit.length<1+BAL.offhand.lensPierce;s++){
+    const x=Math.round(p.x+dx*s/n),y=Math.round(p.y+dy*s/n);
+    if(!inb(x,y)||G.map[ix(x,y)]===0||G.map[ix(x,y)]===3||G.map[ix(x,y)]===5)break;
+    const o=enemyAt(x,y);if(o&&hit.indexOf(o)<0)hit.push(o);
+   }
+  }
+  for(const v of hit){
+   const dmg=Math.max(1,Math.round((playerDmg(true)*a.mul+a.add)*spellMul()));
+   hurtEnemy(v,dmg,'#b48cff',false,'ranged');msg('Arcane Bolt hits the '+nm(v)+' for '+dmg+'.');
+   poison(v);settle(v);
+  }
+  endTurn();
+ },
+ nova:function(){
+  const a=BAL.ability.nova,tg=chebEnemies();spend('nova');breakVanish();
+  floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('A frost nova bursts around you!');
+  const burn=BAL.offhand.tomeBurnBase+Math.floor(G.floor/BAL.offhand.tomeBurnFloorDiv);
+  for(const e of tg){
+   const dmg=Math.max(1,Math.round(playerDmg(true)*a.mul*spellMul()));
+   hurtEnemy(e,dmg,'#9fe8ff',false,'magic');
+   if(!e.dead&&e.hp>0){
+    e.frz=Math.max(e.frz||0,EN[e.t].boss?a.freezeBoss:a.freeze+(pc('deepfreeze')?BAL.perk.freezeExtra:0));e.wind=null;floatFx(e.x,e.y,'frozen','#9fe8ff');
+    if(eqKind('off')==='tome')e.pois={t:BAL.offhand.tomeBurnTurns,d:burn,burn:1};
+   }
+   settle(e);
+  }
+  endTurn();
+ },
+ blink:function(tx,ty){
+  const p=G.p;spend('blink');walkTok++;
+  floatFx(p.x,p.y,'blink','#d9c6ff');p.x=tx;p.y=ty;msg('You blink away.');
+  pickup();if(G.map[ix(tx,ty)]===2)msg('Stairs! Tap yourself to descend.');
+  endTurn();
+ },
+ fire:function(tx,ty){
+  const a=BAL.ability.fire,O=BAL.offhand,prism=eqKind('off')==='prism';
+  spend('fire');breakVanish();
+  const R=a.radius+(prism?O.prismRadius:0);
+  const dmg=Math.max(1,Math.round((a.base+a.perFloor*G.floor)*G.p.fireMul*spellMul()*(prism?O.prismMul:1)));
+  floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball! '+dmg+' damage in a '+(R*2+1)+'x'+(R*2+1)+' blast.');
+  if(!rmo())puffs.push({x:tx,y:ty,t:performance.now(),s:Math.random()*6});
+  for(const e of G.enemies.slice())if(!e.dead&&Math.max(Math.abs(e.x-tx),Math.abs(e.y-ty))<=R){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
+  endTurn();
+ },
+ backstab:function(tx,ty){
+  const e=enemyAt(tx,ty),a=BAL.ability.backstab,p=G.p;
+  const cond=!e.awake||e.stun>0||e.frz>0||e.blind>0||isBehind(e);
+  spend('backstab');breakVanish();
+  let mul=cond?a.mul*(1+(pc('assassin')?BAL.perk.assassinMul:0))+(wpK()&&wpK().sneak||0):a.weakMul;
+  const strikes=eqKind('off')==='dagger2'?[1,BAL.offhand.dagger2Frac]:[1];
+  for(const f of strikes){
+   if(e.dead||e.hp<=0)break;
+   const crit=Math.random()<critChance();let dmg=Math.max(1,Math.round(playerDmg()*mul*f*(crit?BAL.combat.critMul:1)));
+   hurtEnemy(e,dmg,cond?'#ff5a8a':'#ffd24a',crit,'melee');
+   msg((cond?'Backstab! ':'Clumsy stab. ')+'You hit the '+nm(e)+' for '+dmg+'.');sfx(cond?'crit':'hit');if(cond)shake(4);
+   lifeSteal(dmg);poison(e);settle(e);
+  }
+  endTurn();
+ },
+ vanish:function(){
+  spend('vanish');walkTok++;G.vanish=BAL.ability.vanish.turns+(pc('shadow')?BAL.perk.shadowTurns:0);
+  for(const e of G.enemies)e.awake=false;
+  floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish. Enemies lose track of you.');endTurn();
+ },
+ knife:function(tx,ty){
+  const e=enemyAt(tx,ty),a=BAL.ability.knife,p=G.p;spend('knife');breakVanish();
+  const crit=Math.random()<critChance();
+  let dmg=Math.round(playerDmg()*a.mul)+a.add;
+  const sn=(p.cls==='rogue'?BAL.combat.sneakMul:1)+(wpK()&&wpK().sneak||0);
+  if(crit)dmg*=BAL.combat.critMul;
+  if(!e.awake&&sn>1){dmg*=sn;msg('Sneak attack!');}
+  dmg=Math.max(1,dmg);
+  hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a',crit,'ranged');msg('Your knife hits the '+nm(e)+' for '+dmg+'.');
+  lifeSteal(dmg);poison(e);settle(e);
+  if(e.dead&&G.syn.sd){G.knives=Math.min(maxKnives(),G.knives+1);msg('Silent Death: the knife returns to your hand.');}
+  else dropAt(tx,ty,{t:'knife',v:0});
+  endTurn();
+ },
+ smoke:function(tx,ty){
+  const a=BAL.ability.smoke,O=BAL.offhand,sat=eqKind('off')==='satchel';
+  const R=a.radius+(sat?O.satchelRadius:0),cells=[];
+  spend('smoke');breakVanish();
+  for(let y=ty-R;y<=ty+R;y++)for(let x=tx-R;x<=tx+R;x++)if(inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==5)cells.push(ix(x,y));
+  (G.smoke=G.smoke||[]).push({cells:cells,t:a.turns+(sat?O.satchelTurns:0)});
+  floatFx(tx,ty,'SMOKE','#ccd',true);msg('A smoke cloud blooms. Enemies inside are blinded.');
+  for(const e of G.enemies){
+   if(cells.indexOf(ix(e.x,e.y))<0)continue;
+   e.blind=a.blindTurns;e.wind=null;if(!EN[e.t].boss)e.awake=false;
+  }
+  endTurn();
+ }
+};
+// run an ability by key (the bot and the buttons both come through here). Returns true if the turn was used.
+function useAbility(k,tx,ty){
+ if(!G||G.over||modalOpen())return false;
+ const why=whyNot(k);
+ if(why){msg(why);render();return false;}
+ const A=ABIL[k];
+ if(A.tg!=='self'){
+  if(tx==null||!targetTiles(k).some(t=>t[0]===tx&&t[1]===ty)){msg(A.n+': tap a highlighted target.');render();return false;}
+ }
+ armed=null;
+ DO[k](tx,ty);
+ return true;
 }
 function toggleAbility(k){
  walkTok++;if(!G||G.over||modalOpen())return;
- if(armed===k){armed=null;msg('Cancelled.');render();return;}
- if(G.cd[k]>0){msg('Still recharging ('+G.cd[k]+').');return;}
- if(k==='vanish'){useVanish();return;}
- armed=k;msg(k==='dash'?'Dash armed: tap a highlighted tile.':k==='bash'?'Shield Bash armed: tap an adjacent enemy.':'Arcane Bolt armed: tap a visible enemy.');render();
+ if(armed===k){cancelTarget();return;}
+ const why=whyNot(k);
+ if(why){msg(why);if(armed){armed=null;}render();return;}
+ if(ABIL[k].tg==='self'){useAbility(k);return;}
+ armed=k;msg(ABIL[k].n+' armed: tap a highlighted target (tap yourself or Cancel to back out).');render();
+}
+function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
+// ---- weapon reach (spear) ----
+function reachOk(e){
+ const wk=wpK();if(!wk||!wk.reach||!e||e.dead||!G.vis[ix(e.x,e.y)])return false;
+ const p=G.p,dx=e.x-p.x,dy=e.y-p.y;
+ if(!((dx===0&&Math.abs(dy)===wk.reach)||(dy===0&&Math.abs(dx)===wk.reach)))return false;
+ const sx=Math.sign(dx),sy=Math.sign(dy);
+ for(let k=1;k<wk.reach;k++){const x=p.x+sx*k,y=p.y+sy*k;if(!walkable(x,y)||G.map[ix(x,y)]===3||enemyAt(x,y))return false;}
+ return true;
+}
+function reachAttack(e){
+ if(!G||G.over||!reachOk(e))return false;
+ walkTok++;msg('You thrust your spear.');playerAttack(e);endTurn();return true;
 }
 
 // player.js - class lookup and XP / level-up progression.
@@ -1060,7 +1627,8 @@ function gainXp(n){
 
 function makeEnemy(type,x,y,f){
  const d=EN[type],s=d.boss?1:1+BAL.enemy.hpPerFloor*(f-1)*(d.range?BAL.enemy.rangedHpFactor:1),sa=d.boss?1:1+BAL.enemy.atkPerFloor*(f-1)*(d.range?BAL.enemy.rangedAtkFactor:1);
- const hp=Math.round(d.hp*s),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*sa),awake:false,cd:0};
+ const fl=d.flat?1:s,fa=d.flat?1:sa;
+ const hp=Math.round(d.hp*fl),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*fa),awake:false,cd:0,face:pick(DIRS)};
  G.enemies.push(e);return e;
 }
 function stairsOk(){
@@ -1078,7 +1646,7 @@ function stairsOk(){
  return true;
 }
 function newFloor(f){
- const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.traps=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.ppois=null;shrineQ=false;trapConfirm=-1;
+ const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.traps=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.flask=0;G.smoke=[];G.brace=null;G.ppois=null;shrineQ=false;trapConfirm=-1;
  G.seen=new Array(W*H).fill(false);G.exp=new Array(W*H).fill(false);
  const rooms=g.rooms,p=G.p;p.x=rooms[0].cx;p.y=rooms[0].cy;
  const taken=new Set([ix(p.x,p.y)]);
@@ -1095,14 +1663,24 @@ function newFloor(f){
  const others=f===MAXF?rooms.slice(1,-1):rooms.slice(1);
  if(f===MAXF){const r=rooms[rooms.length-1];taken.add(ix(r.cx,r.cy));addEnemy('dragon',r,r.cx,r.cy);}
  const n=BAL.spawn.enemyBase+Math.floor(f*BAL.spawn.enemyPerFloor)+rnd(0,BAL.spawn.enemyExtraMax);
- const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&!(k==='rat'&&f>BAL.spawn.ratLastFloor));
- for(let i=0;i<n;i++){const r=pick(others),t=free(r);if(t)addEnemy(pick(pool),r,t[0],t[1]);}
+ const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&(!EN[k].maxF||f<=EN[k].maxF));
+ for(let i=0;i<n;i++){
+  const r=pick(others),t=free(r);
+  if(!t)continue;
+  const type=pickW(Object.fromEntries(pool.map(k=>[k,EN[k]])));
+  addEnemy(type,r,t[0],t[1]);
+  const gr=EN[type].group;   // swarm types arrive as a pack in the same room
+  if(gr){for(let j=rnd(gr[0],gr[1])-1;j>0;j--){const t2=free(r);if(t2)addEnemy(type,r,t2[0],t2[1]);}}
+ }
  // items
  function addItem(t,v,tr){const r=pick(rooms),pos=free(r);if(pos)G.items.push({x:pos[0],y:pos[1],t,v,tr:tr||null});}
  for(let i=0;i<BAL.spawn.goldPiles;i++)addItem('gold',rnd(BAL.spawn.goldMin,BAL.spawn.goldMax)+f*BAL.spawn.goldPerFloor);
  addItem('potion',0);if(Math.random()<BAL.spawn.extraPotionChance)addItem('potion',0);
- if(Math.random()<BAL.spawn.weaponChance){const tr=rollTrait('weapon',f);addItem('weapon',applyTrait(rnd(BAL.spawn.weaponMin,BAL.spawn.weaponMax)+Math.floor(f*BAL.spawn.weaponPerFloor),tr),tr);}
- if(Math.random()<BAL.spawn.armorChance){const tr=rollTrait('armor',f);addItem('armor',applyTrait(Math.floor((f+rnd(0,BAL.spawn.armorRand))/BAL.spawn.armorDiv)+BAL.spawn.armorBase,tr),tr);}
+ function addGear(slot){const g=newGear(slot,f,false),r=pick(rooms),pos=free(r);if(pos)G.items.push({x:pos[0],y:pos[1],t:g.t,k:g.k,v:g.v,tr:g.tr});}
+ if(Math.random()<BAL.spawn.weaponChance)addGear('weapon');
+ if(Math.random()<BAL.spawn.armorChance)addGear('armor');
+ if(Math.random()<BAL.gear.offChance)addGear('off');
+ if(Math.random()<BAL.gear.charmChance)addGear('charm');
  if(Math.random()<BAL.spawn.fireChance)addItem('fire',0);
  if(Math.random()<BAL.spawn.teleChance)addItem('tele',0);
  // locked treasure room + marked elite carrying the key
@@ -1111,8 +1689,8 @@ function newFloor(f){
   if(!cands.length){G.map[ix(tre.door[0],tre.door[1])]=4;}
   else{
    const e=pick(cands);e.elite=1;e.name=pick(ENAMES)+' '+pick(ETITLES);e.mhp=Math.round(e.mhp*BAL.enemy.eliteHpMul);e.hp=e.mhp;e.atk=Math.round(e.atk*BAL.enemy.eliteAtkMul)+BAL.enemy.eliteAtkAdd;
-   const g1=forcedGear(f,Math.random()<BAL.treasure.weaponChance?'weapon':'armor'),cs=tre.cells.slice().sort(()=>Math.random()-0.5);
-   G.items.push({x:cs[0][0],y:cs[0][1],t:g1.t,v:g1.v,tr:g1.tr});
+   const g1=forcedGear(f,pick(BAL.treasure.gearSlots)),cs=tre.cells.slice().sort(()=>Math.random()-0.5);
+   G.items.push({x:cs[0][0],y:cs[0][1],t:g1.t,k:g1.k,v:g1.v,tr:g1.tr});
    G.items.push({x:cs[1][0],y:cs[1][1],t:'gold',v:BAL.treasure.gold1Base+f*BAL.treasure.gold1PerFloor});
    G.items.push({x:cs[2][0],y:cs[2][1],t:'gold',v:BAL.treasure.gold2Base+f*BAL.treasure.gold2PerFloor});
    if(Math.random()<BAL.treasure.potionChance)G.items.push({x:cs[3][0],y:cs[3][1],t:'potion',v:0});
@@ -1144,13 +1722,15 @@ function newFloor(f){
 function startRun(cls){
  if(!CLS[cls]||(cls!=='warrior'&&!meta.unl[cls]))cls='warrior';const C=CLS[cls];
  const startPots=1+BAL.meta.potPerLevel*Math.min(meta.pot,BAL.meta.potMaxLevel);
- const p={x:0,y:0,cls:cls,hp:C.hp+BAL.meta.hpPerLevel*meta.hp,mhp:C.hp+BAL.meta.hpPerLevel*meta.hp,atk:C.atk+BAL.meta.atkPerLevel*meta.atk,def:C.def+BAL.meta.defPerLevel*meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',wt:null,at:null,
+ const p={x:0,y:0,cls:cls,hp:C.hp+BAL.meta.hpPerLevel*meta.hp,mhp:C.hp+BAL.meta.hpPerLevel*meta.hp,atk:C.atk+BAL.meta.atkPerLevel*meta.atk,def:C.def+BAL.meta.defPerLevel*meta.def,
+  eq:{weapon:{t:'weapon',k:C.start,v:0,tr:null},armor:null,off:null,charm:null},rage:0,mana:0,mf:0,mbase:C.mana,
   xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,startPots),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+BAL.meta.goldPerLevel*meta.goldp};
- G={floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0,bash:0,vanish:0},syn:{},bl:0,ssUsed:0,swUsed:0,vanish:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
- if(cls==='mage')G.perks.arcane=1;
+ G={ver:SAVE_VER,floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
+ for(const k of C.kit)G.cd[k]=0;
+ p.mana=mmax();
  if(meta.unl.scroll){const k=Math.random()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
- gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg('You descend into the Emberfall depths as a '+C.n+'.');if(meta.unl.scroll)msg('Your starting scroll: '+(G.inv.fire>C.fire?'Fireball.':'Teleport.'));
+ noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
+ msg('You descend into the Emberfall depths as a '+C.n+'.');if(meta.unl.scroll)msg('Your starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
@@ -1160,12 +1740,16 @@ function deathTip(){
  if(/poison/.test(k))return 'Poison ticks every turn. A potion cures it - drink one before it stacks with enemy hits.';
  if(/archer|warlock/.test(k))return 'Archers and warlocks need a clear line of sight. Break the line around a corner or a door, then close in.';
  if(/troll|dragon/.test(k))return 'Red hatched tiles mark the next big hit. Step off them (one tile is enough) and it deals nothing.';
+ if(/guard/.test(k))return 'Guards shrug off '+pct(1-BAL.weapon.shieldFront)+' of frontal damage and '+pct(1-BAL.weapon.shieldRanged)+' of ranged hits. Stun or freeze one (Bash, Charge, Nova) or hit it from behind.';
+ if(/hound/.test(k))return 'Hounds move two tiles per turn: you cannot kite them. Meet them in melee, or stun them as they arrive.';
+ if(/cultist/.test(k))return 'Cultists heal their friends. Dive them first: Charge, Blink or throw a knife.';
+ if(/\b(rat|bat|whelp)\b/.test(k))return 'Packs wear you down. Hold a corridor, or use Cleave, Frost Nova, Fireball or a Smoke Bomb.';
  if(/ogre/.test(k))return 'Ogres act every other turn. Hit while the hourglass shows, then step back before it swings.';
  if(/wall|impact/.test(k))return 'Knockback into a wall or door adds damage. Fight with open floor behind you.';
  if(/shrine|curse/.test(k))return 'Gambles and cursed gear cost HP. Check your HP before praying at a shrine.';
- if(/elite/.test(k))return 'Elite enemies are tougher than they look. Lure them into a corridor, use Fireball, or skip the treasure room.';
+ if(/elite/.test(k))return 'Elite enemies are tougher than they look. Lure them into a corridor, use flame scrolls, or skip the treasure room.';
  if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP - it costs a turn but saves the run.';
- if(G.p.hp<=0&&G.inv.fire>0)return 'You died with a Fireball scroll unused. It hits everything in sight - use it when a crowd closes in.';
+ if(G.p.hp<=0&&G.inv.fire>0)return 'You died with a flame scroll unused. It hits everything in sight - use it when a crowd closes in.';
  return 'Fight in corridors and doorways so only one enemy can reach you, and rest behind a closed door when you can.';
 }
 function finish(kind){
@@ -1179,7 +1763,7 @@ function finish(kind){
  const perks=PERKS.filter(pk=>pc(pk.id)>0).map(pk=>pk.n+(pk.max>1?' x'+pc(pk.id):'')).join(', ')||'none';
  showModal((dead?'You Died':kind==='win'?'Victory!':'Run Ended'),
   (kind==='win'?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>Killed by <b>'+killTxt+'</b> on floor '+G.floor+'.</p>':'<p>You left the dungeon.</p>')+
-  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+p.wn+'</b>, <b>'+p.an+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+'</span></p>'+
+  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+SLOTS.map(sl=>gearName(p.eq[sl])).filter(n=>n!=='Nothing').join('</b>, <b>')+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+'</span></p>'+
   (G.newUnl&&G.newUnl.length?'<p>New unlock'+(G.newUnl.length>1?'s':'')+': <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (dead?'<p class="pl" style="border:1px solid #4b5080;border-radius:10px;padding:8px"><b>Tip:</b> '+deathTip()+'</p>':''),
   [{label:'Back to title',c:1,fn:function(){closeModal();G=null;showTitle();}}]);
@@ -1273,8 +1857,8 @@ const tz=trapSet();
  startWalk(path.reverse(),{explore:true});
 }
 function itemName(it){
- return {gold:'Gold pile',potion:'Health potion',fire:'Fireball scroll',tele:'Teleport scroll'}[it.t]||
-  (gearName(it.t,it.v,it.tr)+' (+'+it.v+(it.t==='weapon'?' atk)':' def)')+(it.tr?' - '+TR[it.tr].d.replace(/\.$/,''):''));
+ const base={gold:'Gold pile',potion:'Health potion',fire:'Flame scroll',tele:'Teleport scroll',knife:'Throwing knife'}[it.t];
+ return base||(gearName(it)+': '+itemDesc(it).replace(/\.$/,''));
 }
 function onTap(tx,ty){
  walkTok++;
@@ -1282,9 +1866,9 @@ function onTap(tx,ty){
  const p=G.p;
  if(armed){
   if(!inb(tx,ty))return;
-  if(tx===p.x&&ty===p.y){armed=null;msg('Cancelled.');render();return;}
+  if(tx===p.x&&ty===p.y){cancelTarget();return;}
   tapMark={x:tx,y:ty,t:performance.now()};
-  if(armed==='dash')useDash(tx,ty);else if(armed==='bash')useBash(tx,ty);else useBolt(tx,ty);
+  useAbility(armed,tx,ty);
   render();return;
  }
  if(inb(tx,ty)){tapMark={x:tx,y:ty,t:performance.now()};render();}
@@ -1311,8 +1895,9 @@ function onTap(tx,ty){
  const e=enemyAt(tx,ty);
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
+  if(reachOk(e)){reachAttack(e);return;}
   const d=EN[e.t];
-  msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':'')+(e.stun>0?' Stunned ('+e.stun+'t).':'')+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
+  msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'. '+d.tr+(e.pois?' Poisoned ('+e.pois.t+'t).':'')+(e.stun>0?' Stunned ('+e.stun+'t).':'')+(e.frz>0?' Frozen ('+e.frz+'t).':'')+(e.blind>0?' Blinded.':'')+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
   const path=bfsPath(p.x,p.y,tx,ty);
   if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
   return;
@@ -1329,7 +1914,7 @@ function onTap(tx,ty){
 function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
 function showModal(title,html,buttons){
- armed=null;const b=$('modalBox');b.innerHTML='';
+ armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';
  const h=document.createElement('h2');h.textContent=title;b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
@@ -1343,14 +1928,14 @@ function showModal(title,html,buttons){
 function closeModal(){$('modal').style.display='none';}
 function perkTags(pk){
  let t='';
- if(pk.act)t+='<em class="tag act">ACTIVE</em>';else if(pk.beh)t+='<em class="tag">BEHAVIOUR</em>';
+ if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';else if(pk.beh)t+='<em class="tag">BEHAVIOUR</em>';
  if(SYN.some(s=>(s.a===pk.id&&pc(s.b))||(s.b===pk.id&&pc(s.a))))t+='<em class="tag syn">SYNERGY</em>';
  return t;
 }
 function showPerk(){
  if(!G||G.pending<=0)return;
  walkTok++;
- const pool=PERKS.filter(pk=>pc(pk.id)<pk.max&&(!pk.lock||meta.unl[pk.lock]));
+ const pool=perkPool();
  if(!pool.length){G.pending=0;save();return;}
  const opts=pool.sort(()=>Math.random()-0.5).slice(0,meta.unl.pick4?4:3);
  showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
@@ -1360,14 +1945,25 @@ function showPerk(){
    if(G.pending>0)showPerk();else afterModals();
   }};}));
 }
-function gearHtml(){
+// the equipment cards: one per slot, with what it does. full = also list the class abilities.
+function slotLines(sl){
+ const it=G.p.eq[sl];
+ if(!it)return '<small>Empty</small>';
+ const st=sl==='weapon'?'+'+it.v+' attack':sl==='armor'?'defense '+armorDef(it):sl==='off'?'modifies '+ABIL[OFF[it.k].ab].n:'passive charm';
+ return '<small>'+st+'. '+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
+}
+function gearHtml(full){
  const p=G.p,C=clsOf(p);
- return '<div class="pl"><b>'+C.e+' '+C.n+'</b><br><small>'+C.ab+'</small></div>'+
-  '<div class="pl"><b>⚔️ '+p.wn+' (+'+p.wb+')</b><br><small>'+traitLine(p.wt)+'</small></div>'+
-  '<div class="pl"><b>🛡 '+p.an+' (+'+p.ab+')</b><br><small>'+traitLine(p.at)+'</small></div>';
+ let h='<div class="pl"><b>'+C.e+' '+C.n+'</b> <small>('+C.res+')</small>'+(full?classKitHtml(p.cls,true):'<br><small>'+C.kit.map(k=>ABIL[k].n).join(' / ')+'</small>')+'</div>';
+ for(const sl of SLOTS){const it=p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small><br><b>'+(it?itemIcon(it)+' ':'')+(it?gearName(it):'None')+'</b><br>'+slotLines(sl)+'</div>';}
+ return h;
+}
+function showEquip(back){
+ if(!G)return;
+ showModal('Equipment',gearHtml(true),[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showPerks(back){
- let h=gearHtml();const own=PERKS.filter(pk=>pc(pk.id)>0);
+ let h=gearHtml(true);const own=PERKS.filter(pk=>pc(pk.id)>0);
  h+='<p><b>Perks</b></p>';
  if(!own.length)h+='<p>No perks yet. Level up to pick some.</p>';
  for(const pk of own)h+='<div class="pl"><b>'+pk.n+(pk.max>1?' ×'+pc(pk.id):'')+'</b>'+perkTags(pk)+'<br><small>'+pk.d+'</small></div>';
@@ -1376,14 +1972,14 @@ function showPerks(back){
   const on=pc(s.a)&&pc(s.b);
   h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')'+(on?' ACTIVE':'')+'<br>'+s.d+'</small></div>';
  }
- showModal('Gear, perks & synergies',h,[{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
+ showModal('Equipment, perks & synergies',h,[{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false};
- showModal('Menu',gearHtml(),[
+ showModal('Menu',gearHtml(false),[
   {label:'Resume',c:1,fn:closeModal},
-  {label:'Gear, perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
+  {label:'Equipment, perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
   {label:'Controls',c:1,fn:function(){showHelp(showMenu);}},
   {label:soundLabel(),c:1,fn:function(el){toggleSound();el.textContent=soundLabel();}},
   {label:'Abandon run',c:1,fn:function(el){
@@ -1395,18 +1991,17 @@ function showGear(){
  const it=gearQ;gearQ=null;
  if(!G||G.over||!it||G.items.indexOf(it)<0||it.x!==G.p.x||it.y!==G.p.y)return;
  walkTok++;
- const p=G.p,w=it.t==='weapon',cv=w?p.wb:p.ab,ct=w?p.wt:p.at,cn=w?p.wn:p.an,nn=gearName(it.t,it.v,it.tr);
- const st=w?'attack':'defense',ic=w?'⚔️':'🛡';
- const card=(lab,nm,v,tr,hl)=>'<div class="pl" style="border:2px solid '+(hl?'#ffd24a':'#4b5080')+';border-radius:10px;padding:8px"><small>'+lab+'</small><br><b>'+nm+'</b><br>'+ic+' +'+v+' '+st+'<br><small>'+(tr?'<b>'+TR[tr].n+'</b>: '+TR[tr].d:'No trait.')+'</small></div>';
- const diff=it.v-cv;
- const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cn,cv,ct,false)+card('FOUND',nn,it.v,it.tr,true)+'</div>'+
-  '<p style="text-align:center">'+st+' bonus: <b>'+(diff>0?'+':'')+diff+'</b></p>';
- showModal(w?'Weapon found':'Armor found',html,[
+ const p=G.p,sl=it.t,cur=p.eq[sl],nn=gearName(it);
+ const stat=x=>!x?'':sl==='weapon'?'+'+x.v+' attack':sl==='armor'?'defense '+armorDef(x):sl==='off'?'modifies '+ABIL[OFF[x.k].ab].n:'passive';
+ const card=(lab,x,hl)=>'<div class="pl" style="border:2px solid '+(hl?'#ffd24a':'#4b5080')+';border-radius:10px;padding:8px"><small>'+lab+'</small><br><b>'+(x?itemIcon(x)+' '+gearName(x):'Nothing')+'</b><br><small>'+(x?stat(x)+'.<br>'+itemRule(x)+(x.tr?'<br><b>'+TR[x.tr].n+'</b>: '+TR[x.tr].d:''):'Empty slot.')+'</small></div>';
+ const dl=gearDelta(it);
+ const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cur,false)+card('FOUND',it,true)+'</div>'+
+  '<p style="text-align:center">If you equip it: <b>'+(dl.length?dl.join(', '):'no stat change (rules differ)')+'</b></p>';
+ showModal(SLOT_LABEL[sl]+' found',html,[
   {label:'Equip',c:1,big:1,fn:function(){
    if(G.items.indexOf(it)<0){closeModal();return;}
-   const ov=cv,ot=ct;
-   if(w){p.wb=it.v;p.wn=nn;p.wt=it.tr||null;}else{p.ab=it.v;p.an=nn;p.at=it.tr||null;}
-   if(ov>0||ot){it.v=ov;it.tr=ot||null;msg('Equipped '+nn+'. You drop your '+cn+'.');}
+   const old=equipItem(it);
+   if(worthKeeping(old)){const on=gearName(old);it.k=old.k;it.v=old.v;it.tr=old.tr||null;msg('Equipped '+nn+'. You drop your '+on+'.');}
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
    closeModal();save();render();
    if(G.pending>0)showPerk();}},
@@ -1414,44 +2009,55 @@ function showGear(){
  ]);
 }
 
-// help.js - the Controls / help screen text.
+// help.js - the Controls / help screen text. Every number is generated from BAL and the tables.
 
 function showHelp(back){
  const r=(ic,n,d)=>'<div class="pl"><b>'+ic+' '+n+'</b><br><small>'+d+'</small></div>';
+ const P=BAL.potion,A=BAL.ability;
  let h='<p><b>Bottom bar</b></p>'+
-  r('🧪','Potion','Heals about 40% of your max HP (min 12). Takes a turn. The badge shows potions carried.')+
-  r('🔥','Fireball','Damages every enemy you can see. Takes a turn. Not used if no enemy is in sight.')+
+  r('🧪','Potion','Heals about '+pct(P.healFrac)+' of your max HP (min '+P.minHeal+'). Takes a turn. The badge shows potions carried.')+
+  r('📜','Flames','A flame scroll: damages every enemy you can see. Takes a turn. Not used if no enemy is in sight.')+
   r('🌀','Teleport','Moves you to a random spot far away. Takes a turn.')+
   r('🧭','Explore','Auto-walks to unexplored areas (opening doors), then to the stairs. Keeps going past unnoticed enemies (avoiding stepping next to them); stops when one wakes up, a new one appears, or red danger tiles show up. It routes around known traps.')+
   r('⏳','Wait','Skips a turn (also: tap yourself).')+
   r('⬇️','Stairs','Goes down one floor when you stand on the ▼ tile.')+
+  '<p><b>Ability buttons (the row above the bar)</b></p>'+
+  r('🎯','Four abilities per class','Each button shows its icon, name and cost (or the turns until it recharges). A dim button cannot be used right now: tap it and the log says why. Self abilities fire at once. Targeted ones arm: valid tiles light up, tap one to use it, or tap yourself / the red Cancel button to back out. Every ability uses one turn.')+
+  r('⚔️','Weapons','Sword: balanced. Axe: hits the enemies next to you or the target too. Spear: reach '+WP.spear.reach+' - tap an enemy two tiles away in a straight line. Dagger: crit and sneak bonus. Staff: spell power and mana, weak melee.')+
+  r('🛡','Armor, off-hand, charm','Armor trades defense for resources (plate: strong but slows mana and rage; robe: spell power and mana but no defense; leather: dodge). Each class has its own off-hands that change one ability. A charm is one passive rule. Tap 🎒 to see everything you wear.')+
   '<p><b>Tap controls</b></p>'+
   r('👆','Tap a tile','Walk there (stops if danger appears).')+
   r('⚔️','Tap an adjacent enemy','Attack it. Tap a distant enemy to see its info and walk toward it.')+
   r('🗺','Tap the minimap','Opens the big map; tap again to close.')+
   '<p><b>Combat tips</b></p>'+
   r('🟥','Danger tiles','Heavy enemies (troll, dragon) wind up for one turn. Red hatched tiles show exactly what is hit next turn. Step off them and you take nothing; stay and it hurts about double. Auto-walk and Explore stop and never path through them.')+
+  r('🛡️','Shielded enemies','The Guard shows a bar on the side it faces. It takes '+pct(BAL.weapon.shieldFront)+' damage from the front and '+pct(BAL.weapon.shieldRanged)+' from ranged hits. Stunned or frozen guards drop their guard; hitting from behind is full damage.')+
   r('💥','Knockback','Shield Bash and troll smashes push a target one tile. Into a wall, a closed door or another unit means bonus damage; into open floor it just moves. Bosses cannot be pushed.')+
   r('🚪','Doors','Tap a door to open it (it uses your turn). Closed doors block sight; monsters open them too. Fight in a doorway or corridor so only one enemy can reach you, and archers need a clear line.')+
-  r('💤','Unaware enemies','Dim enemies with a z have not noticed you: the Rogue deals double damage to them. An hourglass on an Ogre means it is resting this turn.')+
+  r('💤','Unaware enemies','Dim enemies with a z have not noticed you: the Rogue deals x'+BAL.combat.sneakMul+' damage to them, and anyone with a dagger gets a sneak bonus. An hourglass on an Ogre means it is resting this turn.')+
+  r('🐉','The Dragon','It calls whelps at '+BAL.enemyAi.summonAt.map(pct).join(' and ')+' health (area attacks shine), breathes fire in a line and, once enraged, sweeps all tiles around itself. It cannot be pushed, but a stun, freeze or blind cancels its wind-up.')+
   '<p><b>Dungeon features</b></p>'+
   r('🔺','Traps','Hidden until you are next to them, then drawn clearly. Spike (grey spikes) hurts, dart (green) poisons you, alarm (bell) wakes the whole floor. Auto-walk and Explore route around revealed traps; enemies can trigger them too. Pink dot on the minimap.')+
   r('🗿','Shrines','Some floors have one. Step on it (or tap yourself on it) for a risky choice - heal, perk, or power for a price. You can always Leave. Purple dot on the minimap.')+
   r('🔒','Locked room and key','A locked iron door hides a treasure room (gear with a trait plus gold). The key drops from the marked elite on that floor: a named, tougher enemy with a gold ring and a star (orange on the minimap). Tap the door with the key in hand to open it. Red-orange on the minimap.')+
-  r('🧔','Merchant','On floors 3 and 6. He is not hostile and cannot be hit by accident: tap him to open the shop (potions, scrolls, gear, a perk) and spend run gold. Green dot on the minimap.')+
+  r('🧔','Merchant','On floors '+BAL.merchant.floors.join(' and ')+'. He is not hostile and cannot be hit by accident: tap him to open the shop (potions, scrolls, gear, a perk) and spend run gold. Green dot on the minimap.')+
   r('🏰','Themes','Floors 1-3 are the Crypt, 4-6 the Caverns (irregular rooms), 7-8 the Embers. The name shows when you arrive.')+
   r('🔊','Sound & vibration','Off by default (handy on a plane). Switch it on in the ☰ menu or on the title screen. Sounds are generated in the page; no downloads.')+
   r('🔓','Unlocks','On the title screen, spend banked gold on unlocks: classes, extra perks for the level-up pool, a starting scroll and more. Some unlock by playing (reach floor 4, slay 50 enemies, slay an elite, defeat the dragon).')+
   r('🗺','Minimap colours','Cyan you, yellow stairs, red enemies, orange elite, pink traps, purple shrine, green merchant, orange-red locked door.')+
   '<p><b>Top bar</b></p>'+
+  r('❤️','HP and resource','The red bar is HP. Next to it: Rage (Warrior), Mana (Mage) or your Knife count (Rogue).')+
   r('🏰','Floor','Current floor out of '+MAXF+'. Slay the dragon on the last one.')+
   r('Lv','Level / XP','Level up to choose a perk.')+
-  r('⚔️','Attack','Your damage bonus. 🛡 is defense, which cuts damage taken. 💰 is gold, banked when the run ends.')+
-  r('?','Controls','This screen. ☰ is the menu with gear and perks.');
+  r('⚔️','Attack','Your melee damage. 🛡 is defense, which cuts damage taken. 💰 is gold, banked when the run ends.')+
+  r('🎒','Equipment, ? and ☰','🎒 shows your gear and abilities, ? is this screen, ☰ is the menu.');
  if(G&&!G.over){
-  const C=clsOf(G.p);h+='<p><b>Your abilities</b></p>'+r(C.e,C.n,C.ab+' Ability buttons appear in a row above the bar: tap to arm, tap a target, tap again to cancel. Costs a turn.');
-  for(const a of ABIL)if(!a.cls&&pc(a.perk)>0){const pk=perkById(a.perk);h+=r(a.e,pk.n,pk.d);}
- }else h+='<p>Pick a class when you start a run: each has its own ability. Perks like Dash and Arcane Bolt add more buttons.</p>';
+  const C=clsOf(G.p);h+='<p><b>Your abilities - '+C.e+' '+C.n+'</b></p>';
+  for(const k of C.kit){const a=ABIL[k];h+=r(a.e,a.n+' ('+abCost(k)+')',abilityDesc(k));}
+ }else{
+  h+='<p><b>The three classes</b></p>';
+  for(const c of Object.keys(CLS)){const C=CLS[c];h+=r(C.e,C.n,classBlurb(c));for(const k of C.kit)h+=r(ABIL[k].e,ABIL[k].n+' ('+abCost(k)+')',abilityDesc(k));}
+ }
  h+='<p>Gold collected is banked when a run ends and buys permanent upgrades on the title screen. Progress autosaves every turn. The game is strictly turn-based.</p>';
  showModal('Controls',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
@@ -1462,8 +2068,8 @@ function showClassPicker(){
  const t=$('titleBox');t.innerHTML='';
  const h=document.createElement('h1');h.textContent='Choose your class';t.appendChild(h);
  for(const k of Object.keys(CLS)){
-  const C=CLS[k],b=document.createElement('button'),open=k==='warrior'||!!meta.unl[k];b.style.minHeight='96px';
-  if(open){b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+C.d+'</span><span><br><i>'+C.ab+'</i></span>';b.addEventListener('click',function(){startRun(k);});}
+  const C=CLS[k],b=document.createElement('button'),open=k==='warrior'||!!meta.unl[k];b.style.minHeight='120px';
+  if(open){b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+classBlurb(k)+'</span><span><br><i>'+C.kit.map(a=>ABIL[a].e+' '+ABIL[a].n+' ('+abCost(a)+')').join(' · ')+'</i></span>';b.addEventListener('click',function(){startRun(k);});}
   else{const u=UNLOCKS.find(x=>x.id===k);b.disabled=true;b.innerHTML='<b style="font-size:18px">🔒 '+C.e+' '+C.n+'</b><span>Locked. Buy it in the title screen shop for <span class="gold">'+(u?u.cost:'?')+' 💰</span> (you have '+meta.gold+').</span>';}
   t.appendChild(b);
  }
@@ -1474,8 +2080,9 @@ function showTitle(keep){
  const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','🗡 Depths of Emberfall');
- add('p','Descend 8 floors. Slay the dragon. Die often, grow stronger.').style.textAlign='center';
+ add('p','Descend '+MAXF+' floors. Slay the dragon. Die often, grow stronger.').style.textAlign='center';
  add('div','Banked gold: <span class="gold">'+meta.gold+' 💰</span> &nbsp; Best floor: '+meta.best+' &nbsp; Wins: '+meta.wins,'row').style.justifyContent='center';
+ if(noticeOld)add('p','A run saved by an older version of the game could not be loaded and was discarded. Your gold, upgrades and unlocks are untouched.').style.cssText='font-size:13px;text-align:center;color:#ffd24a';
  if(hasSave()){const b=add('button','Continue run','c');b.addEventListener('click',continueRun);}
  const nb=add('button','New run','c');nb.addEventListener('click',function(){
   if(hasSave()&&!nb.dataset.arm){nb.dataset.arm=1;nb.textContent='Overwrite saved run? Tap again';return;}
@@ -1504,7 +2111,7 @@ function showTitle(keep){
  if(keep)t.scrollTop=st;
 }
 
-// hud.js - bottom action bar construction, HUD (HP/XP/stats) and message-log rendering.
+// hud.js - bottom action bar and the four ability buttons, HUD (HP / resource / XP / stats) and message-log rendering.
 
 const BTNS=[
  {id:'b_pot',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;drink();}},
@@ -1516,21 +2123,38 @@ const BTNS=[
 ];
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 const ab2=$('bar2');
-for(const a of ABIL){const el=document.createElement('button');el.id='b_'+a.k;el.addEventListener('click',()=>toggleAbility(a.k));ab2.appendChild(el);}
+for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
+$('cancelBtn').addEventListener('click',function(e){e.stopPropagation();walkTok++;if(G&&!G.over)cancelTarget();});
+$('gearBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showEquip(closeModal);});
 function bset(id,ic,lab,badge,dis){
  const el=$(id);el.innerHTML='<span style="font-size:19px;display:block;line-height:1.1">'+ic+'</span><small>'+lab+'</small>'+(badge!==''&&badge!=null?'<i class="bd" style="font-style:normal">'+badge+'</i>':'');
  el.classList.toggle('dis',!!dis);
 }
+// cheap status for a button: never scans the map for tile targets (render runs every animation frame)
+function abStatus(k){
+ const A=ABIL[k],c=costOf(k),p=G.p;
+ if(G.cd[k]>0)return {dis:1,sub:'⏳ '+G.cd[k]};
+ if(c.rage&&(p.rage||0)<c.rage)return {dis:1,sub:c.rage+' rage'};
+ if(c.mana&&(p.mana||0)<c.mana)return {dis:1,sub:c.mana+' mana'};
+ if(k==='knife'&&(G.knives||0)<1)return {dis:1,sub:'no knives'};
+ if((k==='cleave'||k==='nova'||k==='bash'||k==='backstab')&&!(k==='bash'||k==='backstab'?advEnemies(true):chebEnemies()).length)return {dis:1,sub:costLabel(k)};
+ if(k==='charge'&&!chargeLines().length)return {dis:1,sub:costLabel(k)};
+ if((k==='bolt'||k==='knife')&&!enemyShots(BAL.ability[k].range).length)return {dis:1,sub:k==='knife'?'×'+G.knives:costLabel(k)};
+ return {dis:0,sub:k==='knife'?'×'+G.knives:costLabel(k)};
+}
 function updateBar(){
  if(!G)return;
- let any=false;
- for(const a of ABIL){const el=$('b_'+a.k),own=a.cls?G.p.cls===a.cls:pc(a.perk)>0,cd=G.cd[a.k]||0;
-  if(own)any=true;el.style.display=own?'':'none';
-  el.classList.toggle('armed',armed===a.k);
-  bset('b_'+a.k,a.e,armed===a.k?'Cancel':a.n,cd>0&&armed!==a.k?cd:'',cd>0&&armed!==a.k);}
- ab2.style.display=any?'flex':'none';const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
+ const kt=kit();
+ for(let i=0;i<4;i++){
+  const k=kt[i],A=ABIL[k],el=$('a_'+i),st=abStatus(k),isA=armed===k;
+  el.classList.toggle('armed',isA);el.classList.toggle('dis',!isA&&!!st.dis);
+  el.innerHTML='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small><small class="sub">'+(isA?'tap a target':st.sub)+'</small>';
+ }
+ $('cancelBtn').style.display=armed?'block':'none';
+ if(armed)$('cancelBtn').textContent='✖ Cancel '+ABIL[armed].n;
+ const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
  bset('b_pot','🧪','Potion','×'+inv.pot,inv.pot<=0);
- bset('b_fire','🔥','Fireball','×'+inv.fire,inv.fire<=0);
+ bset('b_fire','📜','Flames','×'+inv.fire,inv.fire<=0);
  bset('b_tele','🌀','Teleport','×'+inv.tele,inv.tele<=0);
  bset('b_exp','🧭','Explore','',false);
  bset('b_wait','⏳','Wait','',false);
@@ -1539,9 +2163,13 @@ function updateBar(){
 function updateHud(){
  if(!G)return;const p=G.p;
  $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
- $('hptxt').textContent=clsOf(p).e+' '+clsOf(p).n+'  HP '+p.hp+' / '+p.mhp;
+ $('hptxt').textContent=clsOf(p).e+' HP '+p.hp+'/'+p.mhp;
+ const rb=$('resbar'),rf=$('resfill'),rt=$('restxt');
+ if(p.cls==='warrior'){rb.className='res rage';rf.style.width=Math.min(100,100*(p.rage||0)/BAL.rage.max)+'%';rt.textContent='Rage '+Math.floor(p.rage||0);}
+ else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';rt.textContent='Mana '+Math.floor(p.mana||0)+'/'+m;}
+ else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';rt.textContent='🔪 Knives '+(G.knives||0)+'/'+m;}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+Math.max(1,p.atk+p.wb+atkMod())+'</span><span>🛡 '+(p.def+p.ab)+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'');
+ $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'')+(G.brace?'<span>🧱 '+G.brace.hits+'</span>':'');
 }
 function renderLog(){
  if(!G)return;const l=G.log.slice(-3);
@@ -1567,6 +2195,7 @@ document.addEventListener('keydown',function(ev){
  else if(k==='arrowleft'||k==='a')d=[-1,0];else if(k==='arrowright'||k==='d')d=[1,0];
  else if(k===' '||k==='.'){walkTok++;if(G.map[ix(G.p.x,G.p.y)]===2)descend();else wait();ev.preventDefault();return;}
  else if(k==='e'){explore();return;}
+ else if(k>='1'&&k<='4'){toggleAbility(kit()[+k-1]);return;}
  else if(k==='q'){walkTok++;drink();return;}
  if(d){ev.preventDefault();walkTok++;tryMove(d[0],d[1]);}
 });
@@ -1681,7 +2310,7 @@ function render(){
    const sh=G.shrine;
    if(sh&&sh.x===x&&sh.y===y){ctx.fillStyle=sh.used?'rgba(120,120,140,0.3)':'rgba(190,140,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();ctx.strokeStyle=sh.used?'#778':'#c58aff';ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;ctx.fillStyle='#fff';if(!v||sh.used)ctx.globalAlpha=0.6;glyph('🗿',px+ts/2,py+ts/2+1,ts*0.62);ctx.globalAlpha=1;}
    if(merchantAt(x,y)){ctx.fillStyle='rgba(80,220,100,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();ctx.strokeStyle='#4be04b';ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph('🧔',px+ts/2,py+ts/2+1,ts*0.62);glyph('💰',px+ts*0.82,py+ts*0.2,ts*0.3);ctx.globalAlpha=1;}}
-  if(it){const em={gold:'💰',potion:'🧪',weapon:'⚔️',armor:'🛡',fire:'📜',tele:'🌀',key:'🗝️'}[it.t]||'❔';ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph(em,px+ts/2,py+ts/2+1,ts*0.62);if(it.tr)glyph('✨',px+ts*0.8,py+ts*0.22,ts*0.34);ctx.globalAlpha=1;}
+  if(it){const em=kindTable(it.t)&&it.k&&kindTable(it.t)[it.k]?itemIcon(it):({gold:'💰',potion:'🧪',fire:'📜',tele:'🌀',key:'🗝️',knife:'🔪'}[it.t]||'❔');ctx.fillStyle='#fff';if(!v)ctx.globalAlpha=0.6;glyph(em,px+ts/2,py+ts/2+1,ts*0.62);if(it.tr)glyph('✨',px+ts*0.8,py+ts*0.22,ts*0.34);ctx.globalAlpha=1;}
  }
  if(dest&&dest.tok===walkTok&&!G.over&&(dest.x!==p.x||dest.y!==p.y)){
   const px=ox+dest.x*ts,py=oy+dest.y*ts;ctx.fillStyle='rgba(80,230,255,0.28)';ctx.fillRect(px,py,ts,ts);
@@ -1690,7 +2319,14 @@ function render(){
  if(tapMark){const a=(now-tapMark.t)/600;
   if(a<1){const px=ox+tapMark.x*ts,py=oy+tapMark.y*ts;ctx.globalAlpha=1-a;ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.strokeRect(px+1.5,py+1.5,ts-3,ts-3);ctx.lineWidth=1;ctx.globalAlpha=1;more0=true;}
   else tapMark=null;}
- if(armed==='dash')for(const t of dashTiles()){const px=ox+t[0]*ts,py=oy+t[1]*ts;ctx.fillStyle='rgba(80,230,255,0.3)';ctx.fillRect(px,py,ts,ts);ctx.strokeStyle='#4ee6ff';ctx.lineWidth=2;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
+ if(G.smoke&&G.smoke.length){ctx.fillStyle='rgba(205,210,225,0.42)';for(const c of G.smoke)for(const k of c.cells){const x=k%W,y=Math.floor(k/W);if(x<x0||x>x1||y<y0||y>y1||!G.seen[k])continue;ctx.fillRect(ox+x*ts,oy+y*ts,ts,ts);}more0=true;}
+ if(armed){
+  const col={bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#ff5acd',knife:'#e0e6ff',blink:'#4ee6ff',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=targetTiles(armed),ground=ABIL[armed].tg==='tile';
+  for(const t of tg){const px=ox+t[0]*ts,py=oy+t[1]*ts;
+   ctx.globalAlpha=ground&&armed!=='blink'?0.2:0.34;ctx.fillStyle=col;ctx.fillRect(px,py,ts,ts);ctx.globalAlpha=1;
+   ctx.strokeStyle=col;ctx.lineWidth=ground&&armed!=='blink'?1:2;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
+  more0=true;
+ }
  {const dz=dangerSet();
   if(dz.size){
    const pulse=0.5+0.5*Math.sin(now/170);
@@ -1719,15 +2355,25 @@ function render(){
   const fr=Math.max(0,Math.min(1,e.hp/e.mhp)),bh=d.boss?9:7,bx=px+2,bw=ts-4,by=py+1;
   ctx.fillStyle='#000';ctx.fillRect(bx-1,by-1,bw+2,bh+2);ctx.fillStyle='#3a0d0d';ctx.fillRect(bx,by,bw,bh);
   ctx.fillStyle=fr>0.6?'#4be04b':fr>0.3?'#ffcc33':'#ff4040';ctx.fillRect(bx,by,bw*fr,bh);
-  if(e.pois){ctx.fillStyle='#7be04b';ctx.beginPath();ctx.arc(px+ts-7,py+ts-7,5,0,7);ctx.fill();ctx.strokeStyle='#000';ctx.stroke();}
+  if(e.pois){ctx.fillStyle=e.pois.burn?'#ff9a3a':'#7be04b';ctx.beginPath();ctx.arc(px+ts-7,py+ts-7,5,0,7);ctx.fill();ctx.strokeStyle='#000';ctx.stroke();}
   if(e.stun>0)glyph('💫',px+ts*0.5,py+ts*0.25,ts*0.4);
-  if((armed==='bolt'&&boltOk(e))||(armed==='bash'&&bashOk(e))){ctx.strokeStyle=armed==='bash'?'#ffb04a':'#ff5acd';ctx.lineWidth=3;ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.lineWidth=1;}
+  if(e.frz>0)glyph('❄️',px+ts*0.5,py+ts*0.25,ts*0.4);
+  if(e.blind>0)glyph('🌫',px+ts*0.2,py+ts*0.8,ts*0.3);
+  if(d.shield&&e.face){ // the guard's shield: a thick bar on the side it faces
+   const fx=e.face[0],fy=e.face[1],cx=px+ts/2+fx*ts*0.46,cy=py+ts/2+fy*ts*0.46;
+   ctx.fillStyle=(e.stun>0||e.frz>0)?'#777':'#8fd0ff';ctx.strokeStyle='#000';ctx.lineWidth=1;
+   if(fx&&!fy){ctx.fillRect(cx-3,py+ts*0.18,6,ts*0.64);ctx.strokeRect(cx-3,py+ts*0.18,6,ts*0.64);}
+   else if(fy&&!fx){ctx.fillRect(px+ts*0.18,cy-3,ts*0.64,6);ctx.strokeRect(px+ts*0.18,cy-3,ts*0.64,6);}
+   else{ctx.beginPath();ctx.arc(cx,cy,ts*0.14,0,7);ctx.fill();ctx.stroke();}
+  }
+  if(reachOk(e)){ctx.strokeStyle='#ffe066';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.setLineDash([]);ctx.lineWidth=1;}
  }
  puffs=puffs.filter(q=>now-q.t<450);
  for(const q of puffs){const a=(now-q.t)/450,cx=ox+q.x*ts+ts/2,cy=oy+q.y*ts+ts/2;ctx.globalAlpha=1-a;ctx.fillStyle='#e6e6ee';for(let i=0;i<6;i++){const ang=i*1.047+q.s,r=ts*(0.15+0.5*a);ctx.beginPath();ctx.arc(cx+Math.cos(ang)*r,cy+Math.sin(ang)*r,Math.max(1.5,ts*0.12*(1-a)),0,7);ctx.fill();}ctx.globalAlpha=1;more0=true;}
  {const px=ox+vx*ts,py=oy+vy*ts;
   ctx.fillStyle='rgba(90,160,255,0.35)';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.46,0,7);ctx.fill();if(G.vanish>0)ctx.globalAlpha=0.5;
   ctx.fillStyle='#fff';glyph(clsOf(p).e,px+ts/2,py+ts/2+1,ts*0.7);ctx.globalAlpha=1;
+  if(G.brace){ctx.strokeStyle='#9cf';ctx.lineWidth=3;ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.5,0,7);ctx.stroke();ctx.lineWidth=1;}
   {const fl=flashes.p;if(fl&&now-fl<190){ctx.fillStyle='rgba(255,70,70,'+(0.6*(1-(now-fl)/190))+')';ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*0.42,0,7);ctx.fill();more0=true;}}
   if(now<pulseUntil&&!rm){const a=1-(pulseUntil-now)/700;ctx.strokeStyle='rgba(255,220,90,'+(1-a)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*(0.5+1.4*a),0,7);ctx.stroke();ctx.lineWidth=1;more0=true;}}
  drawMini(ts);
@@ -1750,15 +2396,19 @@ showTitle();
 syncRunFromIdb();
 window.__dbg=function(){return G;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
-window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){return Array.from(dangerSet());},computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,useBash:useBash,hurtPlayer:hurtPlayer,useBolt:useBolt,useVanish:useVanish,dim:{W:W,H:H,MAXF:MAXF}};
+window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){return Array.from(dangerSet());},computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,hurtPlayer:hurtPlayer,hurtEnemy:hurtEnemy,use:useAbility,whyNot:whyNot,targetTiles:targetTiles,reachOk:reachOk,reachAttack:reachAttack,playerAttack:playerAttack,toggleAbility:toggleAbility,summonWhelps:summonWhelps,bossPhase:bossPhase,dim:{W:W,H:H,MAXF:MAXF}};
 window.__dbg.api={SHOP:SHOP,cost:cost,sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,springPlayer:springPlayer,springEnemy:springEnemy,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,wakeAll:wakeAll,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt,trapAt:trapAt};
 window.__dbg.perkIds=PERKS.map(p=>p.id);
 window.__dbg.traits=Object.keys(TR);
-window.__dbg.spawnGear=function(slot,tr,v){
+window.__dbg.tables={BAL:BAL,EN:EN,CLS:CLS,ABIL:ABIL,WP:WP,ARM:ARM,OFF:OFF,CH:CH,PERKS:PERKS,SYN:SYN,TR:TR};
+window.__dbg.gear={gearName:gearName,gearDelta:gearDelta,newGear:newGear,equipItem:equipItem,statVec:statVec,sneakMul:sneakMul,maxKnives:maxKnives,mmax:mmax,costOf:costOf,cdFor:cdFor,showEquip:showEquip,showGear:showGear,isFront:isFront,isBehind:isBehind};
+// test helper: drop an item (slot, kind, trait, tier value) on a free floor tile next to the player
+window.__dbg.spawnGear=function(slot,k,tr,v){
  if(!G)return null;const p=G.p;if(tr&&!TR[tr])return null;
+ if(!kindTable(slot)[k])return null;
  for(const [dx,dy] of DIRS){const x=p.x+dx,y=p.y+dy;
   if(walkable(x,y)&&!enemyAt(x,y)&&!itemAt(x,y)&&G.map[ix(x,y)]===1){
-   G.items.push({x,y,t:slot,v:v!=null?v:applyTrait(slot==='weapon'?4:3,tr||null),tr:tr||null});computeVis();render();return [x,y];}}
+   G.items.push({x,y,t:slot,k:k,v:v!=null?v:applyTrait(slot==='weapon'?4:slot==='armor'?3:0,tr||null),tr:tr||null});computeVis();render();return [x,y];}}
  return null;
 };
 })();
