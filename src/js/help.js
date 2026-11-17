@@ -32,7 +32,11 @@ function showHelp(back){
   r('🧔','Merchant','On floors '+BAL.merchant.floors.join(' and ')+'. He is not hostile and cannot be hit by accident: tap him to open the shop (potions, scrolls, gear, a perk) and spend run gold. Green dot on the minimap.')+
   r('🏰','Themes','Floors 1-3 are the Crypt, 4-6 the Caverns (irregular rooms), 7-8 the Embers. The name shows when you arrive.')+
   r('🔊','Sound & vibration','Off by default (handy on a plane). Switch it on in the ☰ menu or on the title screen. Sounds are generated in the page; no downloads.')+
-  r('🔓','Unlocks','On the title screen, spend banked gold on unlocks: classes, extra perks for the level-up pool, a starting scroll and more. Some unlock by playing (reach floor 4, slay 50 enemies, slay an elite, defeat the dragon).')+
+  r('🛤','Two ways down','Taking the stairs from floor 1 to '+(MAXF-2)+' opens a choice of two routes. Each shows its theme and its floor modifier (or none) with the risk and the reward; the merchant floors have their merchant on both. The way into the dragon lair is single.')+
+  r('🌑','Floor modifiers','A modifier chip appears at the top left of the map; tap it for a reminder. '+MODS.map(m=>'<b>'+m.e+' '+m.n+'</b>: '+m.down+' '+m.up).join('<br>'))+
+  r('📅','Daily run','Everyone who plays on the same calendar date gets the same dungeon (floors, routes, modifiers, enemies, loot). Your best result per day is kept on this device. Dailies are never Hard.')+
+  r('💀','Hard mode','Unlocked by your first win; switch it on under the title screen. '+HARD_RULES.map(x=>'<b>'+x.n+'</b>: '+x.d).join(' '))+
+  r('🔓','Unlocks','Under Upgrades on the title screen, spend banked gold on unlocks: classes, extra perks for the level-up pool, a starting scroll and more. Some unlock by playing (reach floor 4, slay 50 enemies, slay an elite, defeat the dragon).')+
   r('🗺','Minimap colours','Cyan you, yellow stairs, red enemies, orange elite, pink traps, purple shrine, green merchant, orange-red locked door.')+
   '<p><b>Top bar</b></p>'+
   r('❤️','HP and resource','The red bar is HP. Next to it: Rage (Warrior), Mana (Mage) or your Knife count (Rogue).')+
@@ -47,6 +51,6 @@ function showHelp(back){
   h+='<p><b>The three classes</b></p>';
   for(const c of Object.keys(CLS)){const C=CLS[c];h+=r(C.e,C.n,classBlurb(c));for(const k of C.kit)h+=r(ABIL[k].e,ABIL[k].n+' ('+abCost(k)+')',abilityDesc(k));}
  }
- h+='<p>Gold collected is banked when a run ends and buys permanent upgrades on the title screen. Progress autosaves every turn. The game is strictly turn-based.</p>';
+ h+='<p>Gold collected is banked when a run ends and buys permanent upgrades (title screen, Upgrades). Progress autosaves every turn. The game is strictly turn-based.</p>';
  showModal('Controls',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }

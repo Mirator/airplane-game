@@ -269,7 +269,7 @@ describe('saves and enemies', { concurrency: 3 }, () => {
       await page.waitForSelector('#titleBox button');
       assert.equal(await page.locator('#title button', { hasText: /Continue run/ }).count(), 0);
       await startRun(page, 'mage');                                       // a new run still starts normally
-      assert.equal(await page.evaluate(() => window.__dbg().ver), 2);
+      assert.equal(await page.evaluate(() => window.__dbg().ver), 3);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

@@ -15,7 +15,21 @@ const THEMES=[
  {n:'The Caverns',wl:'#2d4a45',wt:'#5f9484',we:'#173029',wld:'#13211e',wtd:'#1f3631',wed:'#0a1411',fa:'#8a9a78',fb:'#94a482',fda:'#2b3328',fdb:'#2e362b',mw:'#2f5a50',mf:'#a8b890',mfd:'#6a7a5a'},
  {n:'The Embers',wl:'#5a2a22',wt:'#b0482e',we:'#2e100c',wld:'#241210',wtd:'#3a1b15',wed:'#140807',fa:'#a8704a',fb:'#b47a52',fda:'#3a2619',fdb:'#3e291c',mw:'#7a3224',mf:'#d08a58',mfd:'#7a5030'}
 ];
-function themeOf(f){return f<=3?THEMES[0]:f<=6?THEMES[1]:THEMES[2];}
+// each depth band has a second look for the "other" exit: same colours rotated in hue, with its own name
+function tintTheme(t,name,deg){
+ const f=c=>{
+  const r=parseInt(c.slice(1,3),16)/255,g=parseInt(c.slice(3,5),16)/255,b=parseInt(c.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;
+  let h=0,s=0;
+  if(d){s=d/(1-Math.abs(2*l-1));h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}
+  h=(h+deg+360)%360;
+  const C=(1-Math.abs(2*l-1))*s,X=C*(1-Math.abs((h/60)%2-1)),m=l-C/2,k=Math.floor(h/60),rgb=[[C,X,0],[X,C,0],[0,C,X],[0,X,C],[X,0,C],[C,0,X]][k%6];
+  return '#'+rgb.map(v=>('0'+Math.round((v+m)*255).toString(16)).slice(-2)).join('');
+ },o={n:name};
+ for(const k in t)if(k!=='n')o[k]=f(t[k]);
+ return o;
+}
+const THEMES2=[tintTheme(THEMES[0],'The Ossuary',70),tintTheme(THEMES[1],'The Fungal Grotto',-75),tintTheme(THEMES[2],'The Ashen Halls',-35)];
+function themeOf(f,v){const i=f<=3?0:f<=6?1:2;return v===1&&f<MAXF?THEMES2[i]:THEMES[i];}
 const ENAMES=['Gorak','Vexa','Morn','Sable','Thrain','Ilsa','Brakk','Nyx'],ETITLES=['the Cruel','the Bloodied','Ironhide','the Hungry','Gravecaller','Emberhand'];
 // Ability button defs per key: icon, short name, targeting (adj = adjacent enemy, line = enemy in a straight line,
 // enemy = visible enemy, tile = visible tile, self = no target). The class kit order lives in CLS[cls].kit.

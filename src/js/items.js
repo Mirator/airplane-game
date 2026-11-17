@@ -54,13 +54,13 @@ function itemDesc(it){
 function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'';}
 function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
 function rollTrait(slot,f){
- if(Math.random()>=Math.min(BAL.trait.chanceCap,BAL.trait.chanceBase+BAL.trait.chancePerFloor*f))return null;
+ if(rf()>=Math.min(BAL.trait.chanceCap,BAL.trait.chanceBase+BAL.trait.chancePerFloor*f))return null;
  const pool=Object.keys(TR).filter(k=>TR[k].slot===slot&&TR[k].minF<=f);
  return pool.length?pick(pool):null;
 }
 function pickW(tbl){
  const ks=Object.keys(tbl);let tot=0;for(const k of ks)tot+=tbl[k].w||1;
- let r=Math.random()*tot;for(const k of ks){r-=tbl[k].w||1;if(r<0)return k;}return ks[0];
+ let r=rf()*tot;for(const k of ks){r-=tbl[k].w||1;if(r<0)return k;}return ks[0];
 }
 function classOffs(cls){return Object.keys(OFF).filter(k=>OFF[k].cls===cls);}
 // a fresh piece of gear for floor f. forced = treasure room / merchant: weapon and armor always carry a trait.
@@ -99,7 +99,7 @@ function sellGear(it,why){const g=Math.round((BAL.item.weakSaleBase+G.floor)*G.p
 function pickOne(it){
  const p=G.p;
  let take=true;
- if(it.t==='gold'){const g=Math.round(it.v*p.goldMul);p.gold+=g;msg('You pick up '+g+' gold.');}
+ if(it.t==='gold'){const g=Math.round(it.v*p.goldMul*goldMod());p.gold+=g;msg('You pick up '+g+' gold.');checkAch();}
  else if(it.t==='potion'){
   if(G.inv.pot<p.potCap){G.inv.pot++;msg('You pick up a health potion.');}
   else{msg('Potion belt is full.');take=false;}
@@ -126,7 +126,7 @@ function drink(){
  const p=G.p;
  if(G.inv.pot<=0){msg('No potions. Find them in the dungeon.');return;}
  if(p.hp>=p.mhp){msg('Already at full health.');return;}
- G.ppois=null;G.inv.pot--;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
+ G.ppois=null;G.inv.pot--;G.stats.pots++;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(modIs('cursed'))h=Math.max(1,Math.round(h*BAL.mod.cursed.potionMul));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
  floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');
  if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('The flask refills itself: no turn used.');save();render();return;}
  endTurn();

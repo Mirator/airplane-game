@@ -18,11 +18,18 @@ function seedInit(seed) {
   };
 }
 
+// Freeze `new Date()` / Date.now() to local noon of [year, monthIndex, day] (Daily runs are keyed by the local date).
+function fakeDateInit(ymd) {
+  const R = Date, fixed = new R(ymd[0], ymd[1], ymd[2], 12, 0, 0).getTime();
+  window.Date = class extends R { constructor(...a) { if (a.length) super(...a); else super(fixed); } static now() { return fixed; } };
+}
+
 // New page with error collection. opts: {w,h,seed,meta,reducedMotion}. meta pre-seeds the permanent save
 // (default: help already seen, rogue + mage unlocked) - only if the page has no meta yet, so reloads keep progress.
 async function newPage(browser, opts = {}) {
   const ctx = await browser.newContext({
     viewport: { width: opts.w || 390, height: opts.h || 844 },
+    hasTouch: !!opts.touch,
     reducedMotion: opts.reducedMotion ? 'reduce' : 'no-preference',
   });
   const page = await ctx.newPage();
@@ -32,6 +39,7 @@ async function newPage(browser, opts = {}) {
   page.on('requestfailed', (r) => { if (!/^file:/.test(r.url())) errors.push('external request: ' + r.url()); });
   page.on('request', (r) => { if (!/^(file|data|blob|about):/.test(r.url())) errors.push('external request: ' + r.url()); });
   if (opts.seed != null) await page.addInitScript(seedInit, opts.seed);
+  if (opts.fakeDate) await page.addInitScript(fakeDateInit, opts.fakeDate);   // [y, m0, d]: freeze the local calendar date
   // Pre-seed the permanent save from the page itself, then reload once. (Doing this from addInitScript makes Chromium
   // intermittently lose the newest localStorage write across a later page.reload() - a test-environment quirk that
   // reproduces on the pre-refactor file too.)
@@ -50,4 +58,4 @@ async function startRun(page, cls) {
 }
 
 const launch = () => chromium.launch();
-module.exports = { GAME, URL, launch, newPage, startRun, seedInit };
+module.exports = { GAME, URL, launch, newPage, startRun, seedInit, fakeDateInit };

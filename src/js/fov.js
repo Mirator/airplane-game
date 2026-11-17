@@ -19,7 +19,7 @@ function bfsDist(sx,sy){
 }
 
 function computeVis(){
- const p=G.p,R=BAL.vis.radius;G.vis=new Array(W*H).fill(false);
+ const p=G.p,R=visRadius();G.vis=new Array(W*H).fill(false);
  for(let y=p.y-R;y<=p.y+R;y++)for(let x=p.x-R;x<=p.x+R;x++){
   if(!inb(x,y))continue;
   if((x-p.x)*(x-p.x)+(y-p.y)*(y-p.y)>R*R+1)continue;
@@ -33,12 +33,12 @@ function computeVis(){
 }
 
 function bfsPath(sx,sy,tx,ty){
- const dz=dangerSet(),tz=trapSet();
+ const dz=dangerSet(),tz=trapSet(),cz=crackSet();
  const prev=new Map(),start=ix(sx,sy);prev.set(start,-1);const q=[[sx,sy]];
  const goal=ix(tx,ty);
  for(let i=0;i<q.length;i++){const [x,y]=q[i];if(ix(x,y)===goal)break;
   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
-   if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||dz.has(k))continue;
+   if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||dz.has(k)||(cz.has(k)&&k!==goal))continue;
    if(k!==goal&&(enemyAt(nx,ny)||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)))continue;
    prev.set(k,ix(x,y));q.push([nx,ny]);}}
  if(!prev.has(goal))return null;

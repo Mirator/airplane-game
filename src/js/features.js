@@ -38,11 +38,11 @@ function stepEffects(){
 }
 function showShrine(){
  const s=G&&G.shrine;if(!s||s.used||G.over)return;walkTok++;
- const p=G.p,better=!!meta.unl.shrine,heal=better?BAL.shrine.healBetter:BAL.shrine.healBase,loss=better?BAL.shrine.lossBetter:BAL.shrine.lossBase,pct=n=>Math.round(n*100);
+ const p=G.p,better=!!meta.unl.shrine||modIs('cursed'),heal=better?BAL.shrine.healBetter:BAL.shrine.healBase,loss=better?BAL.shrine.lossBetter:BAL.shrine.lossBase,pct=n=>Math.round(n*100);
  const done=function(t){s.used=1;closeModal();msg(t);save();render();afterModals();};
  const opts=[
   {html:'<b>🙏 Pray</b><span>'+pct(heal)+'% chance of a full heal, '+pct(1-heal)+'% chance you lose '+pct(loss)+'% of max HP.</span>',fn:function(){
-   if(Math.random()<heal){const h=p.mhp-p.hp;p.hp=p.mhp;floatFx(p.x,p.y,'+'+h,'#6f6');done('The shrine glows. You are fully healed.');}
+   if(rf()<heal){const h=p.mhp-p.hp;p.hp=p.mhp;floatFx(p.x,p.y,'+'+h,'#6f6');done('The shrine glows. You are fully healed.');}
    else{const l=Math.max(1,Math.round(p.mhp*loss));p.hp=Math.max(1,p.hp-l);G.killer='a cursed shrine';floatFx(p.x,p.y,'-'+l,'#ff5a5a');playerHurtFx(l);done('The shrine rejects you: -'+l+' HP.');}}},
   {html:'<b>🪙 Sacrifice '+BAL.shrine.sacrificeGold+' gold</b><span>Gain a random perk. You have '+p.gold+' gold.</span>',off:p.gold<BAL.shrine.sacrificeGold,fn:function(){
    const id=randomPerkId();if(!id){msg('No perks left to offer.');return;}

@@ -1,6 +1,6 @@
 // world.js - queries over the current game state (G): who/what is on a tile, walkability, message log.
 
-function nm(e){return e.elite?'elite '+EN[e.t].n+' '+(e.name||''):EN[e.t].n;}
+function nm(e){return e.elite?'elite '+EN[e.t].n+' '+(e.name||''):e.hunter?'Stalker '+EN[e.t].n:EN[e.t].n;}
 function merchantAt(x,y){return !!(G&&G.merchant&&G.merchant.x===x&&G.merchant.y===y);}
 function walkable(x,y){return inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==5&&!merchantAt(x,y);}
 function trapAt(x,y){for(const t of G.traps)if(t.x===x&&t.y===y&&!t.done)return t;return null;}

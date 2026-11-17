@@ -7,6 +7,8 @@
 //   --runs     runs per class per upgrade level (default 10)
 //   --levels   name=bankedGold pairs. Each run starts from a fresh meta save with that much gold spent on the permanent
 //              shop/unlocks in the bot's fixed buying order (see SEQ in tests/lib/botlib.js), so runs are independent samples.
+//   --hard     play on Hard mode (meta gets one win so the toggle is unlocked)
+//   --force M  debug: every exit on floors 2-7 offers only modifier M (dark flooded cursed horde hunted rich silent unstable)
 //   --jobs     parallel browser pages (default 4)
 //   --seed     seed Math.random per run (run i of the whole job list uses seed*100003+i) for reproducible tables
 // "stall" = the bot gave up (action cap / no goal); it is a bot limitation, not a death. Win% counts stalls as non-wins.
@@ -22,6 +24,8 @@ const RUNS = +arg('runs', 10);
 const CLASSES = arg('classes', 'warrior,mage,rogue').split(',');
 const LEVELS = arg('levels', 'fresh=0,mid=500,heavy=1500').split(',').map((s) => { const [n, g] = s.split('='); return { name: n, gold: +g }; });
 const JOBS = +arg('jobs', 4);
+const HARD = process.argv.includes('--hard');
+const FORCE = arg('force', null);
 const SEED = arg('seed', null);
 const FILE = path.resolve(arg('file', path.join(__dirname, '..', 'index.html')));
 const JSONL = arg('jsonl', null);
@@ -48,17 +52,18 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
     while (next < tasks.length) {
       const t = tasks[next++];
       try {
-        const res = await page.evaluate(([cls, gold, seed]) => {
+        const res = await page.evaluate(([cls, gold, seed, hard, force]) => {
           if (seed !== null) {
             let a = seed >>> 0;
             Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let x = a; x = Math.imul(x ^ (x >>> 15), x | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
           }
-          BOT.resetMeta({ gold });
+          BOT.resetMeta(hard ? { gold, wins: 1, hardOn: 1 } : { gold });
+          window.__dbg.mods.setForce(force);
           BOT.spend(window.__dbg.api.meta(), { i: 0 });
           const r = BOT.runOne(cls, {});
           r.dbg = null;
           return r;
-        }, [t.cls, t.lv.gold, SEED === null ? null : (+SEED * 100003 + t.id) >>> 0]);
+        }, [t.cls, t.lv.gold, SEED === null ? null : (+SEED * 100003 + t.id) >>> 0, HARD, FORCE]);
         results.push({ ...res, level: t.lv.name, run: t.r });
       } catch (e) { errors.push('crash ' + t.cls + ': ' + String(e).slice(0, 100)); }
       if (++done % 10 === 0) process.stderr.write(`  ${done}/${tasks.length} runs, ${((Date.now() - t0) / 1000).toFixed(0)}s\n`);
@@ -86,6 +91,8 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
         + String(((r8) => r8.length ? (100 * r8.filter((r) => r.won).length / r8.length).toFixed(0) + '%(' + r8.length + ')' : '-')(rows.filter((r) => r.floor === 8))).padStart(11) + '  ' + fl.slice(1).join(',').padEnd(17) + ks);
     }
   }
+  { const mc = {}; let tot = 0; results.forEach((r) => (r.mods || '').split(',').filter(Boolean).forEach((m) => { mc[m] = (mc[m] || 0) + 1; tot++; }));
+    console.log('\n== floors by modifier (share of all floors entered): ' + Object.entries(mc).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + (100 * v / tot).toFixed(0) + '%').join('  ')); }
   // ability usage share per class (all levels pooled): how often each of the four abilities was used, as a share of all uses
   console.log('\n== ability usage share per class (uses per run in brackets)');
   for (const cls of CLASSES) {

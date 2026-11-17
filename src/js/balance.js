@@ -128,7 +128,24 @@ const BAL = {
     costGrowth: 0.3,                 // shop price = base * (level+1) * (1 + level * costGrowth)
     startScrollFireChance: 0.5
   },
-  run: { winBonus: 150 }
+  run: { winBonus: 150 },
+  // --- floor modifiers (mods.js). chance = per exit option; each modifier's numbers live here, its text in MODS below ---
+  mod: {
+    chance: 0.5,
+    dark:     { sight: 4, extraGold: 3, extraPotions: 0, gearChance: 0.5 },
+    flooded:  { poolMin: 5, poolMax: 9, extraGold: 2 },                 // water: the player's step lets enemies act once more; an enemy entering water loses its next action
+    cursed:   { potionMul: 0.6 },                                        // no natural regeneration; potions heal this fraction; the floor always has a shrine (with the safe blessing)
+    horde:    { countMul: 1.6, hpMul: 0.75, atkMul: 0.8, maxHp: 15, xpMul: 0.6, goldDrop: 0.45 },   // maxHp: enemy types above this base HP do not appear
+    hunted:   { minFloor: 3, hpMul: 2.2, atkMul: 1.25, rewardGold: 14, rewardGoldPerFloor: 5, xpMul: 3 },
+    rich:     { goldMul: 2, hpMul: 1.15, atkMul: 1.1, extraGold: 2 },
+    silent:   { sight: 4, sneakMul: 2, trapMul: 2, alarmShare: 0.5 },
+    unstable: { every: 4, count: 2, onPlayer: 0.35, radius: 5, warn: 2, dmgBase: 3, dmgFloorDiv: 2, enemyMul: 2, extraGear: 1, extraGold: 1 }
+  },
+  // --- run score, shown on the recap and kept in the records (records.js) ---
+  score: { floor: 100, kill: 2, level: 15, win: 600, par: 1500, perTurn: 0.3 },   // + win bonus and 'perTurn' for every turn under 'par'
+  // --- Hard mode (unlocked by the first win): a stack of named rules, see HARD_RULES ---
+  hard: { hpMul: 1.25, atkMul: 1.2, bossAtkMul: 1.1, startPotions: 1, bonusPotion: 0, dropPotionMul: 0.5, extraSummonAt: 0.9, enrageFrac: 0.6, goldMul: 1.5, scoreMul: 1.5 },
+  ach: { kills: 200, elites: 10, streak: 3, dailyDays: 3, hoard: 200, fastTurns: 1000, noArmorFloor: 5 }
 };
 
 // ===== Tables: enemies, perks, synergies, classes, gear traits, traps, shop, unlocks =====
@@ -285,3 +302,53 @@ const TR={
  TR.spiked.d='Melee attackers take '+B.spikedThorns+' damage, but '+sg(B.spikedAtk)+' attack.';
  TR.leaden.d=sg(TR.leaden.dv)+' defense, but potions heal '+pc100(1-BAL.potion.leadenMul)+' less.';}
 const TRAPS={spike:{n:'Spike trap',c:'#ff5a5a'},dart:{n:'Dart trap',c:'#7be04b'},alarm:{n:'Alarm trap',c:'#ffd24a'}};
+
+// ===== Floor modifiers (rules: mods.js; numbers: BAL.mod). down = the price you pay, up = what you get. minF = first floor it can appear on. =====
+const MODS=(function(){
+ const M=BAL.mod,p=x=>Math.round(x*100)+'%';
+ return [
+  {id:'dark',tip:'Sight '+M.dark.sight+' tiles, more loot.',e:'🌑',n:'Dark',minF:2,down:'You only see '+M.dark.sight+' tiles around you.',up:'More loot: +'+M.dark.extraGold+' gold piles'+(M.dark.extraPotions?', +'+M.dark.extraPotions+' potion':'')+' and a '+p(M.dark.gearChance)+' chance of a gear drop.'},
+  {id:'flooded',tip:'Water slows you; enemies in it lose a move.',e:'🌊',n:'Flooded',minF:2,down:'Wading through water gives enemies an extra move.',up:'Enemies that enter water lose their next move; +'+M.flooded.extraGold+' gold piles.'},
+  {id:'cursed',tip:'No regen, weaker potions, a safe shrine.',e:'☠️',n:'Cursed ground',minF:2,down:'No natural regeneration and potions heal '+p(M.cursed.potionMul)+'.',up:'A shrine is guaranteed, and it offers the safe Blessing.'},
+  {id:'horde',tip:'Many weak foes, no treasure room.',e:'🐀',n:'Horde',minF:2,down:p(M.horde.countMul-1)+' more enemies, no locked treasure room, and each gives only '+p(M.horde.xpMul)+' XP.',up:'Foes have '+p(M.horde.hpMul)+' HP and '+p(1-M.horde.atkMul)+' less attack; they drop more gold.'},
+  {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'🎯',n:'Hunted',minF:M.hunted.minFloor,down:'A tough stalker hunts you from the start.',up:'Slay it for a trait item, gold, a potion and bonus XP.'},
+  {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'💰',n:'Rich vein',minF:2,down:'Enemies have +'+p(M.rich.hpMul-1)+' HP and +'+p(M.rich.atkMul-1)+' attack.',up:'Gold is doubled; +'+M.rich.extraGold+' gold piles.'},
+  {id:'silent',tip:'More traps, alarms and easy sneak attacks.',e:'🤫',n:'Silent',minF:2,down:'Twice the traps, and half of them are alarms.',up:'Enemies notice you only from '+M.silent.sight+' tiles; sneak attacks do x'+M.silent.sneakMul+' for everyone.'},
+  {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'🕳️',n:'Unstable',minF:2,down:'Tiles crack, then collapse after '+M.unstable.warn+' turns: standing on one hurts.',up:'Collapses hit enemies for x'+M.unstable.enemyMul+'; extra gear and gold.'}
+ ];
+})();
+function modOf(id){return MODS.find(m=>m.id===id)||null;}
+// ===== Hard mode: named rule changes, all numbers from BAL.hard =====
+const HARD_RULES=(function(){
+ const H=BAL.hard,p=x=>Math.round(x*100)+'%';
+ return [
+  {n:'Tougher foes',d:'Enemies have +'+p(H.hpMul-1)+' HP and +'+p(H.atkMul-1)+' attack; the dragon hits +'+p(H.bossAtkMul-1)+' harder.'},
+  {n:'Scarce potions',d:H.startPotions+' fewer starting potion'+(H.startPotions>1?'s':'')+', '+(H.bonusPotion?'the bonus floor potion is only '+p(H.bonusPotion)+' likely':'no bonus potion on floors')+', '+p(1-H.dropPotionMul)+' fewer potion drops.'},
+  {n:'Brood mother',d:'The dragon calls an extra brood of whelps at '+p(H.extraSummonAt)+' health and enrages at '+p(H.enrageFrac)+'.'},
+  {n:'Spoils',d:'Banked gold and score are x'+H.goldMul+'.'}
+ ];
+})();
+// ===== Achievements. chk = state-derived check (run at kills, floor changes, run end); no chk = granted directly by the event in code.
+// gold = one-time reward added to the permanent wallet. prog = progress text for countable goals. =====
+const ACH=[
+ {id:'win1',n:'First Victory',d:'Slay the dragon.',chk:()=>meta.wins>=1,prog:()=>Math.min(1,meta.wins)+'/1'},
+ {id:'winW',n:'Shieldbearer',d:'Win a run as the Warrior.',chk:()=>recWins('warrior')>=1},
+ {id:'winR',n:'Shadow Blade',d:'Win a run as the Rogue.',chk:()=>recWins('rogue')>=1},
+ {id:'winM',n:'Archmage',d:'Win a run as the Mage.',chk:()=>recWins('mage')>=1},
+ {id:'all3',n:'Triple Crown',d:'Win with all three classes.',gold:60,chk:()=>['warrior','rogue','mage'].every(c=>recWins(c)>=1),prog:()=>['warrior','rogue','mage'].filter(c=>recWins(c)>=1).length+'/3'},
+ {id:'dry',n:'Teetotaler',d:'Win without drinking a potion.',gold:50,chk:()=>statWin()&&!G.stats.pots},
+ {id:'dance',n:'Dragon Dancer',d:'Win without ever being hit by the dragon\'s telegraphed attacks.',gold:60,chk:()=>statWin()&&!G.stats.dragonHit},
+ {id:'bare',n:'Bare Essentials',d:'Reach floor '+BAL.ach.noArmorFloor+' without wearing any armor.',gold:40},
+ {id:'horde',n:'Hordebreaker',d:'Clear every enemy on a Horde floor.',gold:30},
+ {id:'hunt',n:'Stalker Stalked',d:'Slay the stalker on a Hunted floor.',gold:30},
+ {id:'daily',n:'Daily Champion',d:'Win a Daily run.',gold:40},
+ {id:'hardwin',n:'Hardened',d:'Win a run on Hard.',gold:100,chk:()=>meta.hwins>=1},
+ {id:'habit',n:'Daily Habit',d:'Play the Daily on '+BAL.ach.dailyDays+' different days.',chk:()=>meta.dlyN>=BAL.ach.dailyDays,prog:()=>Math.min(meta.dlyN,BAL.ach.dailyDays)+'/'+BAL.ach.dailyDays},
+ {id:'lair',n:'Into the Lair',d:'Reach floor '+MAXF+'.',chk:()=>meta.best>=MAXF},
+ {id:'slayer',n:'Slayer',d:'Slay '+BAL.ach.kills+' enemies in total.',chk:()=>meta.kills>=BAL.ach.kills,prog:()=>Math.min(meta.kills,BAL.ach.kills)+'/'+BAL.ach.kills},
+ {id:'elite',n:'Elite Hunter',d:'Slay '+BAL.ach.elites+' elite enemies in total.',chk:()=>meta.elites>=BAL.ach.elites,prog:()=>Math.min(meta.elites,BAL.ach.elites)+'/'+BAL.ach.elites},
+ {id:'roll',n:'On a Roll',d:'Win '+BAL.ach.streak+' runs in a row.',gold:60,chk:()=>meta.bstreak>=BAL.ach.streak,prog:()=>Math.min(meta.bstreak,BAL.ach.streak)+'/'+BAL.ach.streak},
+ {id:'terrain',n:'Terrain Master',d:'Leave a floor of each of the '+MODS.length+' modifiers alive.',gold:80,chk:()=>modsDone()>=MODS.length,prog:()=>modsDone()+'/'+MODS.length},
+ {id:'hoard',n:'Dragon\'s Hoard',d:'Carry '+BAL.ach.hoard+' gold at once.',chk:()=>!!G&&!!G.p&&G.p.gold>=BAL.ach.hoard},
+ {id:'swift',n:'Swift Death',d:'Win a run in '+BAL.ach.fastTurns+' turns or fewer.',gold:50,chk:()=>statWin()&&G.turn<=BAL.ach.fastTurns}
+];

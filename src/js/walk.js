@@ -11,6 +11,7 @@ function tryMove(dx,dy){
  if(e){playerAttack(e);endTurn();return true;}
  if(G.map[ix(nx,ny)]===3){G.map[ix(nx,ny)]=4;msg('You open the door.');endTurn();return true;}
  p.x=nx;p.y=ny;pickup();
+ if(waterSet().has(ix(nx,ny)))G.wade=1;
  if(G.map[ix(nx,ny)]===2){msg('Stairs! Tap yourself to descend.');G.stopWalk=true;}
  endTurn();return true;
 }
@@ -31,6 +32,7 @@ function startWalk(path,opts){
   if(enemyAt(nx,ny)){stop();return;}
   const dz=dangerSet();
   if(dz.size&&(dangerNear(dz)||dz.has(ix(nx,ny)))){msg('Danger tiles! Auto-walk stopped.');stop();return;}
+  if(G.cracks.length&&crackSet().has(ix(nx,ny))){msg('The floor ahead is cracking - wait or go around.');stop();return;}
   if(G.map[ix(nx,ny)]!==3&&G.map[ix(nx,ny)]!==5)path.shift();
   const hp0=p.hp,v0=visIds(),f0=G.floor;G.stopWalk=false;
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
@@ -49,14 +51,14 @@ function explore(){
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger tiles nearby - step away first.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
-const tz=trapSet();
+const tz=trapSet(),cz=crackSet();
  const sleepers=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]);
  const near=new Set();for(const e of sleepers)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)near.add(ix(e.x+dx,e.y+dy));
  const search=function(avoid){
   const prev=new Map();prev.set(ix(p.x,p.y),-1);const q=[[p.x,p.y]];let goal=-1;
   for(let i=0;i<q.length&&goal<0;i++){const [x,y]=q[i];
    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
-    if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||enemyAt(nx,ny)||dz.has(k)||(avoid&&near.has(k)))continue;
+    if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||cz.has(k)||enemyAt(nx,ny)||dz.has(k)||(avoid&&near.has(k)))continue;
     prev.set(k,ix(x,y));q.push([nx,ny]);
     if(!G.exp[k]||G.map[k]===3){goal=k;break;}}}
   return {prev:prev,goal:goal};

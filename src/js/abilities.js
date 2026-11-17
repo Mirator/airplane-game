@@ -204,7 +204,7 @@ const DO={
   const strikes=eqKind('off')==='dagger2'?[1,BAL.offhand.dagger2Frac]:[1];
   for(const f of strikes){
    if(e.dead||e.hp<=0)break;
-   const crit=Math.random()<critChance();let dmg=Math.max(1,Math.round(playerDmg()*mul*f*(crit?BAL.combat.critMul:1)));
+   const crit=rf()<critChance();let dmg=Math.max(1,Math.round(playerDmg()*mul*f*(crit?BAL.combat.critMul:1)));
    hurtEnemy(e,dmg,cond?'#ff5a8a':'#ffd24a',crit,'melee');
    msg((cond?'Backstab! ':'Clumsy stab. ')+'You hit the '+nm(e)+' for '+dmg+'.');sfx(cond?'crit':'hit');if(cond)shake(4);
    lifeSteal(dmg);poison(e);settle(e);
@@ -218,7 +218,7 @@ const DO={
  },
  knife:function(tx,ty){
   const e=enemyAt(tx,ty),a=BAL.ability.knife,p=G.p;spend('knife');breakVanish();
-  const crit=Math.random()<critChance();
+  const crit=rf()<critChance();
   let dmg=Math.round(playerDmg()*a.mul)+a.add;
   const sn=(p.cls==='rogue'?BAL.combat.sneakMul:1)+(wpK()&&wpK().sneak||0);
   if(crit)dmg*=BAL.combat.critMul;

@@ -26,7 +26,7 @@ function showPerk(){
  walkTok++;
  const pool=perkPool();
  if(!pool.length){G.pending=0;save();return;}
- const opts=pool.sort(()=>Math.random()-0.5).slice(0,meta.unl.pick4?4:3);
+ const opts=pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3);
  showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){

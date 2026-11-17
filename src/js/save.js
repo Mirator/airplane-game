@@ -1,6 +1,8 @@
 // save.js - permanent meta save (banked gold, shop levels, unlocks), achievements, and the run autosave / Continue.
 
 let meta={seenHelp:0,gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0,unl:{}};
+// meta fields added with floor modifiers / daily / records / achievements / Hard: every one gets a safe default when an older save lacks it
+const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0});
 let metaRaw=null,metaDirty=false;
 try{metaRaw=JSON.parse(localStorage.getItem(META_KEY));}catch(e){}
 const hadMeta=!!(metaRaw&&typeof metaRaw==='object'&&!Array.isArray(metaRaw));
@@ -10,9 +12,12 @@ if(!meta.unl||typeof meta.unl!=='object'||Array.isArray(meta.unl))meta.unl={};
 let migrated=false;
 if(hadMeta&&!metaRaw.unl){meta.unl.rogue=1;meta.unl.mage=1;migrated=true;}
 meta.kills=+meta.kills||0;meta.elites=+meta.elites||0;meta.sound=meta.sound?1:0;
+{const D=META_DEFAULTS();for(const k in D){if(meta[k]===undefined||meta[k]===null||(typeof D[k]==='object'&&(typeof meta[k]!=='object'||Array.isArray(meta[k]))))meta[k]=D[k];}
+ for(const k of ['n','h'])if(!meta.rec[k]||typeof meta.rec[k]!=='object')meta.rec[k]={};
+ for(const k of ['dlyN','runs','streak','bstreak','hwins','hardOn'])meta[k]=+meta[k]||0;}
 function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
 function checkAch(){
- let any=false;
+ let any=checkAchievements();
  for(const u of UNLOCKS)if(u.chk&&!meta.unl[u.id]&&u.chk()){
   meta.unl[u.id]=1;any=true;
   if(G){msg('Unlocked: '+u.n.replace(/^Perk: /,'')+'! ('+u.ach+')');(G.newUnl=G.newUnl||[]).push(u.n);}
@@ -22,7 +27,7 @@ function checkAch(){
 checkAch();if(migrated)saveMeta();
 // run saves are versioned (SAVE_VER). A run saved by an older version is discarded on boot (no migration) and the title shows a notice.
 try{for(const k of OLD_RUN_KEYS){if(localStorage.getItem(k)!==null){localStorage.removeItem(k);noticeOld=true;}}}catch(e){}
-function runStrOk(s){try{const o=JSON.parse(s);return !!o&&o.ver===SAVE_VER&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H;}catch(e){return false;}}
+function runStrOk(s){try{const o=JSON.parse(s);return !!o&&RUN_VERS.indexOf(o.ver)>=0&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H;}catch(e){return false;}}
 try{const r=localStorage.getItem(RUN_KEY);if(r&&!runStrOk(r)){localStorage.removeItem(RUN_KEY);noticeOld=true;}}catch(e){}
 function cost(s){const l=meta[s.k];return Math.round(s.base*(l+1)*(1+l*BAL.meta.costGrowth));}
 // Chromium commits localStorage to disk in batches at most about once a minute, so after a hard kill of the browser (crash,
@@ -51,7 +56,7 @@ function idbFlush(){
 function idbPutRun(v){idbWant=v;idbFlush();}
 function save(){
  if(!G||G.over)return;if(metaDirty){saveMeta();metaDirty=false;}
- G.ts=Date.now();let js;try{js=JSON.stringify(G);}catch(e){return;}
+ if(rngS)G.rs=rngS.a;G.ts=Date.now();let js;try{js=JSON.stringify(G);}catch(e){return;}
  try{localStorage.setItem(RUN_KEY,js);}catch(e){}
  idbPutRun(js);
 }
@@ -74,7 +79,10 @@ function continueRun(){
  try{
   const raw=localStorage.getItem(RUN_KEY);if(!runStrOk(raw))throw 0;
   const g=JSON.parse(raw);
-  G=g;G.stopWalk=false;G.perks=G.perks||{};G.syn=G.syn||{};G.vanish=G.vanish||0;
+  G=g;G.ver=SAVE_VER;G.stopWalk=false;rngS=G.daily?{a:G.rs>>>0}:null;
+  if(!G.stats){G.stats={pots:0,dragonHit:0,legacy:1};}   // run from before records/achievements: its history is unknown, so run-history achievements are skipped
+  G.mod=modOf(G.mod)?G.mod:null;G.variant=G.variant|0;G.water=Array.isArray(G.water)?G.water:[];G.cracks=Array.isArray(G.cracks)?G.cracks.filter(c=>c&&inb(c.x,c.y)):[];G.crackT=G.crackT|0;G.wade=0;G.hard=G.hard?1:0;G.daily=typeof G.daily==='string'?G.daily:null;
+  G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;G.perks=G.perks||{};G.syn=G.syn||{};G.vanish=G.vanish||0;
   if(!CLS[G.p.cls])G.p.cls='warrior';
   G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
   for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}

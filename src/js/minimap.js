@@ -1,7 +1,7 @@
 // minimap.js - minimap / big-map drawing.
 
 function drawMini(){
- const th=themeOf(G.floor),big=bigMap,cs=big?Math.max(4,Math.floor(Math.min(view.cw-8,view.ch-8)/W)):3,S=cs*W;
+ const th=themeOf(G.floor,G.variant),big=bigMap,cs=big?Math.max(4,Math.floor(Math.min(view.cw-8,view.ch-8)/W)):3,S=cs*W;
  const mx=big?Math.round((view.cw-S)/2):Math.round(view.cw-S-4),my=big?Math.round((view.ch-S)/2):4;
  view.mm={x:mx,y:my,w:S,h:S};
  ctx.globalAlpha=big?0.95:0.82;ctx.fillStyle='#05060c';ctx.fillRect(mx-2,my-2,S+4,S+4);ctx.globalAlpha=1;

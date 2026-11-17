@@ -20,7 +20,7 @@ function breathWind(e){
  if(Math.abs(dx)>=Math.abs(dy)){ax=Math.sign(dx);off=dy;k=Math.abs(dx);}else{ay=Math.sign(dy);off=dx;k=Math.abs(dy);}
  if(k<1||k>BAL.enemyAi.breathRange||Math.abs(off)>1)return null;
  const px=ay!==0?1:0,py=ax!==0?1:0;
- const s0=off>0?-1:off<0?1:(Math.random()<0.5?1:-1);
+ const s0=off>0?-1:off<0?1:(rf()<0.5?1:-1);
  for(const sd of [s0,-s0]){
   const offs=[off,off+sd,off+2*sd],tiles=[];
   for(const o of offs){
@@ -46,18 +46,20 @@ function summonWhelps(e){
  const c=[];
  for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=e.x+dx,y=e.y+dy;
   if(inb(x,y)&&G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!(x===G.p.x&&y===G.p.y)&&!trapAt(x,y))c.push([x,y]);}
- c.sort(()=>Math.random()-0.5);
+ c.sort(()=>rf()-0.5);
  let n=0;
  for(const t of c){if(n>=BAL.enemyAi.summonN)break;const w=makeEnemy('whelp',t[0],t[1],G.floor);w.awake=true;n++;}
  msg('The '+EN[e.t].n+' calls its brood: '+n+' whelps!');floatFx(e.x,e.y,'BROOD','#f95',true);
 }
+function summonList(){return G.hard?[BAL.hard.extraSummonAt].concat(BAL.enemyAi.summonAt):BAL.enemyAi.summonAt;}
 function bossPhase(e){
- const at=BAL.enemyAi.summonAt;
+ const at=summonList();
  while((e.sm||0)<at.length&&e.hp<e.mhp*at[e.sm||0]){e.sm=(e.sm||0)+1;summonWhelps(e);}
 }
 function resolveWind(e,d){
  const w=e.wind,p=G.p;e.wind=null;e.cd=w.k==='smash'?BAL.enemyAi.smashCooldown:w.k==='sweep'?BAL.enemyAi.sweepCd:(e.enraged?BAL.enemyAi.enrageBreathCd:BAL.enemyAi.breathCooldown);
  if(w.tiles.some(t=>t[0]===p.x&&t[1]===p.y)){
+  if(d.boss&&w.k!=='smash')G.stats.dragonHit=1;
   const dmg=Math.round(e.atk*(w.k==='sweep'?BAL.enemyAi.sweepMul:(d.windMul||BAL.enemyAi.defaultWindMul)));
   if(w.k==='sweep')hurtPlayer(e,dmg,true,'sweeps');
   else if(w.k==='smash'){if(hurtPlayer(e,dmg,true,'SMASHES')&&p.hp>0)knock(p,w.dx,w.dy);}
@@ -66,6 +68,7 @@ function resolveWind(e,d){
 }
 function moveEnemy(e,x,y){
  const i=ix(x,y);
+ if(waterSet().has(i))e.wade=1;
  if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
  e.face=[Math.sign(x-e.x),Math.sign(y-e.y)];e.x=x;e.y=y;
  const tp=trapAt(x,y);if(tp)springEnemy(e,tp);
@@ -98,19 +101,20 @@ function enemiesAct(free){
   const d=EN[e.t];if(!free&&e.cd>0)e.cd--;if(!free&&e.hcd>0)e.hcd--;
   if(d.boss&&!free)bossPhase(e);
   if(e.stun>0||e.frz>0){e.wind=null;if(!free){if(e.stun>0)e.stun--;if(e.frz>0)e.frz--;}continue;}
+  if(e.wade){if(!free)e.wade=0;continue;}   // Flooded: it waded into water and loses this move
   if(G.smoke&&inSmoke(e.x,e.y))e.blind=Math.max(e.blind||0,2);
   const blindNow=e.blind>0;if(!free&&e.blind>0)e.blind--;
   if(G.vanish>0){e.awake=false;e.wind=null;continue;}
   if(free&&(e.wind||d.slowAct))continue;
   if(e.wind){resolveWind(e,d);continue;}
   const md=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);
-  const sightR=BAL.enemyAi.sightRange-(eqKind('charm')==='veil'?BAL.charm.veilSight:0);
+  const sightR=Math.max(1,enemySight()-(eqKind('charm')==='veil'?BAL.charm.veilSight:0));
   const see=!blindNow&&md<=(G.smoke&&inSmoke(p.x,p.y)?1:sightR)&&los(e.x,e.y,p.x,p.y);
   if(see)e.awake=true;
   if(!e.awake)continue;
   if(!see&&!e.alarm&&dist[ix(e.x,e.y)]>BAL.enemyAi.loseTrackDist){e.awake=false;continue;}
   if(d.slowAct){if(e.rest){e.rest=0;continue;}e.rest=1;}
-  if(d.boss&&!e.enraged&&e.hp<e.mhp*BAL.enemyAi.enrageFrac){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');floatFx(e.x,e.y,'ENRAGED','#f55');}
+  if(d.boss&&!e.enraged&&e.hp<e.mhp*(G.hard?BAL.hard.enrageFrac:BAL.enemyAi.enrageFrac)){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');floatFx(e.x,e.y,'ENRAGED','#f55');}
   if(d.heal&&!free&&!(e.hcd>0)){
    let tg=null,bf=BAL.enemyAi.healBelow;
    for(const o of G.enemies){if(o===e||o.dead)continue;const fr=o.hp/o.mhp;

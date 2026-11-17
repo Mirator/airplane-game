@@ -57,6 +57,7 @@ function updateHud(){
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';rt.textContent='🔪 Knives '+(G.knives||0)+'/'+m;}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
  $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'')+(G.brace?'<span>🧱 '+G.brace.hits+'</span>':'');
+ {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
 }
 function renderLog(){
  if(!G)return;const l=G.log.slice(-3);

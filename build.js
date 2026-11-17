@@ -10,10 +10,10 @@ const path = require('path');
 // Function declarations hoist and may be used from any file; data tables and
 // shared state must come before the first file that executes code using them.
 const JS_ORDER = [
-  'balance', 'content', 'core', 'util', 'world', 'save',
+  'balance', 'content', 'core', 'util', 'world', 'records', 'save',
   'audio', 'effects', 'items', 'perks', 'fov', 'mapgen',
-  'enemies', 'combat', 'features', 'abilities', 'player', 'run', 'walk',
-  'modals', 'help', 'title', 'hud', 'input', 'minimap', 'render',
+  'mods', 'enemies', 'combat', 'features', 'abilities', 'player', 'run', 'walk',
+  'modals', 'help', 'title', 'screens', 'hud', 'input', 'minimap', 'render',
   'main',
 ];
 

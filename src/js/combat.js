@@ -14,18 +14,20 @@ function killEnemy(e,src){
  if(e.dead)return;
  e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
  const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');if(!rmo())puffs.push({x:e.x,y:e.y,t:performance.now(),s:Math.random()*6});
- gainXp(d.xp+G.floor);
+ gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));
  if(d.boss){G.won=true;return;}
+ if(modIs('horde')&&!G.enemies.length)earn('horde');
  if(traitOf('weapon')==='cursed')curseDrain();
  {const p=G.p,ch=eqKind('charm');
   if(ch==='fang'){const h=BAL.charm.fangHeal+Math.floor(G.floor/BAL.charm.fangFloorDiv);p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');}
   if(ch==='soul'){if(p.cls==='warrior')gainRage(BAL.charm.soulRage,true);else if(p.cls==='mage')p.mana=Math.min(mmax(),p.mana+BAL.charm.soulMana);else for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;}
   if(p.cls==='mage'){let m=BAL.mana.perKill+(pc('well')?BAL.perk.wellKill:0);if(G.syn.ow)m*=2;p.mana=Math.min(mmax(),p.mana+m);}}
- if(e.elite){dropAt(e.x,e.y,{t:'key',v:0});floatFx(e.x,e.y,'KEY','#ffd24a');msg('The elite drops a brass key!');}
- else if(Math.random()<BAL.drops.potionChance)G.items.push({x:e.x,y:e.y,t:'potion',v:0});
- else if(Math.random()<BAL.drops.goldChance)G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(BAL.drops.goldMin,BAL.drops.goldMax)+G.floor});
+ if(e.hunter)huntReward(e);
+ else if(e.elite){dropAt(e.x,e.y,{t:'key',v:0});floatFx(e.x,e.y,'KEY','#ffd24a');msg('The elite drops a brass key!');}
+ else if(rf()<BAL.drops.potionChance*(G.hard?BAL.hard.dropPotionMul:1))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
+ else if(rf()<(modIs('horde')?BAL.mod.horde.goldDrop:BAL.drops.goldChance))G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(BAL.drops.goldMin,BAL.drops.goldMax)+G.floor});
  if(pc('midas'))dropAt(e.x,e.y,{t:'gold',v:rnd(BAL.drops.midasMin,BAL.drops.midasMax)+G.floor*BAL.drops.midasPerFloor});
- if(pc('scav')&&!itemAt(e.x,e.y)&&Math.random()<BAL.drops.scavChance*pc('scav'))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
+ if(pc('scav')&&!itemAt(e.x,e.y)&&rf()<BAL.drops.scavChance*pc('scav'))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  if(pc('blood'))G.bl=1;
  if(pc('chain')&&!inChain)chainZap(e);
 }
@@ -82,9 +84,9 @@ function lifeSteal(dmg){
  if(pc('berserk')&&pc('vamp')&&p.hp<p.mhp*BAL.perk.bloodFrenzyHp)h*=BAL.perk.bloodFrenzyMul;
  p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');
 }
-function sneakMul(){const wk=wpK();return (G.p.cls==='rogue'?BAL.combat.sneakMul:1)+(wk&&wk.sneak||0);}
+function sneakMul(){const wk=wpK();let b=G.p.cls==='rogue'?BAL.combat.sneakMul:1;if(modIs('silent'))b=Math.max(b,BAL.mod.silent.sneakMul);return b+(wk&&wk.sneak||0);}
 function playerAttack(e){
- const p=G.p,wk=wpK();let dmg=playerDmg(),crit=Math.random()<critChance();
+ const p=G.p,wk=wpK();let dmg=playerDmg(),crit=rf()<critChance();
  if(crit)dmg*=BAL.combat.critMul;
  const sn=sneakMul();
  if(sn>1&&!e.awake){dmg*=sn;msg('Sneak attack!');}
@@ -108,8 +110,8 @@ function playerAttack(e){
 function hurtPlayer(e,dmg,melee,verb){
  const p=G.p;
  if(e&&e.x!=null){e.face=[Math.sign(p.x-e.x),Math.sign(p.y-e.y)];}
- if(e&&e.blind>0&&Math.random()<BAL.ability.smoke.miss){floatFx(e.x,e.y,'miss','#ccc');msg('The blinded '+nm(e)+' swings wildly and misses.');return false;}
- if(Math.random()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+nm(e)+'.');return false;}
+ if(e&&e.blind>0&&rf()<BAL.ability.smoke.miss){floatFx(e.x,e.y,'miss','#ccc');msg('The blinded '+nm(e)+' swings wildly and misses.');return false;}
+ if(rf()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+nm(e)+'.');return false;}
  if(eqKind('charm')==='ward'&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Your Ward Sigil negates the '+nm(e)+"'s hit.");return false;}
  dmg=Math.max(1,Math.round(dmg*BAL.combat.armorK/(BAL.combat.armorK+defTotal()))+rnd(-BAL.combat.enemyDmgVar,BAL.combat.enemyDmgVar));
  if(dmg<1)dmg=1;
@@ -124,7 +126,7 @@ function hurtPlayer(e,dmg,melee,verb){
  secondWind();
  if(refl>0&&!e.dead){hurtEnemy(e,refl,'#9cf');msg('Your brace reflects '+refl+' damage.');settle(e,'Reflection');}
  if(melee&&thornsDmg()>0&&!e.dead){hurtEnemy(e,thornsDmg(),'#8f8');settle(e,'Thorns');}
- if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&Math.random()<BAL.perk.riposteChance*pc('riposte')){
+ if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&rf()<BAL.perk.riposteChance*pc('riposte')){
   const d2=playerDmg();hurtEnemy(e,d2,'#fff',false,'melee');msg('Riposte! You counter for '+d2+'.');settle(e);}
  return true;
 }
@@ -163,14 +165,16 @@ function endTurn(){
  if(p.cls==='warrior'&&(p.rage||0)>0&&!G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)]))p.rage=Math.max(0,p.rage-BAL.rage.decay);
  if(G.brace&&--G.brace.t<=0)G.brace=null;
  if(G.smoke){for(const c of G.smoke)c.t--;G.smoke=G.smoke.filter(c=>c.t>0);}
- if(p.hp<p.mhp){
+ if(p.hp<p.mhp&&!modIs('cursed')){
   if(p.regen&&G.turn%BAL.player.regenEvery===0)p.hp=Math.min(p.mhp,p.hp+p.regen);
   if(G.turn%BAL.player.baseRegenEvery===0)p.hp=Math.min(p.mhp,p.hp+1);
  }
  if(G.ppois&&p.hp>0){const d=G.ppois.d;p.hp-=d;G.killer='dart poison';floatFx(p.x,p.y,'-'+d,'#7be04b');G.ppois.t--;if(G.ppois.t<=0){G.ppois=null;msg('The poison wears off.');}secondWind();}
  tickPoison();
  if(G.won){finish('win');return;}
+ crackTick();
  enemiesAct();
+ if(G.wade){G.wade=0;if(p.hp>0&&!G.won&&G.enemies.some(e=>e.awake)){msg('You slog through the water: enemies get a free move.');enemiesAct(true);}}
  if(traitOf('armor')==='heavy'&&G.turn%BAL.trait.heavyEvery===0&&p.hp>0&&!G.won&&G.enemies.some(e=>e.awake)){msg('Your heavy armor slows you: enemies get a free turn.');enemiesAct(true);}
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}

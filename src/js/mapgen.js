@@ -9,12 +9,12 @@ function genFloor(f){
    if(rooms.some(r=>x<r.x+r.w+1&&x+w+1>r.x&&y<r.y+r.h+1&&y+h+1>r.y))continue;
    const rcx=x+(w>>1),rcy=y+(h>>1);
    rooms.push({x,y,w,h,cx:rcx,cy:rcy});
-   const cave=f>=BAL.map.caveFrom&&f<=BAL.map.caveTo&&!big&&Math.random()<BAL.map.caveChance;
+   const cave=f>=BAL.map.caveFrom&&f<=BAL.map.caveTo&&!big&&rf()<BAL.map.caveChance;
    for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++){
     m[ix(xx,yy)]=1;
     if(cave&&xx!==rcx&&yy!==rcy){
      const ring=(xx===x||xx===x+w-1||yy===y||yy===y+h-1);
-     if(Math.random()<(ring?BAL.map.caveRingWall:BAL.map.caveInnerWall))m[ix(xx,yy)]=0;
+     if(rf()<(ring?BAL.map.caveRingWall:BAL.map.caveInnerWall))m[ix(xx,yy)]=0;
     }
    }
   }
@@ -43,7 +43,7 @@ function genFloor(f){
    let isD=false;
    if(fl(x-1,y)&&fl(x+1,y)&&!fl(x,y-1)&&!fl(x,y+1)&&(inRoom(x-1,y)||inRoom(x+1,y)))isD=true;
    if(fl(x,y-1)&&fl(x,y+1)&&!fl(x-1,y)&&!fl(x+1,y)&&(inRoom(x,y-1)||inRoom(x,y+1)))isD=true;
-   if(isD&&Math.random()<BAL.map.doorChance)m[ix(x,y)]=3;
+   if(isD&&rf()<BAL.map.doorChance)m[ix(x,y)]=3;
   }
   return {m,rooms};
  }
