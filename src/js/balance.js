@@ -11,7 +11,7 @@ const BAL = {
   map: {
     attempts: 50,          // full regenerations before the open-room fallback
     roomTries: 80,         // room placement tries per attempt
-    maxRooms: 7, minRooms: 5,
+    maxRooms: 4, minRooms: 3,
     roomMinW: 4, roomMaxW: 8, roomMinH: 4, roomMaxH: 7,
     bossRoomW: 11, bossRoomH: 9,
     caveFrom: 4, caveTo: 6,        // floors that may have cave-like rooms
@@ -22,7 +22,7 @@ const BAL = {
   // --- floor population (run.js) ---
   floor: { treasureFrom: 2, treasureChance: 0.7, shrineFrom: 2, shrineChance: 0.55 },
   enemy: {
-    hpPerFloor: 0.5, atkPerFloor: 0.5,          // +50% of base per floor above 1
+    hpPerFloor: 0.45, atkPerFloor: 0.45,        // +45% of base per floor above 1
     rangedHpFactor: 0.6, rangedAtkFactor: 0.7,  // ranged enemies scale slower
     eliteHpMul: 2, eliteAtkMul: 1.2, eliteAtkAdd: 1
   },
@@ -72,7 +72,9 @@ const BAL = {
   enemyAi: {
     sightRange: 9, loseTrackDist: 14,
     smashCooldown: 2, breathCooldown: 3, defaultWindMul: 2, breathRange: 7, breathLength: 8,
-    fleeSteps: 2, tiredTurns: 3
+    fleeSteps: 2, tiredTurns: 3,
+    lungeEvery: 3,                 // goblins/skeletons (EN lunge:true) take an extra step every Nth turn while chasing: a kiter cannot back away forever
+    enrageFrac: 0.5, enrageAtkMul: 1.4, enrageBreathCd: 2   // boss below this HP fraction: hits harder, breathes more often
   },
   // --- active abilities (abilities.js) ---
   ability: {
@@ -89,7 +91,7 @@ const BAL = {
   shrine: { healBase: 0.6, healBetter: 0.75, lossBase: 0.25, lossBetter: 0.15, sacrificeGold: 30, pactHp: 8, pactMinHp: 10, pactAtk: 3, blessHeal: 0.3 },
   // --- permanent progression (save.js, run.js) ---
   meta: {
-    hpPerLevel: 6, atkPerLevel: 1, defPerLevel: 1, potPerLevel: 1, startPotMax: 3, goldPerLevel: 0.15,
+    hpPerLevel: 6, atkPerLevel: 1, defPerLevel: 1, potPerLevel: 1, potMaxLevel: 4, goldPerLevel: 0.15,
     costGrowth: 0.5,                 // shop price = base * (level+1) * (1 + level * costGrowth)
     startScrollFireChance: 0.5
   },
@@ -100,11 +102,12 @@ const BAL = {
 const SHOP=[
  {k:'hp',n:'Hardy',d:'+6 starting HP',base:30},
  {k:'atk',n:'Sharpened',d:'+1 starting attack',base:55},
- {k:'pot',n:'Supplies',d:'+1 starting potion',base:40},
+ {k:'pot',n:'Supplies',d:'+1 starting potion (and belt space), up to Lv '+BAL.meta.potMaxLevel,base:40,max:BAL.meta.potMaxLevel},
  {k:'goldp',n:'Greed',d:'+15% gold found',base:50},
  {k:'def',n:'Padded',d:'+1 starting defense',base:70}
 ];
 const SHOPMAX=8;
+function shopMax(s){return s.max||SHOPMAX;}   // per-item level cap (Supplies is capped lower: potions are limited by belt space)
 const UNLOCKS=[
  {id:'rogue',n:'🗡 Rogue class',d:'High crit, double damage on unaware enemies, Vanish ability.',cost:150},
  {id:'mage',n:'🧙 Mage class',d:'Arcane Bolt from the start and an extra fireball scroll.',cost:200},
@@ -120,13 +123,13 @@ const UNLOCKS=[
 ];
 const EN={
  rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,xp:3,minF:1,tr:'Fast pack animal: moves twice per turn and tries to surround you.'},
- goblin:{n:'Goblin',e:'👺',hp:10,atk:3,xp:5,minF:1,tr:'Plain melee brute.'},
+ goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain melee brute. Lunges: takes an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing, so you cannot back away from it for long.'},
  archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from up to 6 tiles (needs a clear line). Keeps its distance and flees when you get close.'},
- skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,xp:8,minF:3,tr:'Tough melee fighter.'},
+ skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter. Lunges like the goblin (an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing).'},
  ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts only every other turn, but hits very hard. The hourglass shows it is recovering.'},
  troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow, lots of HP. Winds up a club smash (red tiles) that hurts and knocks you back.'},
  warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts blasts from 6 tiles (needs a clear line). Keeps its distance.'},
- dragon:{n:'Dragon',e:'🐉',hp:500,atk:20,breath:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: winds up a 3-wide fire breath (red tiles). Step out of it. Too heavy to push.'}
+ dragon:{n:'Dragon',e:'🐉',hp:520,atk:36,breath:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: winds up a 3-wide fire breath (red tiles). Step out of it. Too heavy to push. Enrages at half health: hits much harder and breathes more often.'}
 };
 const PERKS=[
  {id:'vit',n:'Vitality',d:'+12 max HP and heal 12',f:p=>{p.mhp+=12;p.hp=Math.min(p.mhp,p.hp+12);}},
@@ -148,8 +151,8 @@ const PERKS=[
  {id:'chain',n:'Chain Lightning',beh:1,d:'Kills zap the nearest visible enemy (once, no further chains)'},
  {id:'blood',n:'Bloodlust',beh:1,d:'After a kill, your next hit deals +75% damage'},
  {id:'riposte',n:'Riposte',beh:1,max:3,d:'20% chance per level to counterattack when hit in melee'},
- {id:'dash',n:'Dash',beh:1,act:1,d:'ACTIVE: move up to 3 tiles in a line as one turn (cooldown 5)'},
- {id:'arcane',n:'Arcane Bolt',beh:1,act:1,d:'ACTIVE: ranged blast at a visible enemy (cooldown 7; Mage 6)'},
+ {id:'dash',n:'Dash',beh:1,act:1,d:'ACTIVE: move up to '+BAL.ability.dashRange+' tiles in a line as one turn (usable every '+BAL.ability.dashCd+' turns)'},
+ {id:'arcane',n:'Arcane Bolt',beh:1,act:1,d:'ACTIVE: ranged blast at a visible enemy (usable every '+BAL.ability.boltCd+' turns; Mage '+BAL.ability.boltCdMage+')'},
  {id:'second',n:'Second Wind',beh:1,d:'Once per floor, a lethal hit leaves you at 1 HP instead'},
  {id:'glass',n:'Glass Cannon',beh:1,d:'+5 attack but -25% max HP',f:p=>{p.atk+=5;p.mhp=Math.max(8,Math.round(p.mhp*0.75));p.hp=Math.min(p.hp,p.mhp);}},
  {id:'scav',n:'Scavenger',beh:1,max:2,d:'Slain enemies drop an extra potion 20% of the time (per level)'},
@@ -169,14 +172,14 @@ const SYN=[
  {id:'bv',a:'berserk',b:'vamp',n:'Blood Frenzy',d:'Lifesteal is doubled below half HP'},
  {id:'be',a:'blood',b:'exec',n:'Bloody Verdict',d:'Executioner threshold rises to 30%'},
  {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons its target'},
- {id:'db',a:'dash',b:'arcane',n:'Phase Hunter',d:'Dash cuts Arcane Bolt cooldown by 2'}
+ {id:'db',a:'dash',b:'arcane',n:'Phase Hunter',d:'Dash cuts Arcane Bolt cooldown by '+BAL.ability.phaseHunterCut}
 ];
 const CLS={
- warrior:{n:'Warrior',e:'🛡',hp:42,atk:3,def:3,crit:0.05,fire:1,d:'42 HP, +3 defense, slow attack growth.',ab:'Shield Bash: hit an adjacent enemy, stun it for 2 turns and knock it back one tile (cooldown 6).'},
- mage:{n:'Mage',e:'🧙',hp:22,atk:4,def:0,crit:0.05,fire:2,d:'22 HP. Starts with Arcane Bolt (stronger, faster than the perk) and an extra fireball scroll.',ab:'Arcane Bolt: ranged blast at a visible enemy (cooldown 6).'},
- rogue:{n:'Rogue',e:'🗡',hp:34,atk:4,def:0,crit:0.15,fire:1,d:'34 HP, high crit. Your first attack on an enemy that has not noticed you deals double damage.',ab:'Vanish: enemies lose track of you for 3 turns (cooldown 8). Attacking breaks it.'}
+ warrior:{n:'Warrior',e:'🛡',hp:42,atk:4,def:3,crit:0.05,fire:1,d:'42 HP, +3 defense, slow attack growth.',ab:'Shield Bash: hit an adjacent enemy, stun it for '+BAL.ability.bashStun+' turns and knock it back one tile (usable every '+BAL.ability.bashCd+' turns).'},
+ mage:{n:'Mage',e:'🧙',hp:24,atk:4,def:0,crit:0.05,fire:2,d:'24 HP. Starts with Arcane Bolt (stronger, faster than the perk) and an extra fireball scroll.',ab:'Arcane Bolt: ranged blast at a visible enemy (usable every '+BAL.ability.boltCdMage+' turns).'},
+ rogue:{n:'Rogue',e:'🗡',hp:34,atk:4,def:0,crit:0.12,fire:1,d:'34 HP, high crit. Your first attack on an enemy that has not noticed you deals double damage.',ab:'Vanish: enemies lose track of you for '+BAL.ability.vanishTurns+' turns (usable every '+BAL.ability.vanishCd+' turns). Attacking breaks it.'}
 };
-const LG={warrior:{hp:4,atkE:4},mage:{hp:1,atkE:3},rogue:{hp:3,atkE:2}};
+const LG={warrior:{hp:4,atkE:4},mage:{hp:3,atkE:3},rogue:{hp:3,atkE:2}};
 const TR={
  cursed:{slot:'weapon',n:'Cursed',dv:3,minF:2,d:'+3 attack, but you lose 1 HP per kill.'},
  vamp:{slot:'weapon',n:'Vampiric',dv:-2,minF:1,d:'-2 attack, but heal 25% of damage dealt.'},

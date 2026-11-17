@@ -21,8 +21,49 @@ function checkAch(){
 }
 checkAch();if(migrated)saveMeta();
 function cost(s){const l=meta[s.k];return Math.round(s.base*(l+1)*(1+l*BAL.meta.costGrowth));}
-function save(){if(!G||G.over)return;if(metaDirty){saveMeta();metaDirty=false;}try{localStorage.setItem(RUN_KEY,JSON.stringify(G));}catch(e){}}
-function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}}
+// Chromium commits localStorage to disk in batches at most about once a minute, so after a hard kill of the browser (crash,
+// OS killing the tab/app, "restart") the newest run saves - up to the whole run - are gone and Continue is missing. The run is
+// therefore mirrored into IndexedDB, which commits per transaction and survives a kill. Value: JSON string, or '' = "cleared".
+let idbConn=null,idbWant,idbBusy=false;
+function idbOpen(cb){
+ if(idbConn)return cb(idbConn);
+ try{
+  const rq=indexedDB.open(IDB_NAME,1);
+  rq.onupgradeneeded=function(){rq.result.createObjectStore('s');};
+  rq.onsuccess=function(){idbConn=rq.result;idbConn.onclose=idbConn.onversionchange=function(){idbConn=null;};cb(idbConn);};
+  rq.onerror=rq.onblocked=function(){cb(null);};
+ }catch(e){cb(null);}
+}
+// writes are coalesced: one transaction in flight, only the newest value waits behind it
+function idbFlush(){
+ if(idbBusy||idbWant===undefined)return;idbBusy=true;
+ idbOpen(function(db){
+  const v=idbWant;idbWant=undefined;
+  if(!db){idbBusy=false;return;}
+  const done=function(){idbBusy=false;idbFlush();};
+  try{const tx=db.transaction('s','readwrite');tx.objectStore('s').put(v,'run');tx.oncomplete=tx.onerror=tx.onabort=done;}catch(e){idbBusy=false;}
+ });
+}
+function idbPutRun(v){idbWant=v;idbFlush();}
+function save(){
+ if(!G||G.over)return;if(metaDirty){saveMeta();metaDirty=false;}
+ G.ts=Date.now();let js;try{js=JSON.stringify(G);}catch(e){return;}
+ try{localStorage.setItem(RUN_KEY,js);}catch(e){}
+ idbPutRun(js);
+}
+function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}idbPutRun('');}
+// boot: if the IndexedDB mirror is newer than (or contradicts) localStorage, adopt it and refresh the title screen
+function syncRunFromIdb(){
+ idbOpen(function(db){if(!db)return;let g;try{g=db.transaction('s','readonly').objectStore('s').get('run');}catch(e){return;}g.onsuccess=function(){
+  const v=g.result;if(v===undefined||G)return;
+  let ls=null,lsTs=-1;try{const r=localStorage.getItem(RUN_KEY);if(r){ls=r;lsTs=JSON.parse(r).ts||0;}}catch(e){}
+  try{
+   if(v===''){if(ls)localStorage.removeItem(RUN_KEY);else return;}
+   else{const o=JSON.parse(v);if(ls&&lsTs>=(o.ts||0))return;localStorage.setItem(RUN_KEY,v);}
+  }catch(e){return;}
+  if($('title').style.display!=='none'&&$('modal').style.display==='none')showTitle(1);
+ };});
+}
 function hasSave(){try{return !!localStorage.getItem(RUN_KEY);}catch(e){return false;}}
 function continueRun(){
  try{

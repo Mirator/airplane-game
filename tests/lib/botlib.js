@@ -99,6 +99,7 @@ function handleModal(G){
  else (btns[btns.length-1]||{click(){$('modal').style.display='none';}}).click();
 }
 const lab=(s,v)=>{BS.lb=s;return v;};
+const BOT_CFG={kite:1,snipe:1,kiteCap:150,kiteWaitCap:14,choke:1};
 let BS={ignore:new Set(),shopDone:{},wait:0,bad:new Set()};
 function sidestep(G,dz){
  const p=G.p;let best=null,bs=-1e9;
@@ -112,6 +113,40 @@ function sidestep(G,dz){
  if(best){return F().tryMove(best[0],best[1]);}
  return false;
 }
+
+// ---- human-style tactics (kiting, sniping sleepers, chokepoints) ----
+function multiBfs(G,srcs){
+ const d=new Int16Array(W*H).fill(9999),q=[];
+ for(const s of srcs){d[ix(s[0],s[1])]=0;q.push(ix(s[0],s[1]));}
+ for(let i=0;i<q.length;i++){const k=q[i],x=k%W,y=(k/W)|0;
+  for(const dd of DIRS){const nx=x+dd[0],ny=y+dd[1];if(!inb(nx,ny))continue;const nk=ix(nx,ny);if(d[nk]!==9999)continue;const t=G.map[nk];if(t===0||t===5)continue;d[nk]=d[k]+1;q.push(nk);}}
+ return d;
+}
+// number of tiles I can reach strictly before the enemies can (capped): how much room a retreat step really buys
+function escapeSpace(G,sx,sy,ed,cap){
+ const seenT=new Set([ix(sx,sy)]),q=[[sx,sy,0]];let n=0;
+ for(let i=0;i<q.length&&n<cap;i++){const [x,y,s]=q[i];
+  for(const d of DIRS){const nx=x+d[0],ny=y+d[1];if(!inb(nx,ny))continue;const k=ix(nx,ny);
+   if(seenT.has(k)||!G.seen[k]||!walk(G,nx,ny)||G.map[k]===3)continue;
+   if(G.traps.some(t=>t.x===nx&&t.y===ny&&t.rev&&!t.done))continue;
+   if(s+1>=ed[k])continue;seenT.add(k);n++;q.push([nx,ny,s+1]);}}
+ return n;
+}
+function kiteStep(G,foes,dz){
+ const p=G.p,ed=multiBfs(G,foes.map(e=>[e.x,e.y])),cur=ed[ix(p.x,p.y)];
+ let best=null,bs=-1e9;
+ for(const d of DIRS){
+  const nx=p.x+d[0],ny=p.y+d[1],k=ix(nx,ny);
+  if(!walk(G,nx,ny)||enemyAt(G,nx,ny)||G.map[k]===3||dz.has(k)||!G.seen[k])continue;
+  if(G.traps.some(t=>t.x===nx&&t.y===ny&&t.rev&&!t.done))continue;
+  if(ed[k]<=cur)continue;
+  const sp=escapeSpace(G,nx,ny,ed,40);
+  if(sp<10)continue;
+  const sc=sp+ed[k]*0.5;if(sc>bs){bs=sc;best=[d[0],d[1]];}
+ }
+ return best;
+}
+const openN=(G,x,y)=>{let n=0;for(const d of DIRS)if(walk(G,x+d[0],y+d[1]))n++;return n;};
 const RANGED=new Set(['archer','warlock']),TOUGH=new Set(['troll','ogre','dragon','skeleton']);
 function think(G){
  const p=G.p,fl=G.floor,hpf=p.hp/p.mhp;
@@ -140,6 +175,32 @@ function think(G){
   if(pk('arcane')&&G.cd.bolt<=0&&awake.length){
    const tg=awake.filter(e=>Math.abs(e.x-p.x)+Math.abs(e.y-p.y)<=8).sort((a,b)=>(RANGED.has(a.t)?-100:0)+a.hp-(RANGED.has(b.t)?-100:0)-b.hp)[0];
    if(tg){F().useBolt(tg.x,tg.y);return;}
+  }
+  // KITING (any class with a ranged ability): bolt on cooldown -> keep a gap to tough melee enemies instead of trading blows
+  if(BOT_CFG.kite&&pk('arcane')&&G.cd.bolt>0&&(BS.kites||0)<BOT_CFG.kiteCap&&!awake.some(e=>RANGED.has(e.t)&&los(G,e.x,e.y,p.x,p.y))){
+   const foes=awake.filter(e=>!RANGED.has(e.t)&&e.t!=='rat'&&e.t!=='dragon'&&!e.stun&&e.hp>2*Math.max(1,p.atk+p.wb));
+   if(foes.length){
+    const ed0=multiBfs(G,foes.map(e=>[e.x,e.y])),md=ed0[ix(p.x,p.y)];
+    if(md<=2){const st=kiteStep(G,foes,dz);if(st&&F().tryMove(st[0],st[1])){BS.kites=(BS.kites||0)+1;return;}}
+    else if(md<=7&&(BS.kw||0)<BOT_CFG.kiteWaitCap&&G.cd.bolt<=md+1){BS.kw=(BS.kw||0)+1;click('b_wait');return;}
+   }
+  }
+  // CHOKEPOINT: several melee enemies coming and none adjacent yet -> step into a corridor/doorway they reach later than I do, and hold there
+  if(BOT_CFG.choke&&!adj.length&&!awake.some(e=>RANGED.has(e.t)&&los(G,e.x,e.y,p.x,p.y))){
+   const fm=awake.filter(e=>!RANGED.has(e.t)&&e.t!=='dragon');
+   if(fm.length>=2){
+    const ed=multiBfs(G,fm.map(e=>[e.x,e.y])),my=ed[ix(p.x,p.y)];
+    if(my>=3&&my<=9){
+     if(openN(G,p.x,p.y)<=2){if((BS.cw||0)<10){BS.cw=(BS.cw||0)+1;click('b_wait');return;}}
+     else{
+      const blk=new Set(dzArr);for(const t of G.traps)if(t.rev&&!t.done)blk.add(ix(t.x,t.y));
+      const rr=bfs(G,p.x,p.y,blk,false);let bk=-1,bdd=99;
+      for(const k of rr.order){const d0=rr.dist[k];if(d0<1||d0>4||d0>=bdd)continue;const x=k%W,y=(k/W)|0;
+       if(openN(G,x,y)<=2&&G.map[k]!==3&&ed[k]>d0+1){bk=k;bdd=d0;}}
+      if(bk>=0){const path=pathTo(rr,bk);if(path.length&&stepK(G,path[0])){BS.cw=(BS.cw||0)+1;return;}}
+     }
+    }
+   }
   }
   const adjE=adj.filter(e=>e.awake||hpf>0.5);
   if(p.cls==='warrior'&&G.cd.bash<=0&&adjE.length){
@@ -176,7 +237,7 @@ function think(G){
    if(BS.wait<10){BS.wait++;click('b_wait');return;}
   }
  }
- if(!awake.length)BS.wait=0;
+ if(!awake.length){BS.wait=0;BS.kw=0;BS.cw=0;}
  // out of combat
  if(hpf<0.35&&G.inv.pot>0&&p.hp<p.mhp){click('b_pot');return;}
  if(G.ppois&&G.inv.pot>1&&p.hp<=G.ppois.d*G.ppois.t+3){click('b_pot');return;}
@@ -231,6 +292,15 @@ function think(G){
   const k=ix(sh.x,sh.y);
   if(r.dist[k]>0&&lab('shrine',go(k)))return;
  }
+ // mage-style sniping: bolt unaware enemies from range (free first strike), wait for the cooldown if it is nearly back
+ if(BOT_CFG.snipe&&pk('arcane')&&hpf>0.5){
+  const sv=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]&&Math.abs(e.x-p.x)+Math.abs(e.y-p.y)<=8&&!BS.bad.has('sleeper:'+e.id));
+  if(sv.length){
+   const tg=sv.sort((a,b)=>(RANGED.has(a.t)?-100:0)-b.hp-((RANGED.has(b.t)?-100:0)-a.hp))[0];
+   if(G.cd.bolt<=0){F().useBolt(tg.x,tg.y);return;}
+   if(G.cd.bolt<=3&&(BS.sw||0)<12&&tg.hp>2*Math.max(1,p.atk+p.wb)){BS.sw=(BS.sw||0)+1;click('b_wait');return;}
+  }
+ }
  // sleepers
  const sl=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]&&!BS.bad.has('sleeper:'+e.id));
  if(sl.length&&hpf>(sl.some(e=>e.elite)?0.75:0.55)){
@@ -268,7 +338,7 @@ function spend(meta,state){
   let cost,apply;
   if(item==='*'){
    // cheapest shop item
-   let best=null,bc=1e9;for(const s of a.SHOP){if(meta[s.k]>=8)continue;const c=a.cost(s);if(c<bc){bc=c;best=s;}}
+   let best=null,bc=1e9;for(const s of a.SHOP){if(meta[s.k]>=(s.max||8))continue;const c=a.cost(s);if(c<bc){bc=c;best=s;}}
    if(!best)return;item=best.k;
   }
   if(item.startsWith('u:')){
@@ -276,7 +346,7 @@ function spend(meta,state){
    if(meta.unl[id]){state.i++;continue;}
    if(meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[id]=1;
   }else{
-   const s=a.SHOP.find(x=>x.k===item);if(meta[item]>=8){state.i++;continue;}
+   const s=a.SHOP.find(x=>x.k===item);if(meta[item]>=(s.max||8)){state.i++;continue;}
    const c=a.cost(s);if(meta.gold<c)return;meta.gold-=c;meta[item]++;
   }
   if(state.i<SEQ.length)state.i++;
@@ -290,15 +360,16 @@ function runOne(cls,cfg){
  cfg=cfg||{};const cap=cfg.cap||12000,fcap=cfg.fcap||1600;
  BS={ignore:new Set(),shopDone:{},wait:0,rest:0,nogoal:0,bad:new Set(),loops:0,hold:0};
  const meta=A().meta(),g0=meta.gold;
- F().startRun(cls);
+ if(!cfg.resume)F().startRun(cls);
  $('modal').style.display='none';
- let G=GG(),acts=0,lastF=1,fStart=0,stall=null,maxPot=0;
+ let G=GG(),acts=0,lastF=cfg.resume?GG().floor:1,fStart=cfg.resume?GG().turn:0,stall=null,maxPot=0;
  while(true){
   G=GG();if(!G||G.over)break;
   if(++acts>cap){stall='actions';break;}
-  if(G.floor!==lastF){lastF=G.floor;fStart=G.turn;BS.rest=0;BS.nogoal=0;BS.bad=new Set();BS.goal=null;BS.hunt=null;BS.hides=0;BS.hide=null;}
+  if(G.floor!==lastF){lastF=G.floor;if(cfg.onFloor)cfg.onFloor(G);fStart=G.turn;BS.rest=0;BS.nogoal=0;BS.bad=new Set();BS.goal=null;BS.hunt=null;BS.hides=0;BS.hide=null;BS.kites=0;BS.kw=0;BS.sw=0;BS.cw=0;}
   if(G.turn-fStart>fcap){stall='floor'+G.floor;break;}
   if(BS.nogoal>60){stall='nogoal'+G.floor;break;}
+  if(cfg.onTurn)cfg.onTurn(G);
   if(modalVisible()){handleModal(G);continue;}
   const t0=G.turn;(BS.tr=BS.tr||[]).push(G.p.x+','+G.p.y+(BS.lb||''));BS.lb='';if(BS.tr.length>16)BS.tr.shift();
   try{think(G);}catch(e){stall='ERR:'+e.message;break;}
@@ -317,5 +388,5 @@ function resetMeta(extra){
  const m=A().meta();
  Object.assign(m,{seenHelp:1,gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0,kills:0,elites:0,unl:{rogue:1,mage:1}},extra||{});
 }
-window.BOT={runOne,resetMeta,spend,think,handle:handleModal};
+window.BOT={cfg:BOT_CFG,runOne,resetMeta,spend,think,handle:handleModal};
 })();

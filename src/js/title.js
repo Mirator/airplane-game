@@ -24,10 +24,10 @@ function showTitle(keep){
   showClassPicker();});
  add('h2','Permanent upgrades').style.fontSize='16px';
  for(const s of SHOP){
-  const c=cost(s),lv=meta[s.k],maxed=lv>=SHOPMAX;
-  const b=add('button','<b>'+s.n+' (Lv '+lv+'/'+SHOPMAX+')</b><span>'+s.d+' - '+(maxed?'MAXED':'<span class="gold">'+c+' 💰</span>')+'</span>');
+  const c=cost(s),lv=meta[s.k],maxed=lv>=shopMax(s);
+  const b=add('button','<b>'+s.n+' (Lv '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+')</b><span>'+s.d+' - '+(maxed?'MAXED':'<span class="gold">'+c+' 💰</span>')+'</span>');
   b.disabled=maxed||meta.gold<c;
-  b.addEventListener('click',function(){if(meta[s.k]>=SHOPMAX||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showTitle(1);});
+  b.addEventListener('click',function(){if(meta[s.k]>=shopMax(s)||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showTitle(1);});
  }
  add('h2','Unlocks').style.fontSize='16px';
  add('p','Buy these with banked gold. Locked perks only appear in the level-up pool once unlocked; the last four unlock by playing.').style.fontSize='13px';

@@ -35,7 +35,7 @@ function breathWind(e){
  return null;
 }
 function resolveWind(e,d){
- const w=e.wind,p=G.p;e.wind=null;e.cd=w.k==='smash'?BAL.enemyAi.smashCooldown:BAL.enemyAi.breathCooldown;
+ const w=e.wind,p=G.p;e.wind=null;e.cd=w.k==='smash'?BAL.enemyAi.smashCooldown:(e.enraged?BAL.enemyAi.enrageBreathCd:BAL.enemyAi.breathCooldown);
  if(w.tiles.some(t=>t[0]===p.x&&t[1]===p.y)){
   const dmg=Math.round(e.atk*(d.windMul||BAL.enemyAi.defaultWindMul));
   if(w.k==='smash'){if(hurtPlayer(e,dmg,true,'SMASHES')&&p.hp>0)knock(p,w.dx,w.dy);}
@@ -84,7 +84,8 @@ function enemiesAct(free){
   if(!e.awake)continue;
   if(!see&&!e.alarm&&dist[ix(e.x,e.y)]>BAL.enemyAi.loseTrackDist){e.awake=false;continue;}
   if(d.slowAct){if(e.rest){e.rest=0;continue;}e.rest=1;}
-  const steps=d.speed||1;
+  if(d.boss&&!e.enraged&&e.hp<e.mhp*BAL.enemyAi.enrageFrac){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');floatFx(e.x,e.y,'ENRAGED','#f55');}
+  const steps=(d.speed||1)+((d.lunge&&!free&&md>1&&(G.turn+e.id)%BAL.enemyAi.lungeEvery===0)?1:0);
   for(let s=0;s<steps;s++){
    if(e.dead)break;
    const dd=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);

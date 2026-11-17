@@ -2,6 +2,7 @@
 
 resize();
 showTitle();
+syncRunFromIdb();
 window.__dbg=function(){return G;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
 window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){return Array.from(dangerSet());},computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,useBash:useBash,hurtPlayer:hurtPlayer,useBolt:useBolt,useVanish:useVanish,dim:{W:W,H:H,MAXF:MAXF}};

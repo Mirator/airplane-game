@@ -71,7 +71,6 @@ function showGear(){
  walkTok++;
  const p=G.p,w=it.t==='weapon',cv=w?p.wb:p.ab,ct=w?p.wt:p.at,cn=w?p.wn:p.an,nn=gearName(it.t,it.v,it.tr);
  const st=w?'attack':'defense',ic=w?'⚔️':'🛡';
- const mod=(v,tr)=>v+(w&&tr==='spiked'?0:0)+(!w&&tr==='spiked'?0:0);
  const card=(lab,nm,v,tr,hl)=>'<div class="pl" style="border:2px solid '+(hl?'#ffd24a':'#4b5080')+';border-radius:10px;padding:8px"><small>'+lab+'</small><br><b>'+nm+'</b><br>'+ic+' +'+v+' '+st+'<br><small>'+(tr?'<b>'+TR[tr].n+'</b>: '+TR[tr].d:'No trait.')+'</small></div>';
  const diff=it.v-cv;
  const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cn,cv,ct,false)+card('FOUND',nn,it.v,it.tr,true)+'</div>'+

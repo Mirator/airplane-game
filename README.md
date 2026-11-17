@@ -34,7 +34,7 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 | `balance.js` | **All tunables.** `BAL` (scalar knobs by system: map, spawn, traps, combat, perks, AI, abilities, shop, shrine, meta...) plus the tables: enemies `EN`, classes `CLS`/`LG`, perks `PERKS`, synergies `SYN`, gear traits `TR`, traps, unlocks, shop |
 | `content.js` | themes (colours), sound tables, name lists, ability button defs |
 | `core.js`, `util.js`, `world.js` | storage keys + shared mutable state (`G`, view, effects state), tiny helpers, tile/entity queries |
-| `save.js` | permanent meta save, achievements, run autosave / Continue |
+| `save.js` | permanent meta save, achievements, run autosave / Continue (localStorage + IndexedDB mirror) |
 | `mapgen.js`, `fov.js` | dungeon layout; line of sight, distance maps, path finding |
 | `enemies.js`, `combat.js`, `abilities.js` | AI and wind-ups; damage, status effects, turn end; dash/bash/vanish/bolt |
 | `items.js`, `perks.js`, `player.js` | gear, drops, consumables; perk granting and synergies; XP |
@@ -58,13 +58,15 @@ Needs Node 22 and Playwright installed globally (`require('playwright')`; Chromi
 - `tests/mapgen.test.js` - 200 generated floors: stairs/boss reachable, locked room sealed but optional, boss arena safe tiles.
 - `tests/smoke.test.js` - each class at 390x844 and 1280x800 with random taps and bar/modal buttons: zero console/page
   errors, layout fits, reload + Continue restores turn/floor.
-- `tests/sim.js` - bot campaigns: win rate, death floor and killer table per class and upgrade level (options documented in its header comment).
+- `tests/save.test.js` - run save survives `kill -9` of the browser (Chromium commits localStorage only about once a minute, so the run is mirrored into IndexedDB), and a finished run is not resurrected.
+- `tests/sim.js` - bot campaigns: win rate, death floor and killer table per class and upgrade level (options documented in its header comment; `--botcfg '{"kite":0,"snipe":0,"choke":0}'` switches the bot's human-style tactics off for A/B runs, `--lib` swaps the bot file).
 - `tests/equiv.js A.html B.html` - seeded determinism check between two builds (used to prove refactors change nothing);
   `tests/codecmp.js A.html [B.html]` - normalised source diff between two builds.
 - `tests/lib/` - shared Playwright helpers and the in-page bot.
 
 ## Balance pass
 
-Change numbers in `src/js/balance.js` only, then `node build.js`, `node tests/run.js`, `node tests/sim.js --runs 50`.
+Change numbers in `src/js/balance.js` only, then `node build.js`, `node tests/run.js`, `node tests/sim.js --runs 100 --levels fresh=0,mid=800,heavy=3000` (10-run cells are noise; use 100 per cell, +-5 points).
+Current bot targets: fresh character <=3% wins, dying on floors 3-5; mid (800 banked gold) 10-15%; heavy (3000) 40-50%; no class more than ~1.5x another at heavy; dragon beaten about 35-50% of the time by mid characters that reach floor 8; a win takes about 1300 turns.
 Descriptive text (perk/trait/unlock descriptions, help screen) still contains hand-written copies of some numbers and must
 be updated alongside.

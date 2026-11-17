@@ -32,7 +32,7 @@ function computeVis(){
  for(const t of G.traps)if(!t.rev&&!t.done&&Math.max(Math.abs(t.x-p.x),Math.abs(t.y-p.y))<=rr&&(rr===1||los(p.x,p.y,t.x,t.y))){t.rev=1;G.seen[ix(t.x,t.y)]=true;msg('You spot '+(t.k==='alarm'?'an ':'a ')+TRAPS[t.k].n.toLowerCase()+'!');}
 }
 
-function bfsPath(sx,sy,tx,ty,allowEnemyTarget){
+function bfsPath(sx,sy,tx,ty){
  const dz=dangerSet(),tz=trapSet();
  const prev=new Map(),start=ix(sx,sy);prev.set(start,-1);const q=[[sx,sy]];
  const goal=ix(tx,ty);

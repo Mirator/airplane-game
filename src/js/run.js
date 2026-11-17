@@ -85,9 +85,10 @@ function newFloor(f){
 }
 function startRun(cls){
  if(!CLS[cls]||(cls!=='warrior'&&!meta.unl[cls]))cls='warrior';const C=CLS[cls];
+ const startPots=1+BAL.meta.potPerLevel*Math.min(meta.pot,BAL.meta.potMaxLevel);
  const p={x:0,y:0,cls:cls,hp:C.hp+BAL.meta.hpPerLevel*meta.hp,mhp:C.hp+BAL.meta.hpPerLevel*meta.hp,atk:C.atk+BAL.meta.atkPerLevel*meta.atk,def:C.def+BAL.meta.defPerLevel*meta.def,wb:0,ab:0,wn:'Fists',an:'Cloth',wt:null,at:null,
-  xp:0,lvl:1,gold:0,potCap:BAL.player.potCap,life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+BAL.meta.goldPerLevel*meta.goldp};
- G={floor:1,p,inv:{pot:Math.min(1+BAL.meta.potPerLevel*meta.pot,BAL.meta.startPotMax),fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0,bash:0,vanish:0},syn:{},bl:0,ssUsed:0,swUsed:0,vanish:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
+  xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,startPots),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+BAL.meta.goldPerLevel*meta.goldp};
+ G={floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{dash:0,bolt:0,bash:0,vanish:0},syn:{},bl:0,ssUsed:0,swUsed:0,vanish:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
  if(cls==='mage')G.perks.arcane=1;
  if(meta.unl.scroll){const k=Math.random()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
  gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);

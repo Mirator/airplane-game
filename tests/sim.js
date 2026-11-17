@@ -3,7 +3,7 @@
 // the built index.html and prints win rate / stall rate / death-floor histogram / top killers per class and upgrade level.
 //
 // Usage: node tests/sim.js [--runs 10] [--classes warrior,mage,rogue] [--levels fresh=0,mid=500,heavy=1500]
-//                          [--jobs 4] [--seed N] [--file path/to/index.html] [--jsonl out.jsonl]
+//                          [--jobs 4] [--seed N] [--lib botlib.js] [--botcfg json] [--file path/to/index.html] [--jsonl out.jsonl]
 //   --runs     runs per class per upgrade level (default 10)
 //   --levels   name=bankedGold pairs. Each run starts from a fresh meta save with that much gold spent on the permanent
 //              shop/unlocks in the bot's fixed buying order (see SEQ in tests/lib/botlib.js), so runs are independent samples.
@@ -25,7 +25,8 @@ const JOBS = +arg('jobs', 4);
 const SEED = arg('seed', null);
 const FILE = path.resolve(arg('file', path.join(__dirname, '..', 'index.html')));
 const JSONL = arg('jsonl', null);
-const lib = fs.readFileSync(path.join(__dirname, 'lib', 'botlib.js'), 'utf8');
+const BOTCFG = arg('botcfg', null);   // JSON, e.g. '{"kite":0,"snipe":0,"choke":0}' to switch bot tactics off for A/B runs
+const lib = fs.readFileSync(path.resolve(arg('lib', path.join(__dirname, 'lib', 'botlib.js'))), 'utf8');
 
 const tasks = [];
 for (const lv of LEVELS) for (const cls of CLASSES) for (let r = 0; r < RUNS; r++) tasks.push({ lv, cls, r, id: tasks.length });
@@ -43,6 +44,7 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto('file://' + FILE);
     await page.addScriptTag({ content: lib });
+    if (BOTCFG) await page.evaluate((c) => Object.assign(window.BOT.cfg || {}, JSON.parse(c)), BOTCFG);
     while (next < tasks.length) {
       const t = tasks[next++];
       try {
