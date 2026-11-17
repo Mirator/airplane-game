@@ -110,9 +110,9 @@ function optHtml(nf,o){
 function showBranch(){
  if(!G||G.over)return;walkTok++;
  const nf=G.floor+1;if(!G.opts)G.opts=rollOpts(nf);
- const btns=G.opts.map(function(o){return {html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
- btns.push({label:'Stay on this floor',c:1,fn:closeModal});
- showModal('Choose your path','<p>Two ways lead down to floor '+nf+'. Pick one:</p>',btns);
+ const btns=G.opts.map(function(o,i){return {k:'opt'+i,html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
+ btns.push({k:'stay',label:'Stay on this floor',c:1,fn:closeModal});
+ showModal('Choose your path','<p>Two ways lead down to floor '+nf+'. Pick one:</p>',btns,'path');
 }
 // the HUD chip: tap it for a one-line explanation
 function modChipHtml(){

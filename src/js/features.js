@@ -41,26 +41,26 @@ function showShrine(){
  const p=G.p,better=!!meta.unl.shrine||modIs('cursed'),heal=better?BAL.shrine.healBetter:BAL.shrine.healBase,loss=better?BAL.shrine.lossBetter:BAL.shrine.lossBase,pct=n=>Math.round(n*100);
  const done=function(t){s.used=1;closeModal();msg(t);save();render();afterModals();};
  const opts=[
-  {html:'<b>🙏 Pray</b><span>'+pct(heal)+'% chance of a full heal, '+pct(1-heal)+'% chance you lose '+pct(loss)+'% of max HP.</span>',fn:function(){
+  {k:'pray',html:'<b>🙏 Pray</b><span>'+pct(heal)+'% chance of a full heal, '+pct(1-heal)+'% chance you lose '+pct(loss)+'% of max HP.</span>',fn:function(){
    if(rf()<heal){const h=p.mhp-p.hp;p.hp=p.mhp;floatFx(p.x,p.y,'+'+h,'#6f6');done('The shrine glows. You are fully healed.');}
    else{const l=Math.max(1,Math.round(p.mhp*loss));p.hp=Math.max(1,p.hp-l);G.killer='a cursed shrine';floatFx(p.x,p.y,'-'+l,'#ff5a5a');playerHurtFx(l);done('The shrine rejects you: -'+l+' HP.');}}},
-  {html:'<b>🪙 Sacrifice '+BAL.shrine.sacrificeGold+' gold</b><span>Gain a random perk. You have '+p.gold+' gold.</span>',off:p.gold<BAL.shrine.sacrificeGold,fn:function(){
+  {k:'sac',html:'<b>🪙 Sacrifice '+BAL.shrine.sacrificeGold+' gold</b><span>Gain a random perk. You have '+p.gold+' gold.</span>',off:p.gold<BAL.shrine.sacrificeGold,fn:function(){
    const id=randomPerkId();if(!id){msg('No perks left to offer.');return;}
    p.gold-=BAL.shrine.sacrificeGold;addPerk(id);done('The shrine accepts your gold.');}},
-  {html:'<b>🩸 Blood pact</b><span>-'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack for the rest of the run. Only once per run.</span>',off:p.mhp<=BAL.shrine.pactMinHp||!!G.pact,fn:function(){
+  {k:'pact',html:'<b>🩸 Blood pact</b><span>-'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack for the rest of the run. Only once per run.</span>',off:p.mhp<=BAL.shrine.pactMinHp||!!G.pact,fn:function(){
    G.pact=1;p.mhp=Math.max(BAL.shrine.pactMinHp,p.mhp-BAL.shrine.pactHp);p.hp=Math.min(p.hp,p.mhp);p.atk+=BAL.shrine.pactAtk;done('You sign in blood: -'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack.');}}
  ];
- if(better)opts.splice(1,0,{html:'<b>✨ Blessing</b><span>Safe: heal 30% of max HP and gain +1 defense.</span>',fn:function(){
+ if(better)opts.splice(1,0,{k:'bless',html:'<b>✨ Blessing</b><span>Safe: heal 30% of max HP and gain +1 defense.</span>',fn:function(){
   const h=Math.round(p.mhp*BAL.shrine.blessHeal);p.hp=Math.min(p.mhp,p.hp+h);p.def++;floatFx(p.x,p.y,'+'+h,'#6f6');done('A warm light blesses you: +1 defense.');}});
- opts.push({label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
- showModal('🗿 Ancient shrine','<p>A strange altar hums with power. Choose carefully - it works only once.</p>',opts);
+ opts.push({k:'leave',label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
+ showModal('🗿 Ancient shrine','<p>A strange altar hums with power. Choose carefully - it works only once.</p>',opts,'shrine');
 }
 function showShop(){
  if(!G||G.over||!G.merchant)return;walkTok++;
  const m=G.merchant,p=G.p;
- const btns=m.stock.map(function(it,i){return {html:'<b>'+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' 💰</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
- btns.push({label:'Leave',c:1,fn:closeModal});
- showModal('🧔 Merchant','<p>"Fine wares for fine coin." You have <span class="gold">'+p.gold+' 💰</span>.</p>',btns);
+ const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' 💰</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
+ btns.push({k:'leave',label:'Leave',c:1,fn:closeModal});
+ showModal('🧔 Merchant','<p>"Fine wares for fine coin." You have <span class="gold">'+p.gold+' 💰</span>.</p>',btns,'shop');
 }
 function buy(i){
  const m=G&&G.merchant,it=m&&m.stock[i],p=G&&G.p;if(!it||it.sold||p.gold<it.price)return;

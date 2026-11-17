@@ -5,11 +5,11 @@ function hardOn(){return hardUnlocked()&&!!meta.hardOn;}
 function recOf(cls,hard){
  const t=meta.rec[hard?'h':'n'];
  if(!t[cls]||typeof t[cls]!=='object')t[cls]={};
- const r=t[cls];for(const k of ['runs','wins','best','fast','score'])r[k]=+r[k]||0;   // fast = fewest turns in a win (0 = none yet)
+ const r=t[cls];for(const k of ['runs','wins','best','fast','score','aruns','awins'])r[k]=+r[k]||0;   // fast = fewest turns in a win (0 = none yet)
  return r;
 }
 // read-only view (never creates entries in the save)
-function recGet(cls,hard){const r=meta.rec[hard?'h':'n'][cls]||{};return {runs:+r.runs||0,wins:+r.wins||0,best:+r.best||0,fast:+r.fast||0,score:+r.score||0};}
+function recGet(cls,hard){const r=meta.rec[hard?'h':'n'][cls]||{};return {runs:+r.runs||0,wins:+r.wins||0,best:+r.best||0,fast:+r.fast||0,score:+r.score||0,aruns:+r.aruns||0,awins:+r.awins||0};}
 function recWins(cls){return recGet(cls,0).wins+recGet(cls,1).wins;}
 function modsDone(){return Object.keys(meta.mods||{}).length;}
 function statWin(){return !!G&&!!G.stats&&!!G.stats.win&&!G.stats.legacy;}
@@ -24,6 +24,7 @@ function todayKey(){const d=new Date(),z=n=>(n<10?'0':'')+n;return d.getFullYear
 function recordRun(kind,score){
  const g=G,won=kind==='win',hard=!!g.hard,cls=g.p.cls,r=recOf(cls,hard),nr=[];
  r.runs++;meta.runs++;
+ if(g.auto&&g.auto.used){r.aruns++;meta.aruns=(+meta.aruns||0)+1;if(won)r.awins++;}   // runs Auto played any turn of: kept in the same records, tagged "Auto" in the lists
  if(g.floor>r.best){if(r.best>0)nr.push('deepest floor');r.best=g.floor;}
  if(score>r.score){if(r.score>0)nr.push('highest score');r.score=score;}
  if(won){
@@ -33,7 +34,7 @@ function recordRun(kind,score){
  }else meta.streak=0;
  if(g.daily){
   const d=meta.dly[g.daily]||(meta.dly[g.daily]={att:1});
-  if(!d.score||(won&&!d.won)||((won?1:0)===(d.won?1:0)&&score>d.score)){d.cls=cls;d.floor=g.floor;d.won=won?1:0;d.score=score;d.turns=g.turn;}
+  if(!d.score||(won&&!d.won)||((won?1:0)===(d.won?1:0)&&score>d.score)){d.cls=cls;d.floor=g.floor;d.won=won?1:0;d.score=score;d.turns=g.turn;d.auto=(g.auto&&g.auto.used)?1:0;}
   const ks=Object.keys(meta.dly).sort();while(ks.length>30)delete meta.dly[ks.shift()];
  }
  return nr;

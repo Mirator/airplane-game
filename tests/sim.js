@@ -10,6 +10,7 @@
 //   --hard     play on Hard mode (meta gets one win so the toggle is unlocked)
 //   --force M  debug: every exit on floors 2-7 offers only modifier M (dark flooded cursed horde hunted rich silent unstable)
 //   --jobs     parallel browser pages (default 4)
+//   --auto     play with the in-game Auto (src/js/auto.js, via tests/lib/autolib.js) instead of the test bot; same upgrade levels and seeds
 //   --seed     seed Math.random per run (run i of the whole job list uses seed*100003+i) for reproducible tables
 // "stall" = the bot gave up (action cap / no goal); it is a bot limitation, not a death. Win% counts stalls as non-wins.
 // Runtime: ~0.7 s per run with 4 jobs; the default (3 classes x 3 levels x 10 runs = 90 runs) takes about 70 s here.
@@ -29,8 +30,10 @@ const FORCE = arg('force', null);
 const SEED = arg('seed', null);
 const FILE = path.resolve(arg('file', path.join(__dirname, '..', 'index.html')));
 const JSONL = arg('jsonl', null);
+const AUTO = process.argv.includes('--auto');
 const BOTCFG = arg('botcfg', null);   // JSON, e.g. '{"kite":0,"snipe":0,"choke":0}' to switch bot tactics off for A/B runs
 const lib = fs.readFileSync(path.resolve(arg('lib', path.join(__dirname, 'lib', 'botlib.js'))), 'utf8');
+const autolib = AUTO ? fs.readFileSync(path.join(__dirname, 'lib', 'autolib.js'), 'utf8') : '';
 
 const tasks = [];
 for (const lv of LEVELS) for (const cls of CLASSES) for (let r = 0; r < RUNS; r++) tasks.push({ lv, cls, r, id: tasks.length });
@@ -48,6 +51,7 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto('file://' + FILE);
     await page.addScriptTag({ content: lib });
+    if (AUTO) await page.addScriptTag({ content: autolib });
     if (BOTCFG) await page.evaluate((c) => Object.assign(window.BOT.cfg || {}, JSON.parse(c)), BOTCFG);
     while (next < tasks.length) {
       const t = tasks[next++];
@@ -61,7 +65,7 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
           window.__dbg.mods.setForce(force);
           BOT.spend(window.__dbg.api.meta(), { i: 0 });
           const r = BOT.runOne(cls, {});
-          r.dbg = null;
+          if (!r.dbg || !r.auto) r.dbg = null;   // the Auto runner keeps its watchdog report
           return r;
         }, [t.cls, t.lv.gold, SEED === null ? null : (+SEED * 100003 + t.id) >>> 0, HARD, FORCE]);
         results.push({ ...res, level: t.lv.name, run: t.r });
@@ -91,6 +95,9 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
         + String(((r8) => r8.length ? (100 * r8.filter((r) => r.won).length / r8.length).toFixed(0) + '%(' + r8.length + ')' : '-')(rows.filter((r) => r.floor === 8))).padStart(11) + '  ' + fl.slice(1).join(',').padEnd(17) + ks);
     }
   }
+  if (AUTO) for (const r of results.filter((x) => x.stall && x.dbg)) console.log('  watchdog: ' + r.level + ' ' + r.cls + ' floor ' + r.dbg.floor + ' turn ' + r.dbg.turn + ' [' + r.dbg.cause + '] ' + r.stall + ' | mod ' + r.dbg.mod + ' hp ' + r.dbg.hp + ' | in sight: ' + r.dbg.vis.join(',') + ' | trail: ' + r.dbg.tr.slice(-3).join(' / ') + ' | log: ' + r.dbg.log.join(' / '));
+  { const sc = {}; results.filter((r) => r.stall).forEach((r) => { const k = String(r.stall).replace(/\d+/g, 'N'); sc[k] = (sc[k] || 0) + 1; });
+    if (Object.keys(sc).length) console.log('\n== stall / watchdog causes: ' + Object.entries(sc).map(([k, v]) => k + ' x' + v).join(' | ')); }
   { const mc = {}; let tot = 0; results.forEach((r) => (r.mods || '').split(',').filter(Boolean).forEach((m) => { mc[m] = (mc[m] || 0) + 1; tot++; }));
     console.log('\n== floors by modifier (share of all floors entered): ' + Object.entries(mc).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + (100 * v / tot).toFixed(0) + '%').join('  ')); }
   // ability usage share per class (all levels pooled): how often each of the four abilities was used, as a share of all uses

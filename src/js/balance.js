@@ -129,6 +129,28 @@ const BAL = {
     startScrollFireChance: 0.5
   },
   run: { winBonus: 150 },
+  // --- Auto (autopilot, auto.js). Deliberately a simple player: no kiting, no retreating to regenerate ---
+  auto: {
+    goldMul: 0.5,                 // a run in which Auto played any turn banks this share of its gold (Hard multiplies on top)
+    tickMs: 250,                  // 1x = one decision per tick = 4 turns per second; speeds below divide this
+    speeds: [1, 2, 4],
+    flashMs: 400,                 // an Auto-resolved dialog stays on screen this long at 1x so a watcher sees the choice
+    potionHp: 0.35,               // drink a potion below this share of max HP
+    scrollHp: 0.4,                // teleport scroll when surrounded and below this share of max HP with no potion
+    branchHp: 0.8,                // take a rewarding floor modifier only at or above this share of max HP
+    blinkHp: 0.5,                 // mage: Blink out when 3+ enemies are adjacent and HP is below this share
+    vanishHp: 0.5,                // rogue: Vanish when surrounded and HP is below this share
+    braceHp: 0.7,                 // warrior: Brace when 2+ enemies are adjacent and HP is below this share
+    hold: 3,                      // melee foes in sight: wait this many turns for them to come, then close in
+    sleeperHp: 0.55, sleeperEliteHp: 0.75,   // walk up to a sleeping enemy and strike first only at or above this share of max HP
+    surround: 2,                  // this many adjacent enemies = "surrounded" (area ability / stun / freeze)
+    gearMargin: 0.5,              // equip only if the simple score beats the current item by this much
+    keyDist: 25,                  // go to the locked treasure door only if it is at most this many steps away
+    lootDist: 40,                 // pick up items at most this many steps away
+    hysteresis: 10,               // a goal Auto is already walking to is kept this many steps beyond keyDist / lootDist (stops flip-flopping at the border)
+    stuckTurns: 150,              // watchdog: no new tile, no damage dealt and no floor change for this many turns -> Auto switches off
+    idleTicks: 12                 // watchdog: this many decisions in a row that used no turn and resolved no dialog -> Auto switches off
+  },
   // --- floor modifiers (mods.js). chance = per exit option; each modifier's numbers live here, its text in MODS below ---
   mod: {
     chance: 0.5,
@@ -352,3 +374,12 @@ const ACH=[
  {id:'hoard',n:'Dragon\'s Hoard',d:'Carry '+BAL.ach.hoard+' gold at once.',chk:()=>!!G&&!!G.p&&G.p.gold>=BAL.ach.hoard},
  {id:'swift',n:'Swift Death',d:'Win a run in '+BAL.ach.fastTurns+' turns or fewer.',gold:50,chk:()=>statWin()&&G.turn<=BAL.ach.fastTurns}
 ];
+// Auto's fixed perk priority per class (first one offered wins; if none is offered it takes the first card)
+const AUTO_PERKS={
+ warrior:['second','vit','bul','retrib','vamp','fury','might','regen','renew','thorns','warlord','phoenix','keen','evade','tempo','exec','blood','riposte','berserk'],
+ mage:['arcana','well','vit','pyro','second','bul','deepfreeze','might','regen','renew','phase','warlord','phoenix','keen','evade','tempo','exec'],
+ rogue:['assassin','vit','second','bul','vamp','shadow','keen','might','regen','renew','evade','bando','warlord','phoenix','tempo','exec','blood','riposte']
+};
+// Auto's floor-modifier ranking: rewarding ones it may take when HP is high, and the safest-first order it falls back to
+const AUTO_MODS={reward:['rich','dark','unstable','flooded'],safe:['silent','flooded','dark','rich','cursed','unstable','hunted','horde']};
+

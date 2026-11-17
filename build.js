@@ -13,7 +13,7 @@ const JS_ORDER = [
   'balance', 'content', 'core', 'util', 'world', 'records', 'save',
   'audio', 'effects', 'items', 'perks', 'fov', 'mapgen',
   'mods', 'enemies', 'combat', 'features', 'abilities', 'player', 'run', 'walk',
-  'modals', 'help', 'title', 'screens', 'hud', 'input', 'minimap', 'render',
+  'modals', 'help', 'title', 'screens', 'hud', 'input', 'auto', 'minimap', 'render',
   'main',
 ];
 

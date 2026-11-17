@@ -69,6 +69,19 @@ button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24
 #chips{position:absolute;left:6px;top:6px;z-index:3;display:flex;gap:6px;align-items:flex-start}
 .chip{min-height:44px;min-width:44px;padding:0 10px;border-radius:22px;background:rgba(20,22,40,.82);border:1px solid #4b5080;font-size:14px;font-weight:700;color:#e8e6f0}
 .chip.mod{border-color:#ffb04a;background:rgba(58,42,22,.88)}.chip.hard{border-color:#ff6a5a;background:rgba(74,28,36,.88)}
+/* Auto: control bottom right of the map (the top right holds the minimap), amber frame + strip while it plays */
+#autoBox{position:absolute;right:6px;bottom:6px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+#autoRow{display:flex;gap:6px}
+#autoBtn,#autoSpd{min-height:44px;min-width:44px;padding:0 12px;border-radius:22px;background:rgba(20,22,40,.9);border:1px solid #6a70a8;font-size:14px;font-weight:700;color:#e8e6f0;line-height:1.05;white-space:nowrap;box-shadow:0 2px 8px #000a}
+#autoBtn small{font-size:11px;font-weight:800;margin-left:2px}
+#autoBtn.on{background:#b5731f;border-color:#ffd24a;color:#fff;box-shadow:0 0 0 2px rgba(255,210,74,.55),0 2px 8px #000a}
+#autoSpd{min-width:52px;padding:0 10px;border-color:#ffd24a;color:#ffe9a8}
+#cv.auto::after{content:'';position:absolute;inset:0;border:3px solid #ffb03a;pointer-events:none;z-index:2}
+#autoTag{max-width:100%;padding:4px 10px;border-radius:14px;background:rgba(181,115,31,.92);border:1px solid #ffd24a;color:#fff;font-size:12px;font-weight:800;letter-spacing:.3px;text-align:center;line-height:1.25;pointer-events:none;white-space:nowrap}
+@keyframes autop{0%,100%{opacity:1}50%{opacity:.72}}
+#cv.auto #autoTag{animation:autop 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){#cv.auto #autoTag{animation:none}}
+button.autopick{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 3px #ffb03a inset}
 </style></head><body>
 <div id="app">
  <div id="hud">
@@ -76,7 +89,7 @@ button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24
   <div id="xpbar"><div id="xpfill"></div></div>
   <div id="stats"></div>
  </div>
- <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="toast" aria-live="polite"></div><button id="cancelBtn" style="display:none">Cancel</button></div>
+ <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="autoBox" style="display:none"><div id="autoTag" style="display:none">🤖 AUTO · tap the map to take over</div><div id="autoRow"><button id="autoBtn" aria-label="Auto: play the run automatically" aria-pressed="false">🤖 AUTO</button><button id="autoSpd" aria-label="Auto speed" style="display:none">1×</button></div></div><div id="toast" aria-live="polite"></div><button id="cancelBtn" style="display:none">Cancel</button></div>
  <div id="log"></div>
  <div id="bar2"></div>
  <div id="bar"></div>
@@ -217,6 +230,28 @@ const BAL = {
     startScrollFireChance: 0.5
   },
   run: { winBonus: 150 },
+  // --- Auto (autopilot, auto.js). Deliberately a simple player: no kiting, no retreating to regenerate ---
+  auto: {
+    goldMul: 0.5,                 // a run in which Auto played any turn banks this share of its gold (Hard multiplies on top)
+    tickMs: 250,                  // 1x = one decision per tick = 4 turns per second; speeds below divide this
+    speeds: [1, 2, 4],
+    flashMs: 400,                 // an Auto-resolved dialog stays on screen this long at 1x so a watcher sees the choice
+    potionHp: 0.35,               // drink a potion below this share of max HP
+    scrollHp: 0.4,                // teleport scroll when surrounded and below this share of max HP with no potion
+    branchHp: 0.8,                // take a rewarding floor modifier only at or above this share of max HP
+    blinkHp: 0.5,                 // mage: Blink out when 3+ enemies are adjacent and HP is below this share
+    vanishHp: 0.5,                // rogue: Vanish when surrounded and HP is below this share
+    braceHp: 0.7,                 // warrior: Brace when 2+ enemies are adjacent and HP is below this share
+    hold: 3,                      // melee foes in sight: wait this many turns for them to come, then close in
+    sleeperHp: 0.55, sleeperEliteHp: 0.75,   // walk up to a sleeping enemy and strike first only at or above this share of max HP
+    surround: 2,                  // this many adjacent enemies = "surrounded" (area ability / stun / freeze)
+    gearMargin: 0.5,              // equip only if the simple score beats the current item by this much
+    keyDist: 25,                  // go to the locked treasure door only if it is at most this many steps away
+    lootDist: 40,                 // pick up items at most this many steps away
+    hysteresis: 10,               // a goal Auto is already walking to is kept this many steps beyond keyDist / lootDist (stops flip-flopping at the border)
+    stuckTurns: 150,              // watchdog: no new tile, no damage dealt and no floor change for this many turns -> Auto switches off
+    idleTicks: 12                 // watchdog: this many decisions in a row that used no turn and resolved no dialog -> Auto switches off
+  },
   // --- floor modifiers (mods.js). chance = per exit option; each modifier's numbers live here, its text in MODS below ---
   mod: {
     chance: 0.5,
@@ -440,6 +475,14 @@ const ACH=[
  {id:'hoard',n:'Dragon\'s Hoard',d:'Carry '+BAL.ach.hoard+' gold at once.',chk:()=>!!G&&!!G.p&&G.p.gold>=BAL.ach.hoard},
  {id:'swift',n:'Swift Death',d:'Win a run in '+BAL.ach.fastTurns+' turns or fewer.',gold:50,chk:()=>statWin()&&G.turn<=BAL.ach.fastTurns}
 ];
+// Auto's fixed perk priority per class (first one offered wins; if none is offered it takes the first card)
+const AUTO_PERKS={
+ warrior:['second','vit','bul','retrib','vamp','fury','might','regen','renew','thorns','warlord','phoenix','keen','evade','tempo','exec','blood','riposte','berserk'],
+ mage:['arcana','well','vit','pyro','second','bul','deepfreeze','might','regen','renew','phase','warlord','phoenix','keen','evade','tempo','exec'],
+ rogue:['assassin','vit','second','bul','vamp','shadow','keen','might','regen','renew','evade','bando','warlord','phoenix','tempo','exec','blood','riposte']
+};
+// Auto's floor-modifier ranking: rewarding ones it may take when HP is high, and the safest-first order it falls back to
+const AUTO_MODS={reward:['rich','dark','unstable','flooded'],safe:['silent','flooded','dark','rich','cursed','unstable','hunted','horde']};
 
 // content.js - non-numeric content: themes (colours), sound effect tables, name lists, ability button defs.
 
@@ -615,11 +658,11 @@ function hardOn(){return hardUnlocked()&&!!meta.hardOn;}
 function recOf(cls,hard){
  const t=meta.rec[hard?'h':'n'];
  if(!t[cls]||typeof t[cls]!=='object')t[cls]={};
- const r=t[cls];for(const k of ['runs','wins','best','fast','score'])r[k]=+r[k]||0;   // fast = fewest turns in a win (0 = none yet)
+ const r=t[cls];for(const k of ['runs','wins','best','fast','score','aruns','awins'])r[k]=+r[k]||0;   // fast = fewest turns in a win (0 = none yet)
  return r;
 }
 // read-only view (never creates entries in the save)
-function recGet(cls,hard){const r=meta.rec[hard?'h':'n'][cls]||{};return {runs:+r.runs||0,wins:+r.wins||0,best:+r.best||0,fast:+r.fast||0,score:+r.score||0};}
+function recGet(cls,hard){const r=meta.rec[hard?'h':'n'][cls]||{};return {runs:+r.runs||0,wins:+r.wins||0,best:+r.best||0,fast:+r.fast||0,score:+r.score||0,aruns:+r.aruns||0,awins:+r.awins||0};}
 function recWins(cls){return recGet(cls,0).wins+recGet(cls,1).wins;}
 function modsDone(){return Object.keys(meta.mods||{}).length;}
 function statWin(){return !!G&&!!G.stats&&!!G.stats.win&&!G.stats.legacy;}
@@ -634,6 +677,7 @@ function todayKey(){const d=new Date(),z=n=>(n<10?'0':'')+n;return d.getFullYear
 function recordRun(kind,score){
  const g=G,won=kind==='win',hard=!!g.hard,cls=g.p.cls,r=recOf(cls,hard),nr=[];
  r.runs++;meta.runs++;
+ if(g.auto&&g.auto.used){r.aruns++;meta.aruns=(+meta.aruns||0)+1;if(won)r.awins++;}   // runs Auto played any turn of: kept in the same records, tagged "Auto" in the lists
  if(g.floor>r.best){if(r.best>0)nr.push('deepest floor');r.best=g.floor;}
  if(score>r.score){if(r.score>0)nr.push('highest score');r.score=score;}
  if(won){
@@ -643,7 +687,7 @@ function recordRun(kind,score){
  }else meta.streak=0;
  if(g.daily){
   const d=meta.dly[g.daily]||(meta.dly[g.daily]={att:1});
-  if(!d.score||(won&&!d.won)||((won?1:0)===(d.won?1:0)&&score>d.score)){d.cls=cls;d.floor=g.floor;d.won=won?1:0;d.score=score;d.turns=g.turn;}
+  if(!d.score||(won&&!d.won)||((won?1:0)===(d.won?1:0)&&score>d.score)){d.cls=cls;d.floor=g.floor;d.won=won?1:0;d.score=score;d.turns=g.turn;d.auto=(g.auto&&g.auto.used)?1:0;}
   const ks=Object.keys(meta.dly).sort();while(ks.length>30)delete meta.dly[ks.shift()];
  }
  return nr;
@@ -680,7 +724,7 @@ function nextToast(){
 
 let meta={seenHelp:0,gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0,unl:{}};
 // meta fields added with floor modifiers / daily / records / achievements / Hard: every one gets a safe default when an older save lacks it
-const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0});
+const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0,aruns:0});
 let metaRaw=null,metaDirty=false;
 try{metaRaw=JSON.parse(localStorage.getItem(META_KEY));}catch(e){}
 const hadMeta=!!(metaRaw&&typeof metaRaw==='object'&&!Array.isArray(metaRaw));
@@ -692,7 +736,7 @@ if(hadMeta&&!metaRaw.unl){meta.unl.rogue=1;meta.unl.mage=1;migrated=true;}
 meta.kills=+meta.kills||0;meta.elites=+meta.elites||0;meta.sound=meta.sound?1:0;
 {const D=META_DEFAULTS();for(const k in D){if(meta[k]===undefined||meta[k]===null||(typeof D[k]==='object'&&(typeof meta[k]!=='object'||Array.isArray(meta[k]))))meta[k]=D[k];}
  for(const k of ['n','h'])if(!meta.rec[k]||typeof meta.rec[k]!=='object')meta.rec[k]={};
- for(const k of ['dlyN','runs','streak','bstreak','hwins','hardOn'])meta[k]=+meta[k]||0;}
+ for(const k of ['dlyN','runs','streak','bstreak','hwins','hardOn','aruns'])meta[k]=+meta[k]||0;}
 function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
 function checkAch(){
  let any=checkAchievements();
@@ -754,6 +798,7 @@ function syncRunFromIdb(){
 }
 function hasSave(){try{const r=localStorage.getItem(RUN_KEY);return !!r&&runStrOk(r);}catch(e){return false;}}
 function continueRun(){
+ let autoWas=false;
  try{
   const raw=localStorage.getItem(RUN_KEY);if(!runStrOk(raw))throw 0;
   const g=JSON.parse(raw);
@@ -761,6 +806,7 @@ function continueRun(){
   if(!G.stats){G.stats={pots:0,dragonHit:0,legacy:1};}   // run from before records/achievements: its history is unknown, so run-history achievements are skipped
   G.mod=modOf(G.mod)?G.mod:null;G.variant=G.variant|0;G.water=Array.isArray(G.water)?G.water:[];G.cracks=Array.isArray(G.cracks)?G.cracks.filter(c=>c&&inb(c.x,c.y)):[];G.crackT=G.crackT|0;G.wade=0;G.hard=G.hard?1:0;G.daily=typeof G.daily==='string'?G.daily:null;
   G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;G.perks=G.perks||{};G.syn=G.syn||{};G.vanish=G.vanish||0;
+  {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
   if(!CLS[G.p.cls])G.p.cls='warrior';
   G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
   for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}
@@ -773,6 +819,7 @@ function continueRun(){
   G.treasure=G.treasure||null;G.keys=G.keys||0;G.ppois=(G.ppois&&G.ppois.t>0)?G.ppois:null;G.killer=G.killer||'';
   shrineQ=false;trapConfirm=-1;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;
   armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
+  if(autoWas)msg('Auto is paused. Tap AUTO to resume.');
   if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
 }
@@ -1215,9 +1262,9 @@ function optHtml(nf,o){
 function showBranch(){
  if(!G||G.over)return;walkTok++;
  const nf=G.floor+1;if(!G.opts)G.opts=rollOpts(nf);
- const btns=G.opts.map(function(o){return {html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
- btns.push({label:'Stay on this floor',c:1,fn:closeModal});
- showModal('Choose your path','<p>Two ways lead down to floor '+nf+'. Pick one:</p>',btns);
+ const btns=G.opts.map(function(o,i){return {k:'opt'+i,html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
+ btns.push({k:'stay',label:'Stay on this floor',c:1,fn:closeModal});
+ showModal('Choose your path','<p>Two ways lead down to floor '+nf+'. Pick one:</p>',btns,'path');
 }
 // the HUD chip: tap it for a one-line explanation
 function modChipHtml(){
@@ -1618,26 +1665,26 @@ function showShrine(){
  const p=G.p,better=!!meta.unl.shrine||modIs('cursed'),heal=better?BAL.shrine.healBetter:BAL.shrine.healBase,loss=better?BAL.shrine.lossBetter:BAL.shrine.lossBase,pct=n=>Math.round(n*100);
  const done=function(t){s.used=1;closeModal();msg(t);save();render();afterModals();};
  const opts=[
-  {html:'<b>🙏 Pray</b><span>'+pct(heal)+'% chance of a full heal, '+pct(1-heal)+'% chance you lose '+pct(loss)+'% of max HP.</span>',fn:function(){
+  {k:'pray',html:'<b>🙏 Pray</b><span>'+pct(heal)+'% chance of a full heal, '+pct(1-heal)+'% chance you lose '+pct(loss)+'% of max HP.</span>',fn:function(){
    if(rf()<heal){const h=p.mhp-p.hp;p.hp=p.mhp;floatFx(p.x,p.y,'+'+h,'#6f6');done('The shrine glows. You are fully healed.');}
    else{const l=Math.max(1,Math.round(p.mhp*loss));p.hp=Math.max(1,p.hp-l);G.killer='a cursed shrine';floatFx(p.x,p.y,'-'+l,'#ff5a5a');playerHurtFx(l);done('The shrine rejects you: -'+l+' HP.');}}},
-  {html:'<b>🪙 Sacrifice '+BAL.shrine.sacrificeGold+' gold</b><span>Gain a random perk. You have '+p.gold+' gold.</span>',off:p.gold<BAL.shrine.sacrificeGold,fn:function(){
+  {k:'sac',html:'<b>🪙 Sacrifice '+BAL.shrine.sacrificeGold+' gold</b><span>Gain a random perk. You have '+p.gold+' gold.</span>',off:p.gold<BAL.shrine.sacrificeGold,fn:function(){
    const id=randomPerkId();if(!id){msg('No perks left to offer.');return;}
    p.gold-=BAL.shrine.sacrificeGold;addPerk(id);done('The shrine accepts your gold.');}},
-  {html:'<b>🩸 Blood pact</b><span>-'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack for the rest of the run. Only once per run.</span>',off:p.mhp<=BAL.shrine.pactMinHp||!!G.pact,fn:function(){
+  {k:'pact',html:'<b>🩸 Blood pact</b><span>-'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack for the rest of the run. Only once per run.</span>',off:p.mhp<=BAL.shrine.pactMinHp||!!G.pact,fn:function(){
    G.pact=1;p.mhp=Math.max(BAL.shrine.pactMinHp,p.mhp-BAL.shrine.pactHp);p.hp=Math.min(p.hp,p.mhp);p.atk+=BAL.shrine.pactAtk;done('You sign in blood: -'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack.');}}
  ];
- if(better)opts.splice(1,0,{html:'<b>✨ Blessing</b><span>Safe: heal 30% of max HP and gain +1 defense.</span>',fn:function(){
+ if(better)opts.splice(1,0,{k:'bless',html:'<b>✨ Blessing</b><span>Safe: heal 30% of max HP and gain +1 defense.</span>',fn:function(){
   const h=Math.round(p.mhp*BAL.shrine.blessHeal);p.hp=Math.min(p.mhp,p.hp+h);p.def++;floatFx(p.x,p.y,'+'+h,'#6f6');done('A warm light blesses you: +1 defense.');}});
- opts.push({label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
- showModal('🗿 Ancient shrine','<p>A strange altar hums with power. Choose carefully - it works only once.</p>',opts);
+ opts.push({k:'leave',label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
+ showModal('🗿 Ancient shrine','<p>A strange altar hums with power. Choose carefully - it works only once.</p>',opts,'shrine');
 }
 function showShop(){
  if(!G||G.over||!G.merchant)return;walkTok++;
  const m=G.merchant,p=G.p;
- const btns=m.stock.map(function(it,i){return {html:'<b>'+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' 💰</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
- btns.push({label:'Leave',c:1,fn:closeModal});
- showModal('🧔 Merchant','<p>"Fine wares for fine coin." You have <span class="gold">'+p.gold+' 💰</span>.</p>',btns);
+ const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' 💰</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
+ btns.push({k:'leave',label:'Leave',c:1,fn:closeModal});
+ showModal('🧔 Merchant','<p>"Fine wares for fine coin." You have <span class="gold">'+p.gold+' 💰</span>.</p>',btns,'shop');
 }
 function buy(i){
  const m=G&&G.merchant,it=m&&m.stock[i],p=G&&G.p;if(!it||it.sold||p.gold<it.price)return;
@@ -2070,8 +2117,9 @@ function startRun(cls,opts){
  const p={x:0,y:0,cls:cls,hp:C.hp+BAL.meta.hpPerLevel*meta.hp,mhp:C.hp+BAL.meta.hpPerLevel*meta.hp,atk:C.atk+BAL.meta.atkPerLevel*meta.atk,def:C.def+BAL.meta.defPerLevel*meta.def,
   eq:{weapon:{t:'weapon',k:C.start,v:0,tr:null},armor:null,off:null,charm:null},rage:0,mana:0,mf:0,mbase:C.mana,
   xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,1+BAL.meta.potPerLevel*Math.min(meta.pot,BAL.meta.potMaxLevel)),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+BAL.meta.goldPerLevel*meta.goldp};
- G={ver:SAVE_VER,hard:hard?1:0,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
+ G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0},hard:hard?1:0,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
  for(const k of C.kit)G.cd[k]=0;
+ autoReset();
  rngS=daily?{a:hashStr(daily+'|combat')}:null;
  p.mana=mmax();
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
@@ -2100,9 +2148,9 @@ function deathTip(){
  return 'Fight in corridors and doorways so only one enemy can reach you, and rest behind a closed door when you can.';
 }
 function finish(kind){
- G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
- const won=kind==='win',dead=kind==='dead',hard=!!G.hard;
- const bonus=won?BAL.run.winBonus:0,banked=Math.round((p.gold+bonus)*(hard?BAL.hard.goldMul:1));
+ autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
+ const won=kind==='win',dead=kind==='dead',hard=!!G.hard,aut=!!(G.auto&&G.auto.used);
+ const bonus=won?BAL.run.winBonus:0,banked=Math.round((p.gold+bonus)*(hard?BAL.hard.goldMul:1)*(aut?BAL.auto.goldMul:1));
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
@@ -2113,10 +2161,10 @@ function finish(kind){
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
  const perks=PERKS.filter(pk=>pc(pk.id)>0).map(pk=>pk.n+(pk.max>1?' x'+pc(pk.id):'')).join(', ')||'none';
- const tags=(G.daily?' &middot; 📅 Daily '+G.daily:'')+(hard?' &middot; 💀 Hard':'');
+ const tags=(G.daily?' &middot; 📅 Daily '+G.daily:'')+(hard?' &middot; 💀 Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   (won?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>Killed by <b>'+killTxt+'</b> on floor '+G.floor+'.</p>':'<p>You left the dungeon.</p>')+
-  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')'+tags+'<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+SLOTS.map(sl=>gearName(p.eq[sl])).filter(n=>n!=='Nothing').join('</b>, <b>')+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+(hard?' (Hard x'+BAL.hard.goldMul+')':'')+'</span></p>'+
+  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')'+tags+'<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+SLOTS.map(sl=>gearName(p.eq[sl])).filter(n=>n!=='Nothing').join('</b>, <b>')+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+(hard?' (Hard x'+BAL.hard.goldMul+')':'')+(aut?' (Auto x'+BAL.auto.goldMul+')':'')+'</span></p>'+(aut?'<p id="autoRecap" class="pl" style="border:1px solid #b5731f;border-radius:10px;padding:8px"><b>Auto run &mdash; '+autoGoldWord()+' gold</b><br><small>Auto played this run, so only '+autoGoldWord()+' of its gold went to your bank. Records, the Daily and achievements still count.</small></p>':'')+
   '<p>Score: <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?' <b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'!</b>':'')+'</p>'+
   (G.newUnl&&G.newUnl.length?'<p>New unlock'+(G.newUnl.length>1?'s':'')+': <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (G.newAch&&G.newAch.length?'<p>🏆 Achievement'+(G.newAch.length>1?'s':'')+': <b>'+G.newAch.join(', ')+'</b></p>':'')+
@@ -2280,12 +2328,13 @@ function onTap(tx,ty){
 
 function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
-function showModal(title,html,buttons){
- armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';
+// kind + button.k are plain labels (data attributes) so Auto can tell dialogs and choices apart without parsing text
+function showModal(title,html,buttons,kind){
+ armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';
  const h=document.createElement('h2');h.textContent=title;b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
-  const el=document.createElement('button');if(bt.c)el.className='c';
+  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.k)el.dataset.k=bt.k;
   el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
   el.addEventListener('click',function(e){e.stopPropagation();bt.fn(el);});
   b.appendChild(el);
@@ -2307,10 +2356,10 @@ function showPerk(){
  const opts=pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3);
  showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
-  return {html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
+  return {k:pk.id,html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
    addPerk(pk.id);G.pending--;closeModal();save();render();
    if(G.pending>0)showPerk();else afterModals();
-  }};}));
+  }};}),'perk');
 }
 // the equipment cards: one per slot, with what it does. full = also list the class abilities.
 function slotLines(sl){
@@ -2365,15 +2414,15 @@ function showGear(){
  const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cur,false)+card('FOUND',it,true)+'</div>'+
   '<p style="text-align:center">If you equip it: <b>'+(dl.length?dl.join(', '):'no stat change (rules differ)')+'</b></p>';
  showModal(SLOT_LABEL[sl]+' found',html,[
-  {label:'Equip',c:1,big:1,fn:function(){
+  {k:'equip',label:'Equip',c:1,big:1,fn:function(){
    if(G.items.indexOf(it)<0){closeModal();return;}
    const old=equipItem(it);
    if(worthKeeping(old)){const on=gearName(old);it.k=old.k;it.v=old.v;it.tr=old.tr||null;msg('Equipped '+nn+'. You drop your '+on+'.');}
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
    closeModal();save();render();
    if(G.pending>0)showPerk();}},
-  {label:'Leave',c:1,big:1,fn:function(){msg('You leave the '+nn+' on the floor.');closeModal();render();}}
- ]);
+  {k:'leave',label:'Leave',c:1,big:1,fn:function(){msg('You leave the '+nn+' on the floor.');closeModal();render();}}
+ ],'gear');
 }
 
 // help.js - the Controls / help screen text. Every number is generated from BAL and the tables.
@@ -2408,6 +2457,7 @@ function showHelp(back){
   r('🗿','Shrines','Some floors have one. Step on it (or tap yourself on it) for a risky choice - heal, perk, or power for a price. You can always Leave. Purple dot on the minimap.')+
   r('🔒','Locked room and key','A locked iron door hides a treasure room (gear with a trait plus gold). The key drops from the marked elite on that floor: a named, tougher enemy with a gold ring and a star (orange on the minimap). Tap the door with the key in hand to open it. Red-orange on the minimap.')+
   r('🧔','Merchant','On floors '+BAL.merchant.floors.join(' and ')+'. He is not hostile and cannot be hit by accident: tap him to open the shop (potions, scrolls, gear, a perk) and spend run gold. Green dot on the minimap.')+
+  r('🤖','Auto','The 🤖 AUTO button (bottom right of the map) plays the run for you: it explores, fights with your four abilities, loots, picks gear, perks, routes and merchant wares, and takes the stairs, dragon included. The speed button cycles 1x / 2x / 4x (1x is about '+(1000/BAL.auto.tickMs)+' turns a second). Tap the map (or any button) to take over at once. It is a simple player: it does not kite or retreat to rest, and it switches itself off when it makes no progress for '+BAL.auto.stuckTurns+' turns, when you leave the page, and when the run ends. A run in which Auto played any turn banks '+autoGoldWord()+' gold; records, the Daily and achievements still count, and such runs carry an Auto tag. After a reload the run comes back paused.')+
   r('🏰','Themes','Floors 1-3 are the Crypt, 4-6 the Caverns (irregular rooms), 7-8 the Embers. The name shows when you arrive.')+
   r('🔊','Sound & vibration','Off by default (handy on a plane). Switch it on in the ☰ menu or on the title screen. Sounds are generated in the page; no downloads.')+
   r('🛤','Two ways down','Taking the stairs from floor 1 to '+(MAXF-2)+' opens a choice of two routes. Each shows its theme and its floor modifier (or none) with the risk and the reward; the merchant floors have their merchant on both. The way into the dragon lair is single.')+
@@ -2524,12 +2574,12 @@ function screenFrame(title){
 }
 function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.addEventListener('click',function(){showTitle();});t.appendChild(b);}
 function recLine(r){
- return 'Deepest floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest win <b>'+(r.fast?r.fast+' turns':'-')+'</b> &middot; Best score <b>'+(r.score||'-')+'</b>';
+ return 'Deepest floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest win <b>'+(r.fast?r.fast+' turns':'-')+'</b> &middot; Best score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> <b>'+r.awins+'</b>/'+r.aruns+' won':'');
 }
 function showRecords(){
  const t=screenFrame('🏅 Records'),add=(html,style)=>{const d=document.createElement('div');d.className='pl';d.innerHTML=html;if(style)d.style.cssText=style;t.appendChild(d);return d;};
  const wr=meta.runs?Math.round(100*(meta.wins/Math.max(1,meta.runs))):0;
- add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Hard wins <b>'+meta.hwins+'</b><br>Win streak <b>'+meta.streak+'</b> &middot; Best streak <b>'+meta.bstreak+'</b>','border:1px solid #4b5080;border-radius:10px;padding:8px');
+ add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Hard wins <b>'+meta.hwins+'</b><br>Win streak <b>'+meta.streak+'</b> &middot; Best streak <b>'+meta.bstreak+'</b>'+(meta.aruns?'<br><em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b> (half gold)':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
  for(const k of Object.keys(CLS)){
   const C=CLS[k],n=recGet(k,0),h=recGet(k,1);
   add('<b>'+C.e+' '+C.n+'</b><br><small>'+recLine(n)+'</small>'+(h.runs?'<br><small>💀 Hard: '+recLine(h)+'</small>':''),'border:1px solid #3a3f64;border-radius:10px;padding:8px');
@@ -2537,7 +2587,7 @@ function showRecords(){
  const days=Object.keys(meta.dly).sort().reverse().slice(0,7);
  let dh='<b>📅 Recent dailies</b>';
  if(!days.length)dh+='<br><small>No Daily played yet. Today: '+dailyNote()+'.</small>';
- for(const d of days){const r=meta.dly[d];dh+='<br><small>'+d+': '+(r.score?(CLS[r.cls]?CLS[r.cls].e+' ':'')+(r.won?'<b style="color:#8fe39a">WON</b>':'floor '+r.floor)+' &middot; '+r.score+' pts':'started, no result')+(r.att>1?' &middot; '+r.att+' tries':'')+'</small>';}
+ for(const d of days){const r=meta.dly[d];dh+='<br><small>'+d+': '+(r.score?(CLS[r.cls]?CLS[r.cls].e+' ':'')+(r.won?'<b style="color:#8fe39a">WON</b>':'floor '+r.floor)+' &middot; '+r.score+' pts':'started, no result')+(r.auto?' <em class="tag act">Auto</em>':'')+(r.att>1?' &middot; '+r.att+' tries':'')+'</small>';}
  add(dh,'border:1px solid #3a3f64;border-radius:10px;padding:8px');
  add('<small>Score = '+BAL.score.floor+' per floor, '+BAL.score.kill+' per kill, '+BAL.score.level+' per level; a win adds '+BAL.score.win+' plus '+BAL.score.perTurn+' for each turn under '+BAL.score.par+'. Hard x'+BAL.hard.scoreMul+'. Records are kept on this device only.</small>');
  backBtn(t);
@@ -2618,6 +2668,7 @@ function updateHud(){
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
  $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'')+(G.brace?'<span>🧱 '+G.brace.hits+'</span>':'');
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
+ autoUi();
 }
 function renderLog(){
  if(!G)return;const l=G.log.slice(-3);
@@ -2649,6 +2700,422 @@ document.addEventListener('keydown',function(ev){
 });
 $('menuBtn').addEventListener('click',showMenu);
 $('helpBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showHelp(closeModal);});
+
+// auto.js - Auto (autopilot): plays the run by calling the same action functions a tap would (tryMove, useAbility, drink, descend, the dialog buttons).
+// One decision per timer tick (one turn, or one dialog choice). It is deliberately a simple player: no kiting, no retreating to regenerate.
+
+const AUTO_SPEED_KEY='dcr_auto_speed',RANGED=['cultist','archer','warlock'];
+const AUTO={on:false,tm:null,pick:null,speed:1,self:false,uiKey:'',ignore:new Set(),shopped:{},bad:new Set(),uses:{},uses8:{},ticks:0,modals:0,idle:0,mrun:0,hold:0,lastProg:0,pf:0,pexp:0,hp:1e9,kills:0,err:null,lastStop:''};
+try{const s=+localStorage.getItem(AUTO_SPEED_KEY);if(BAL.auto.speeds.indexOf(s)>=0)AUTO.speed=s;}catch(e){}
+function autoGoldWord(){return BAL.auto.goldMul===0.5?'half':Math.round(BAL.auto.goldMul*100)+'%';}
+function autoDelay(flash){return Math.max(15,(flash?BAL.auto.flashMs:BAL.auto.tickMs)/AUTO.speed);}
+// exactly one pending timer, ever: scheduling always cancels the previous one
+function autoSchedule(ms){if(AUTO.tm)clearTimeout(AUTO.tm);AUTO.tm=setTimeout(autoTick,ms);}
+function autoReset(){
+ if(AUTO.tm){clearTimeout(AUTO.tm);AUTO.tm=null;}
+ AUTO.on=false;AUTO.pick=null;AUTO.self=false;AUTO.ignore=new Set();AUTO.shopped={};AUTO.bad=new Set();AUTO.uses={};AUTO.uses8={};AUTO.ticks=0;AUTO.modals=0;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=0;AUTO.err=null;AUTO.lastStop='';AUTO.pf=0;AUTO.pexp=0;AUTO.lastProg=0;AUTO.uiKey='';AUTO.fg=null;AUTO.sg=null;AUTO.last='';AUTO.tr=[];AUTO.pos=[];AUTO.loops=0;AUTO.hold=0;AUTO.crossed=0;
+}
+function autoStart(sync){
+ if(!G||G.over||!G.auto||$('title').style.display!=='none')return false;
+ walkTok++;armed=null;
+ G.auto.on=1;AUTO.on=true;AUTO.pick=null;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=G.kills;AUTO.pf=G.floor;AUTO.pexp=-1;AUTO.lastProg=G.turn;AUTO.lastStop='';AUTO.err=null;
+ if(!G.auto.noticed){G.auto.noticed=1;const t='Auto runs bank '+autoGoldWord()+' gold.';msg(t);toast('🤖 '+t,4200);}
+ msg('Auto on. Tap the map to take over.');
+ save();render();
+ if(!sync)autoSchedule(autoDelay(false));
+ return true;
+}
+// why = log line (null: none). quiet = no save/render (the run is ending or being replaced).
+function autoStop(why,quiet){
+ if(AUTO.tm){clearTimeout(AUTO.tm);AUTO.tm=null;}
+ const was=AUTO.on;AUTO.on=false;
+ if(AUTO.pick){try{AUTO.pick.btn.classList.remove('autopick');}catch(e){}AUTO.pick=null;}
+ if(G&&G.auto)G.auto.on=0;
+ if(!was)return;
+ AUTO.lastStop=why||'run ended';
+ if(quiet||!G||G.over)return;
+ if(why)msg(why);
+ save();render();
+}
+function autoToggle(){if(!G||G.over)return;if(AUTO.on)autoStop('Auto off. You are in control.');else autoStart();}
+function autoSpeedCycle(){
+ const sp=BAL.auto.speeds;AUTO.speed=sp[(sp.indexOf(AUTO.speed)+1)%sp.length];
+ try{localStorage.setItem(AUTO_SPEED_KEY,String(AUTO.speed));}catch(e){}
+ if(AUTO.on&&AUTO.tm)autoSchedule(autoDelay(!!AUTO.pick));
+ AUTO.uiKey='';autoUi();
+}
+// the button, speed button, amber frame and the "AUTO" strip (called from updateHud, so it follows every render)
+function autoUi(){
+ const show=!!G&&!G.over,on=show&&!!(G.auto&&G.auto.on),key=(show?1:0)+'|'+(on?1:0)+'|'+AUTO.speed;
+ if(key===AUTO.uiKey)return;AUTO.uiKey=key;
+ $('autoBox').style.display=show?'flex':'none';
+ const b=$('autoBtn');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');
+ b.innerHTML=on?'⏸ AUTO <small>ON</small>':'🤖 AUTO';
+ const sp=$('autoSpd');sp.style.display=on?'block':'none';sp.textContent=AUTO.speed+'×';
+ $('cv').classList.toggle('auto',on);$('autoTag').style.display=on?'block':'none';
+}
+$('autoBtn').addEventListener('click',function(){autoToggle();});
+$('autoSpd').addEventListener('click',function(){autoSpeedCycle();});
+// any tap that is not on the Auto controls gives control back. A tap on the map is swallowed (it must not also move you);
+// a tap on a real button (potion, a dialog choice) stops Auto and then does what that button does.
+document.addEventListener('click',function(ev){
+ if(!AUTO.on||AUTO.self||!G||!G.auto||!G.auto.on)return;
+ const t=ev.target;if(t&&t.closest&&t.closest('#autoBox'))return;
+ autoStop('You took over: Auto is off.');
+ if(t===cv)ev.stopPropagation();
+},true);
+document.addEventListener('keydown',function(ev){
+ if(!AUTO.on||AUTO.self||!G||!G.auto||!G.auto.on||ev.ctrlKey||ev.metaKey||ev.altKey||ev.key==='Shift')return;
+ autoStop('You took over: Auto is off.');ev.stopPropagation();ev.preventDefault();
+},true);
+document.addEventListener('visibilitychange',function(){if(document.hidden&&AUTO.on)autoStop('Page hidden: Auto paused.');});
+
+function autoTick(){
+ AUTO.tm=null;
+ if(!AUTO.on)return;
+ if(!G||G.over||!G.auto||!G.auto.on){autoStop(null,true);return;}
+ if(document.hidden){autoStop('Page hidden: Auto paused.');return;}
+ let r='off';
+ try{r=autoStep(false);}catch(e){AUTO.err=String(e&&e.stack||e);autoStop('Auto stopped: internal error.');return;}
+ if(AUTO.on)autoSchedule(autoDelay(r==='flash'));
+}
+// one decision. sync=true (simulator / tests) resolves dialogs at once instead of flashing them.
+function autoStep(sync){
+ if(!AUTO.on||!G||G.over||!G.auto)return 'off';
+ if($('title').style.display!=='none'){autoStop('Auto paused: title screen.');return 'off';}
+ AUTO.self=true;
+ try{
+  G.auto.used=1;AUTO.ticks++;
+  if($('modal').style.display!=='none')return autoModal(sync);
+  return autoAct();
+ }finally{AUTO.self=false;}
+}
+
+// ---------------- dialogs ----------------
+function autoModal(sync){
+ const box=$('modalBox');
+ if(++AUTO.mrun>40){autoStop('Auto stopped: stuck in dialogs.');return 'off';}
+ let pk=AUTO.pick;
+ if(!pk||!box.contains(pk.btn)||pk.btn.disabled){
+  pk=autoChoose(box.dataset.kind||'',box);
+  if(!pk||!pk.btn){AUTO.pick=null;autoStop('Auto stopped: an unknown dialog needs you.');return 'off';}
+  AUTO.pick=pk;pk.btn.classList.add('autopick');msg('Auto: '+pk.why);
+  if(!sync)return 'flash';
+ }
+ AUTO.pick=null;pk.btn.classList.remove('autopick');AUTO.modals++;
+ pk.btn.click();
+ return 'modal';
+}
+function autoBtn(box,k){return box.querySelector('button[data-k="'+k+'"]:not(:disabled)');}
+function autoChoose(kind,box){
+ const p=G.p,A=BAL.auto,btns=[...box.querySelectorAll('button')].filter(b=>!b.disabled);
+ if(kind==='perk'){
+  const list=AUTO_PERKS[p.cls]||[],ids=btns.map(b=>b.dataset.k);
+  const id=list.find(k=>ids.indexOf(k)>=0)||ids[0],b=autoBtn(box,id)||btns[0];
+  return b?{btn:b,why:'takes perk '+((perkById(b.dataset.k)||{n:'?'}).n)+'.'}:null;
+ }
+ if(kind==='gear'){
+  const it=G.items.find(i=>i.x===p.x&&i.y===p.y&&SLOTS.indexOf(i.t)>=0);
+  const key=it?it.x+','+it.y+','+G.floor:null;
+  if(key)AUTO.ignore.add(key);   // whichever way it goes, do not walk back for what is left on this tile
+  if(it&&(it.t!=='off'||(OFF[it.k]&&OFF[it.k].cls===p.cls))&&autoGearScore(it.t,it)>autoGearScore(it.t,p.eq[it.t])+A.gearMargin)
+   return {btn:autoBtn(box,'equip'),why:'equips the '+gearName(it)+'.'};
+  return {btn:autoBtn(box,'leave'),why:'leaves the '+(it?gearName(it):'item')+'.'};
+ }
+ if(kind==='shrine'){
+  const s=autoBtn(box,'bless')?'bless':autoBtn(box,'sac')?'sac':'leave';   // only options that cost no HP
+  return {btn:autoBtn(box,s),why:s==='bless'?'takes the shrine blessing.':s==='sac'?'sacrifices gold at the shrine for a perk.':'leaves the shrine (no safe offer).'};
+ }
+ if(kind==='path'){
+  const nf=G.floor+1,hp=p.hp/p.mhp,opts=(G.opts||[]).map((o,i)=>({o:o,i:i}));
+  let best=opts.find(x=>!x.o.mod);   // plain floor by default
+  if(hp>=A.branchHp){
+   let rank=99;for(const x of opts){const r=AUTO_MODS.reward.indexOf(x.o.mod);if(x.o.mod&&r>=0&&r<rank){rank=r;best=x;}}
+  }else if(!best){
+   let rank=99;for(const x of opts){const r=AUTO_MODS.safe.indexOf(x.o.mod);if(r<rank){rank=r;best=x;}}
+  }
+  best=best||opts[0];
+  const b=best&&autoBtn(box,'opt'+best.i);if(!b)return null;
+  const m=best.o.mod?modOf(best.o.mod):null;
+  return {btn:b,why:'takes the '+(m?m.n+' route':'plain floor')+' to floor '+nf+'.'};
+ }
+ if(kind==='shop'){
+  const bi=autoShopBest(),m=G.merchant;
+  if(bi>=0&&m&&autoBtn(box,'buy'+bi))return {btn:autoBtn(box,'buy'+bi),why:'buys '+m.stock[bi].n.replace(/^\S+ /,'')+'.'};
+  return {btn:autoBtn(box,'leave'),why:'leaves the merchant.'};
+ }
+ const b=btns.find(x=>/^(got it|back|leave|resume|close|ok|continue)/i.test(x.textContent.trim()));
+ return b?{btn:b,why:'closes the dialog.'}:null;
+}
+// a small, class-aware worth for an item in a slot: derived stats (read by briefly equipping it) plus trait adjustments. Off-hands / charms:
+// any class-legal one beats an empty slot, but Auto never swaps one for another.
+function autoGearScore(slot,it){
+ if(!it)return slot==='weapon'||slot==='armor'?0:-1;
+ if(slot==='off'||slot==='charm')return 2;
+ const p=G.p,old=p.eq[slot],mage=p.cls==='mage';
+ p.eq[slot]={t:it.t,k:it.k,v:it.v,tr:it.tr||null};const v=statVec(),sb=spellBase();p.eq[slot]=old;   // a mage's spells ignore the weapon's melee offset
+ const TB={cursed:-5,heavy:-2,leaden:-2,brutal:-0.5,vamp:1.5,keen:1,spiked:0.5};
+ return (mage?sb:v.attack)+v.defense*1.2+v.crit*0.15+v.dodge*0.15+v.spell*(mage?0.2:0.05)+v.mana*(mage?0.25:0.02)+(it.tr&&TB[it.tr]||0);
+}
+// merchant: potions first (up to the belt), then the best-scoring affordable upgrade. -1 = nothing worth buying.
+function autoShopBest(){
+ const m=G.merchant,p=G.p;if(!m)return -1;
+ let bi=-1,bv=0;
+ m.stock.forEach(function(it,i){
+  if(it.sold||p.gold<it.price)return;let v=0;
+  if(it.k==='pot')v=G.inv.pot<p.potCap?100:0;
+  else if(it.k==='elixir')v=9;
+  else if(it.k==='perk')v=perkPool().some(x=>x.id===it.id)?8:0;
+  else if(it.k==='fire')v=G.inv.fire<2?5:0;
+  else if(it.k==='gear'){const sl=it.item.t;if(sl!=='off'||(OFF[it.item.k]&&OFF[it.item.k].cls===p.cls)){const d=autoGearScore(sl,it.item)-autoGearScore(sl,p.eq[sl]);v=d>BAL.auto.gearMargin?3+d:0;}}
+  if(v>bv){bv=v;bi=i;}
+ });
+ return bi;
+}
+
+// ---------------- watchdog ----------------
+function autoCountExp(){let n=0;for(let i=0;i<G.exp.length;i++)if(G.exp[i])n++;return n;}
+// progress = a new floor, a new explored tile, a kill, or a new low of the enemies' total HP on this floor (so a healer undoing our damage
+// is not progress). Returns a reason string if Auto must switch off.
+function autoWatch(t0,f0){
+ const exp=autoCountExp();let prog=false,tot=0;
+ for(const e of G.enemies)tot+=Math.max(0,e.hp);
+ if(G.floor!==AUTO.pf){AUTO.pf=G.floor;AUTO.pexp=exp;AUTO.bad=new Set();AUTO.pos=[];AUTO.fg=null;AUTO.sg=null;AUTO.hp=tot;AUTO.kills=G.kills;prog=true;}
+ else{
+  if(exp>AUTO.pexp){AUTO.pexp=exp;prog=true;}
+  if(G.kills>AUTO.kills){AUTO.kills=G.kills;prog=true;}
+  if(tot<AUTO.hp){AUTO.hp=tot;prog=true;}
+ }
+ if(prog)AUTO.lastProg=G.turn;
+ const idle=G.turn===t0&&G.floor===f0&&$('modal').style.display==='none';
+ AUTO.idle=idle?AUTO.idle+1:0;
+ if(G.turn-AUTO.lastProg>=BAL.auto.stuckTurns)return 'no progress for '+BAL.auto.stuckTurns+' turns';
+ if(AUTO.idle>=BAL.auto.idleTicks)return 'its actions had no effect';
+ return '';
+}
+
+// ---------------- acting ----------------
+function autoAct(){
+ AUTO.mrun=0;
+ const t0=G.turn,f0=G.floor;
+ autoDecide();
+ if(G.over||!AUTO.on)return 'off';
+ const why=autoWatch(t0,f0);
+ if(why){autoStop('Auto stopped: '+why+'.');return 'off';}
+ return 'turn';
+}
+// who to shoot first: healers, then archers / warlocks, then the nearest
+function autoPrio(e){return (e.t==='cultist'?-100:(e.t==='archer'||e.t==='warlock')?-50:0)+manh(e,G.p);}
+// tough foes (a Guard's shield, an Ogre, a Troll, elites, the boss) are worth a stun / freeze / blind before trading blows; not if already disabled
+function autoGuarded(e){return (e.t==='guard'||e.t==='ogre'||e.t==='troll'||e.elite||EN[e.t].boss)&&!(e.stun>0||e.frz>0||e.blind>0);}
+function autoUse(k,tx,ty){
+ if(whyNot(k))return false;
+ if(ABIL[k].tg!=='self'&&!targetTiles(k).some(t=>t[0]===tx&&t[1]===ty))return false;
+ const t=G.turn,f8=G.floor===MAXF;
+ if(!useAbility(k,tx,ty)&&G.turn===t)return false;
+ AUTO.uses[k]=(AUTO.uses[k]||0)+1;if(f8)AUTO.uses8[k]=(AUTO.uses8[k]||0)+1;
+ return true;
+}
+function autoNote(s){(AUTO.tr||(AUTO.tr=[])).push(G.turn+':'+G.p.x+','+G.p.y+' '+s);if(AUTO.tr.length>24)AUTO.tr.shift();}   // short trail of what Auto did, for the dbg API / watchdog reports
+function autoDid(fn){const t=G.turn,f=G.floor;fn();return G.turn!==t||G.floor!==f||G.over;}
+// breadth-first search over explored tiles. block = tiles never entered; passEnemies = path through enemy tiles (the last step is an attack).
+function autoBfs(block,passEnemies){
+ const dist=new Int16Array(W*H).fill(-1),prev=new Int16Array(W*H).fill(-1),order=[],en=new Set(G.enemies.map(e=>ix(e.x,e.y)));
+ const s=ix(G.p.x,G.p.y);dist[s]=0;const q=[s];
+ for(let i=0;i<q.length;i++){
+  const k=q[i],x=k%W,y=(k/W)|0;order.push(k);
+  for(const [dx,dy] of DIRS){
+   const nx=x+dx,ny=y+dy;if(!inb(nx,ny))continue;const nk=ix(nx,ny);
+   if(dist[nk]>=0||!G.seen[nk]||G.map[nk]===0||G.map[nk]===5||merchantAt(nx,ny)||block.has(nk))continue;
+   if(!passEnemies&&en.has(nk))continue;
+   dist[nk]=dist[k]+1;prev[nk]=k;q.push(nk);
+  }
+ }
+ return {dist:dist,prev:prev,order:order};
+}
+function autoFirstStep(r,goal){let k=goal;if(r.dist[k]<=0)return -1;while(r.prev[k]!==ix(G.p.x,G.p.y)){k=r.prev[k];if(k<0)return -1;}return k;}
+function autoGo(r,goal,tag){
+ const k=autoFirstStep(r,goal);if(k<0)return false;
+ const x=k%W,y=(k/W)|0,p=G.p;
+ autoNote(tag+'->'+(goal%W)+','+((goal/W)|0));
+ if(autoDid(()=>tryMove(x-p.x,y-p.y))){AUTO.last=tag+':'+goal;return true;}
+ AUTO.bad.add(tag+':'+goal);return false;   // the step was refused: do not pick this goal again on this floor
+}
+// nearest tile next to (x,y) that r can reach, or -1
+function autoNextTo(r,x,y){let bk=-1,bd=1e9;for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy;if(!inb(nx,ny))continue;const k=ix(nx,ny);if(r.dist[k]>=0&&r.dist[k]<bd){bd=r.dist[k];bk=k;}}return bk;}
+function autoSidestep(dz,cz,tz){
+ const p=G.p;let best=null,bs=-1e9;
+ for(const [dx,dy] of DIRS){
+  const nx=p.x+dx,ny=p.y+dy,k=ix(nx,ny);
+  if(!walkable(nx,ny)||enemyAt(nx,ny)||G.map[k]===3||dz.has(k)||cz.has(k)||tz.has(k))continue;
+  let s=0;for(const e of G.enemies)if(e.wind)s+=Math.abs(e.x-nx)+Math.abs(e.y-ny);
+  if(s>bs){bs=s;best=[dx,dy];}
+ }
+ return !!best&&autoDid(()=>tryMove(best[0],best[1]));
+}
+function autoDecide(){
+ const p=G.p,A=BAL.auto,me=ix(p.x,p.y),hpf=p.hp/p.mhp;
+ AUTO.tr=AUTO.tr||[];
+ const dz=dangerSet(),cz=crackSet(),tz=trapSet();
+ const adj=G.enemies.filter(e=>!e.dead&&manh(e,p)===1);
+ const awake=G.enemies.filter(e=>!e.dead&&e.awake&&G.vis[ix(e.x,e.y)]);
+ // 0. loop breaker: 16 decisions with no enemy in sight that never left a 3-tile patch = two goals are tugging at each other; drop the one in use
+ if(awake.length)AUTO.pos=[];
+ else{
+  AUTO.pos.push(me);if(AUTO.pos.length>16)AUTO.pos.shift();
+  if(AUTO.pos.length>=16&&new Set(AUTO.pos).size<=3){
+   if(AUTO.last)AUTO.bad.add(AUTO.last);if(AUTO.sg)AUTO.bad.add('sleeper:'+AUTO.sg.id);
+   AUTO.fg=null;AUTO.sg=null;AUTO.last='';AUTO.pos=[];AUTO.loops++;autoNote('loop broken');
+  }
+ }
+ // 1. telegraphed danger or a cracking tile under us: step off it
+ if((dz.has(me)||cz.has(me))&&autoSidestep(dz,cz,tz))return;
+ // 2. potion
+ if(hpf<A.potionHp&&G.inv.pot>0&&p.hp<p.mhp&&autoDid(drink))return;
+ if(awake.length||adj.length){
+  // 3. scrolls: when surrounded or against an elite / the boss
+  const big=awake.some(e=>e.elite||EN[e.t].boss);
+  const stuck=G.turn-AUTO.lastProg>=Math.floor(A.stuckTurns/3);   // a long stalemate (usually a healer behind a tough front-liner): burn a scroll to break it
+  if(G.inv.fire>0&&awake.length&&(adj.length>=A.surround||stuck||(big&&awake.some(e=>manh(e,p)<=6)))&&autoDid(fireball)){if(stuck)AUTO.lastProg=G.turn-Math.floor(A.stuckTurns/2);return;}
+  if(G.inv.tele>0&&adj.length&&((G.inv.pot<=0&&adj.length>=A.surround&&hpf<A.scrollHp)||stuck)&&autoDid(teleport)){if(stuck)AUTO.lastProg=G.turn-Math.floor(A.stuckTurns/2);return;}
+  // 4. class abilities, then plain melee / closing in
+  if(autoAbilities(adj,awake,hpf))return;
+  if(adj.length){
+   const t=adj.slice().sort((a,b)=>(RANGED.indexOf(a.t)>=0?-100:0)+a.hp-(RANGED.indexOf(b.t)>=0?-100:0)-b.hp)[0];
+   if(autoDid(()=>tryMove(t.x-p.x,t.y-p.y)))return;
+  }
+  if(awake.length){
+   // melee foes are left to come to us for a few turns (a corridor beats open floor); shooters and healers are closed in on at once
+   const far=awake.some(e=>RANGED.indexOf(e.t)>=0);
+   if(!far&&AUTO.hold<A.hold){AUTO.hold++;autoNote('hold');wait();return;}
+   const r=autoBfs(new Set([...dz,...tz]),false);let bk=-1,bd=1e9;
+   for(const e of awake){const k=autoNextTo(r,e.x,e.y);if(k>=0&&r.dist[k]<bd){bd=r.dist[k];bk=k;}}
+   if(bk>=0&&bd>0&&autoGo(r,bk,'foe'))return;
+  }
+ }else AUTO.hold=0;
+ autoTravel(dz,cz,tz);
+}
+function autoAbilities(adj,awake,hpf){
+ const p=G.p,A=BAL.auto,n=adj.length,S=A.surround;
+ if(p.cls==='warrior'){
+  if(n>=S){
+   if(autoUse('cleave'))return true;
+   if(hpf<A.braceHp&&!G.brace&&autoUse('brace'))return true;
+   if(autoUse('bash',adj[0].x,adj[0].y))return true;
+  }
+  if(n){
+   const t=adj.find(e=>e.wind||autoGuarded(e));if(t&&autoUse('bash',t.x,t.y))return true;
+   if((p.rage||0)>=BAL.rage.max-10&&autoUse('cleave'))return true;
+  }else{const c=targetTiles('charge').find(t=>{const e=enemyAt(t[0],t[1]);return e&&e.awake;});if(c&&autoUse('charge',c[0],c[1]))return true;}
+ }else if(p.cls==='mage'){
+  if((n>=S||adj.some(autoGuarded))&&autoUse('nova'))return true;
+  if(n>=S){
+   if(n>=3&&hpf<A.blinkHp){
+    let best=null,bs=-1;for(const t of targetTiles('blink')){const d=Math.min(...awake.concat(adj).map(e=>Math.abs(e.x-t[0])+Math.abs(e.y-t[1])));if(d>bs){bs=d;best=t;}}
+    if(best&&autoUse('blink',best[0],best[1]))return true;
+   }
+  }
+  if(awake.length&&!whyNot('fire')){
+   const R=BAL.ability.fire.radius+(eqKind('off')==='prism'?BAL.offhand.prismRadius:0);let best=null,bw=0;
+   for(const t of targetTiles('fire')){let w=0;for(const e of awake)if(Math.max(Math.abs(e.x-t[0]),Math.abs(e.y-t[1]))<=R)w+=EN[e.t].boss?3:1;if(w>bw){bw=w;best=t;}}
+   if(best&&bw>=2&&autoUse('fire',best[0],best[1]))return true;
+  }
+  const bt=targetTiles('bolt').map(t=>enemyAt(t[0],t[1])).filter(e=>e&&e.awake).sort((a,b)=>autoPrio(a)-autoPrio(b))[0];
+  if(bt&&autoUse('bolt',bt.x,bt.y))return true;
+ }else{
+  if((n>=S||adj.some(autoGuarded))&&!whyNot('smoke')){
+   const R=BAL.ability.smoke.radius+(eqKind('off')==='satchel'?BAL.offhand.satchelRadius:0);let best=null,bw=0;
+   for(const t of targetTiles('smoke')){let w=0;for(const e of awake)if(!e.blind&&Math.max(Math.abs(e.x-t[0]),Math.abs(e.y-t[1]))<=R)w++;if(w>bw){bw=w;best=t;}}
+   if(best&&(bw>=S||(bw>=1&&adj.some(autoGuarded)))&&autoUse('smoke',best[0],best[1]))return true;
+  }
+  if(n>=3&&hpf<A.vanishHp&&autoUse('vanish'))return true;
+  const bs=adj.find(e=>!e.awake||e.stun>0||e.frz>0||e.blind>0||isBehind(e));
+  if(bs&&autoUse('backstab',bs.x,bs.y))return true;
+  if(!n){const kt=targetTiles('knife').map(t=>enemyAt(t[0],t[1])).filter(e=>e&&e.awake&&manh(e,p)>=2).sort((a,b)=>autoPrio(a)-autoPrio(b))[0];if(kt&&autoUse('knife',kt.x,kt.y))return true;}
+ }
+ return false;
+}
+// out of combat: loot, key door, merchant, shrine, unexplored ground, stairs, the dragon
+function autoTravel(dz,cz,tz){
+ const p=G.p,A=BAL.auto,fl=G.floor,me=ix(p.x,p.y);
+ const block=new Set([...dz,...tz]);   // cracked tiles are not blocked: they only hurt whoever is still standing on one when they collapse, and Auto steps off at once
+ let r=autoBfs(block,false);
+ // items
+ let bi=-1,bd=1e9;
+ for(const it of G.items){
+  const k=ix(it.x,it.y);if(r.dist[k]<=0||r.dist[k]>A.lootDist+(AUTO.last==='item:'+k?A.hysteresis:0)||r.dist[k]>=bd)continue;   // hysteresis: a goal being walked to is kept a little beyond the limit, or Auto flips between two goals at the border
+  if(AUTO.ignore.has(it.x+','+it.y+','+fl)||AUTO.bad.has('item:'+k))continue;
+  if(it.t==='potion'&&G.inv.pot>=p.potCap)continue;
+  if(it.t==='knife'&&G.knives>=maxKnives())continue;
+  bd=r.dist[k];bi=k;
+ }
+ if(bi>=0&&autoGo(r,bi,'item'))return;
+ // locked treasure door (only with a key, and only if it is close)
+ if(G.keys>0&&G.treasure&&G.map[ix(G.treasure.door[0],G.treasure.door[1])]===5){
+  const dx=G.treasure.door[0],dy=G.treasure.door[1];
+  if(Math.abs(dx-p.x)+Math.abs(dy-p.y)===1&&autoDid(()=>tryMove(dx-p.x,dy-p.y)))return;
+  const k=autoNextTo(r,dx,dy);
+  if(k>=0&&r.dist[k]>0&&r.dist[k]<=A.keyDist+(AUTO.last==='door:'+k?A.hysteresis:0)&&!AUTO.bad.has('door:'+k)&&autoGo(r,k,'door'))return;
+ }
+ // merchant
+ const m=G.merchant;
+ if(m&&G.seen[ix(m.x,m.y)]&&!AUTO.shopped[fl]&&autoShopBest()>=0){
+  if(Math.abs(m.x-p.x)+Math.abs(m.y-p.y)===1){AUTO.shopped[fl]=1;showShop();return;}
+  const k=autoNextTo(r,m.x,m.y);
+  if(k>=0&&r.dist[k]>0&&!AUTO.bad.has('merch:'+k)&&autoGo(r,k,'merch'))return;
+ }
+ // shrine
+ const sh=G.shrine;
+ if(sh&&!sh.used&&!sh.left&&G.seen[ix(sh.x,sh.y)]){
+  if(sh.x===p.x&&sh.y===p.y){showShrine();return;}
+  const k=ix(sh.x,sh.y);
+  if(r.dist[k]>0&&!AUTO.bad.has('shrine:'+k)&&autoGo(r,k,'shrine'))return;
+ }
+ // sleeping enemies in sight: walk up and strike first (sneak damage), unless HP is low. The target is remembered until it wakes or dies:
+ // re-choosing every step flip-flops with the frontier goal whenever the sleeper drops out of sight.
+ {const hpf=p.hp/p.mhp,sg=AUTO.sg;
+  let be=sg&&sg.f===fl?G.enemies.find(e=>e.id===sg.id&&!e.dead&&!e.awake&&!AUTO.bad.has('sleeper:'+e.id)):null,bk=-1;
+  if(be&&hpf>=A.sleeperHp-0.15){bk=autoNextTo(r,be.x,be.y);if(bk<0||r.dist[bk]<=0)be=null;}else be=null;
+  if(!be){
+   const sl=G.enemies.filter(e=>!e.dead&&!e.awake&&G.vis[ix(e.x,e.y)]&&!AUTO.bad.has('sleeper:'+e.id));
+   if(sl.length&&hpf>=(sl.some(e=>e.elite)?A.sleeperEliteHp:A.sleeperHp)){
+    let bd=1e9;
+    for(const e of sl){const k=autoNextTo(r,e.x,e.y);if(k>=0&&r.dist[k]<bd){bd=r.dist[k];bk=k;be=e;}}
+    if(!(bk>=0&&bd>0))be=null;
+   }
+  }
+  if(be){AUTO.sg={id:be.id,f:fl};if(autoGo(r,bk,'sleeper'))return;AUTO.bad.add('sleeper:'+be.id);}
+ }
+ // unexplored ground: first keep clear of sleepers, then allow passing them, then path through them (= attack what blocks the way)
+ const near=new Set();
+ for(const e of G.enemies)if(!e.awake&&G.vis[ix(e.x,e.y)])for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)near.add(ix(e.x+dx,e.y+dy));
+ const frontier=function(rr){for(const k of rr.order){if(k===me||AUTO.bad.has('front:'+k))continue;if(!G.exp[k]||G.map[k]===3)return k;}return -1;};
+ let fk=-1;
+ // sticky goal: keep walking to the frontier tile chosen earlier until it is explored (re-picking every step can flip-flop between two tiles)
+ const g=AUTO.fg;
+ if(g&&g.f===fl&&g.k!==me&&(!G.exp[g.k]||G.map[g.k]===3)&&!AUTO.bad.has('front:'+g.k)){
+  const rs=[near.size?autoBfs(new Set([...block,...near]),false):null,autoBfs(block,false)];
+  for(const x of rs)if(x&&x.dist[g.k]>0){fk=g.k;r=x;break;}
+ }
+ if(fk<0&&near.size){const r2=autoBfs(new Set([...block,...near]),false);fk=frontier(r2);if(fk>=0){r=r2;}}
+ if(fk<0){r=autoBfs(block,false);fk=frontier(r);}
+ if(fk<0){r=autoBfs(block,true);fk=frontier(r);}
+ if(fk>=0){AUTO.fg={k:fk,f:fl};if(autoGo(r,fk,'front'))return;}
+ // stairs
+ for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){
+  if(k===me){descend();return;}
+  let r2=autoBfs(block,false);if(r2.dist[k]<0)r2=autoBfs(block,true);
+  if(r2.dist[k]>0&&autoGo(r2,k,'stairs'))return;
+ }
+ // the dragon lair has no stairs: walk up to the dragon
+ const dr=G.enemies.find(e=>EN[e.t].boss);
+ if(dr){const r2=autoBfs(block,true),k=autoNextTo(r2,dr.x,dr.y);if(k>=0&&r2.dist[k]>0&&autoGo(r2,k,'dragon'))return;}
+ // last resort: the only way on is across a revealed trap (a spike / dart / alarm costs less than being stuck here)
+ {const r3=autoBfs(new Set([...dz,...cz]),true);let fk3=-1;
+  for(const k of r3.order){if(k===me||AUTO.bad.has('trapfront:'+k))continue;if(!G.exp[k]||G.map[k]===3||G.map[k]===2){fk3=k;break;}}
+  if(fk3>=0&&r3.dist[fk3]>0){if(!AUTO.crossed){AUTO.crossed=1;msg('Auto: no other way on, so it crosses a trap.');}if(autoGo(r3,fk3,'trapfront'))return;}}
+ autoNote('wait');wait();
+}
 
 // minimap.js - minimap / big-map drawing.
 
@@ -2860,6 +3327,8 @@ window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
 window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){const s=dangerSet();for(const k of crackSet())s.add(k);return Array.from(s);},goDown:goDown,rollOpts:rollOpts,crackTick:crackTick,buildFloor:buildFloor,computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,hurtPlayer:hurtPlayer,hurtEnemy:hurtEnemy,use:useAbility,whyNot:whyNot,targetTiles:targetTiles,reachOk:reachOk,reachAttack:reachAttack,playerAttack:playerAttack,toggleAbility:toggleAbility,summonWhelps:summonWhelps,bossPhase:bossPhase,dim:{W:W,H:H,MAXF:MAXF}};
 window.__dbg.api={SHOP:SHOP,cost:cost,sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,springPlayer:springPlayer,springEnemy:springEnemy,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,wakeAll:wakeAll,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt,trapAt:trapAt};
 window.__dbg.mods={MODS:MODS,ACH:ACH,HARD_RULES:HARD_RULES,showBranch:showBranch,earn:earn,checkAchievements:checkAchievements,scoreOf:scoreOf,recordRun:recordRun,recOf:recOf,hardUnlocked:hardUnlocked,hardOn:hardOn,todayKey:todayKey,toast:toast,showRecords:showRecords,showAchievements:showAchievements,showDailyPicker:function(){showClassPicker({daily:true});},waterSet:function(){return Array.from(waterSet());},hashStr:hashStr,setForce:function(id){dbgForce=id||null;}};
+window.__dbg.auto={state:function(){return AUTO;},start:function(sync){return autoStart(!!sync);},stop:function(why){autoStop(why||'stopped');},toggle:autoToggle,speed:autoSpeedCycle,step:function(){return autoStep(true);},tick:autoTick,
+ runSync:function(cap){cap=cap||12000;let n=0;while(AUTO.on&&G&&!G.over&&n++<cap)autoStep(true);return n;},timers:function(){return AUTO.tm?1:0;},choose:autoChoose,gearScore:autoGearScore,watch:autoWatch};
 window.__dbg.perkIds=PERKS.map(p=>p.id);
 window.__dbg.traits=Object.keys(TR);
 window.__dbg.tables={BAL:BAL,EN:EN,CLS:CLS,ABIL:ABIL,WP:WP,ARM:ARM,OFF:OFF,CH:CH,PERKS:PERKS,SYN:SYN,TR:TR};

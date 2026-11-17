@@ -127,8 +127,9 @@ function startRun(cls,opts){
  const p={x:0,y:0,cls:cls,hp:C.hp+BAL.meta.hpPerLevel*meta.hp,mhp:C.hp+BAL.meta.hpPerLevel*meta.hp,atk:C.atk+BAL.meta.atkPerLevel*meta.atk,def:C.def+BAL.meta.defPerLevel*meta.def,
   eq:{weapon:{t:'weapon',k:C.start,v:0,tr:null},armor:null,off:null,charm:null},rage:0,mana:0,mf:0,mbase:C.mana,
   xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,1+BAL.meta.potPerLevel*Math.min(meta.pot,BAL.meta.potMaxLevel)),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+BAL.meta.goldPerLevel*meta.goldp};
- G={ver:SAVE_VER,hard:hard?1:0,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
+ G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0},hard:hard?1:0,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
  for(const k of C.kit)G.cd[k]=0;
+ autoReset();
  rngS=daily?{a:hashStr(daily+'|combat')}:null;
  p.mana=mmax();
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
@@ -157,9 +158,9 @@ function deathTip(){
  return 'Fight in corridors and doorways so only one enemy can reach you, and rest behind a closed door when you can.';
 }
 function finish(kind){
- G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
- const won=kind==='win',dead=kind==='dead',hard=!!G.hard;
- const bonus=won?BAL.run.winBonus:0,banked=Math.round((p.gold+bonus)*(hard?BAL.hard.goldMul:1));
+ autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
+ const won=kind==='win',dead=kind==='dead',hard=!!G.hard,aut=!!(G.auto&&G.auto.used);
+ const bonus=won?BAL.run.winBonus:0,banked=Math.round((p.gold+bonus)*(hard?BAL.hard.goldMul:1)*(aut?BAL.auto.goldMul:1));
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
@@ -170,10 +171,10 @@ function finish(kind){
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
  const perks=PERKS.filter(pk=>pc(pk.id)>0).map(pk=>pk.n+(pk.max>1?' x'+pc(pk.id):'')).join(', ')||'none';
- const tags=(G.daily?' &middot; 📅 Daily '+G.daily:'')+(hard?' &middot; 💀 Hard':'');
+ const tags=(G.daily?' &middot; 📅 Daily '+G.daily:'')+(hard?' &middot; 💀 Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   (won?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>Killed by <b>'+killTxt+'</b> on floor '+G.floor+'.</p>':'<p>You left the dungeon.</p>')+
-  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')'+tags+'<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+SLOTS.map(sl=>gearName(p.eq[sl])).filter(n=>n!=='Nothing').join('</b>, <b>')+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+(hard?' (Hard x'+BAL.hard.goldMul+')':'')+'</span></p>'+
+  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')'+tags+'<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+SLOTS.map(sl=>gearName(p.eq[sl])).filter(n=>n!=='Nothing').join('</b>, <b>')+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+(hard?' (Hard x'+BAL.hard.goldMul+')':'')+(aut?' (Auto x'+BAL.auto.goldMul+')':'')+'</span></p>'+(aut?'<p id="autoRecap" class="pl" style="border:1px solid #b5731f;border-radius:10px;padding:8px"><b>Auto run &mdash; '+autoGoldWord()+' gold</b><br><small>Auto played this run, so only '+autoGoldWord()+' of its gold went to your bank. Records, the Daily and achievements still count.</small></p>':'')+
   '<p>Score: <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?' <b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'!</b>':'')+'</p>'+
   (G.newUnl&&G.newUnl.length?'<p>New unlock'+(G.newUnl.length>1?'s':'')+': <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (G.newAch&&G.newAch.length?'<p>🏆 Achievement'+(G.newAch.length>1?'s':'')+': <b>'+G.newAch.join(', ')+'</b></p>':'')+

@@ -2,12 +2,13 @@
 
 function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
-function showModal(title,html,buttons){
- armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';
+// kind + button.k are plain labels (data attributes) so Auto can tell dialogs and choices apart without parsing text
+function showModal(title,html,buttons,kind){
+ armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';
  const h=document.createElement('h2');h.textContent=title;b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
-  const el=document.createElement('button');if(bt.c)el.className='c';
+  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.k)el.dataset.k=bt.k;
   el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
   el.addEventListener('click',function(e){e.stopPropagation();bt.fn(el);});
   b.appendChild(el);
@@ -29,10 +30,10 @@ function showPerk(){
  const opts=pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3);
  showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
-  return {html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
+  return {k:pk.id,html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
    addPerk(pk.id);G.pending--;closeModal();save();render();
    if(G.pending>0)showPerk();else afterModals();
-  }};}));
+  }};}),'perk');
 }
 // the equipment cards: one per slot, with what it does. full = also list the class abilities.
 function slotLines(sl){
@@ -87,13 +88,13 @@ function showGear(){
  const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cur,false)+card('FOUND',it,true)+'</div>'+
   '<p style="text-align:center">If you equip it: <b>'+(dl.length?dl.join(', '):'no stat change (rules differ)')+'</b></p>';
  showModal(SLOT_LABEL[sl]+' found',html,[
-  {label:'Equip',c:1,big:1,fn:function(){
+  {k:'equip',label:'Equip',c:1,big:1,fn:function(){
    if(G.items.indexOf(it)<0){closeModal();return;}
    const old=equipItem(it);
    if(worthKeeping(old)){const on=gearName(old);it.k=old.k;it.v=old.v;it.tr=old.tr||null;msg('Equipped '+nn+'. You drop your '+on+'.');}
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
    closeModal();save();render();
    if(G.pending>0)showPerk();}},
-  {label:'Leave',c:1,big:1,fn:function(){msg('You leave the '+nn+' on the floor.');closeModal();render();}}
- ]);
+  {k:'leave',label:'Leave',c:1,big:1,fn:function(){msg('You leave the '+nn+' on the floor.');closeModal();render();}}
+ ],'gear');
 }

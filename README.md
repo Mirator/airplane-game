@@ -44,6 +44,7 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 | `items.js`, `perks.js`, `player.js` | gear slots, derived stats (`meleeAtk`, `mmax`, `spellMul`...), generation, comparison, pickup, consumables; perk pool / granting / synergies; XP |
 | `features.js`, `run.js` | traps, shrine, merchant; run start, floor population, descend, end screen |
 | `walk.js`, `input.js` | movement, auto-walk, Explore, tap handling; click/key listeners |
+| `auto.js` | **Auto** (autopilot): one timer, one decision per tick through the same action functions a tap uses (`tryMove`, `useAbility`, `drink`, `descend`, the dialog buttons); dialog choices, class ability priorities, watchdog, the AUTO button / speed control / strip. Numbers: `BAL.auto`; perk and modifier priorities `AUTO_PERKS` / `AUTO_MODS` in balance.js |
 | `modals.js`, `help.js`, `title.js`, `screens.js`, `hud.js` | UI screens (title, class picker, upgrades; Records and Achievements), bottom bar, HUD |
 | `render.js`, `minimap.js`, `effects.js`, `audio.js` | canvas drawing, minimap, juice (shake, float text), WebAudio |
 | `main.js` | boot + the `window.__dbg` debug/test API (the test bots rely on it - keep it stable) |
@@ -53,6 +54,15 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 - **Floor modifiers.** Floors 2-7 can roll one of 8 modifiers (`MODS`: Dark, Flooded, Cursed ground, Horde, Hunted, Rich vein, Silent, Unstable). They are chosen on the way down: every exit below floor 1-6 offers two routes (`G.opts`, rolled by `rollOpts`) and each shows its theme and modifier. Both routes lead to the same depth, so the merchant floors (3, 6) always have their merchant. The modifier lives in `G.mod`, the route's theme variant in `G.variant`; `newFloor(f, {mod, v})` builds the floor.
 - **One RNG.** All game logic calls `rf()` / `rnd()` / `pick()` (util.js). `rf()` is `Math.random` unless a Daily stream is installed, so the simulator and tests can still seed `Math.random`. A **Daily** run seeds each floor from the local date + depth + route, and the combat stream from the date (its state is saved in `G.rs`), so the same date gives the same dungeon. Only cosmetic effects use `Math.random` directly.
 - **Records, score, achievements, Hard.** `BAL.score` defines the score; `meta.rec` keeps per-class records (normal and Hard separately), streaks and recent Daily results; `ACH` lists the 20 achievements. Hard (`BAL.hard`, `HARD_RULES`) unlocks with the first win; Dailies are never Hard.
+
+## Auto
+
+The 🤖 AUTO button (bottom right of the map; the top right holds the minimap) plays the run: explore, fight with the class's four abilities, loot, gear / perk / route / shrine / merchant choices, stairs, dragon. `autoStep()` makes one decision (one turn or one dialog choice); the timer (`autoTick`, exactly one pending `setTimeout`, 1x = `BAL.auto.tickMs`) just calls it, `__dbg.auto.runSync()` loops it for the simulator and tests. Dialogs carry `data-kind` / `data-k` labels (see `showModal`) so Auto picks buttons without parsing text; a chosen button is highlighted for `BAL.auto.flashMs` before it is pressed.
+
+- Any tap on the map (swallowed: it never also moves you), a dialog, a bar button, a key press or a hidden page switches it off; the run save keeps `G.auto = {on, used, noticed}` but a loaded run always comes back paused.
+- Watchdog: no new tile / kill / floor / new low of enemy HP for `BAL.auto.stuckTurns` turns, or `BAL.auto.idleTicks` decisions in a row that use no turn, switches Auto off with a log line.
+- A run in which Auto made any decision banks `BAL.auto.goldMul` of its gold (`finish()`), shows "Auto run - half gold" on the recap and is tagged Auto in the Records lists (`rec[..].aruns/awins`, `meta.aruns`, `meta.dly[..].auto`). Records, the Daily and achievements count as usual.
+- It is deliberately a simple player (no kiting, no retreating or resting, fixed ability priorities). `node tests/sim.js --auto ...` measures it on the same seeds and upgrade levels as the test bot (`tests/lib/autolib.js` replaces only `BOT.runOne`; the bot itself is untouched).
 
 ## Build and test
 
@@ -70,6 +80,7 @@ Needs Node 22 and Playwright installed globally (`require('playwright')`; Chromi
 - `tests/kits.test.js` - each class uses each of its four abilities, gear goes into all four slots through the compare modal, gear rules (spear/axe/dagger/plate/robe/charm), an old-version run save is discarded cleanly, every new enemy spawns and acts.
 - `tests/smoke.test.js` - each class at 390x844 and 1280x800 with random taps and bar/modal buttons: zero console/page
   errors, layout fits, reload + Continue restores turn/floor.
+- `tests/auto.test.js` - Auto: a floor per class, tap hands control back without moving, reload resumes paused, half gold + recap label + Auto tags, watchdog, gear / perk / path / shrine / merchant dialogs, one timer under rapid toggling, hidden page, old saves, 390x844 layout.
 - `tests/save.test.js` - run save survives `kill -9` of the browser (Chromium commits localStorage only about once a minute, so the run is mirrored into IndexedDB), and a finished run is not resurrected.
 - `tests/sim.js` - bot campaigns: win rate, death floor and killer table per class and upgrade level (options documented in its header comment, including `--hard` and `--force <modifier>`; `--botcfg '{"kite":0,"snipe":0,"choke":0}'` switches the bot's human-style tactics off for A/B runs, `--lib` swaps the bot file).
 - `tests/equiv.js A.html B.html` - seeded determinism check between two builds (used to prove refactors change nothing);
