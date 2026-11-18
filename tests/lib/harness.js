@@ -93,6 +93,8 @@ async function openRun(browser, cls, opts) {
   await closeModal(r.page);
   return r;
 }
+// Auto lives in the menu now: open it and tap "Auto play" (the stop / speed buttons are in the top bar while it runs)
+const autoOn = async (page) => { await page.click('#menuBtn'); await page.locator('#modalBox button[data-k="auto"]').click(); };
 const closeModal = (page) => page.evaluate(() => { document.getElementById('modal').style.display = 'none'; });
 // Auto normally decides once per 250 ms; tests that only need "Auto is running" shorten that (the rule under test is unchanged)
 const fastAuto = (page, ms = 20) => page.evaluate((m) => { window.__dbg.tables.BAL.auto.tickMs = m; }, ms);
@@ -138,4 +140,4 @@ window.T = {
   tick() { window.__dbg.fn.endTurn(); }
 };`;
 const launch = () => chromium.launch();
-module.exports = { GAME, URL, CONC, HELPERS, reload, launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, quiet, seedInit, fakeDateInit };
+module.exports = { autoOn, GAME, URL, CONC, HELPERS, reload, launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, quiet, seedInit, fakeDateInit };

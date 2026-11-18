@@ -6,7 +6,7 @@
 'use strict';
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, CONC, reload } = require('./lib/harness');
+const { launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, autoOn, CONC, reload } = require('./lib/harness');
 
 let browser;
 before(async () => { browser = await launch(); });
@@ -41,11 +41,14 @@ describe('auto', { concurrency: CONC }, () => {
     const { page, ctx, errors } = await fresh('warrior', 12);
     try {
       assert.equal(await page.locator('#autoSpd').isVisible(), false, 'speed control only while Auto is on');
-      await page.click('#autoBtn');
+      assert.equal(await page.locator('#cv #autoBox, #cv #autoBtn').count(), 0, 'no Auto control on the map');
+      assert.equal(await page.locator('#autoBtn').isVisible(), false, 'no stop button while Auto is off');
+      await autoOn(page);
       assert.equal(await page.evaluate(() => window.__dbg().auto.on), 1);
+      assert.equal(await page.evaluate(() => document.getElementById('modal').style.display), 'none', 'the menu closed');
       assert.ok(await page.locator('#autoSpd').isVisible());
       assert.ok(await page.locator('#autoTag').isVisible());
-      assert.match(await page.locator('#autoBtn').innerText(), /AUTO/);
+      assert.match(await page.locator('#autoBtn').getAttribute('aria-label'), /Stop Auto/);
       const t0 = (await snap(page)).turn;
       await page.waitForFunction((t) => window.__dbg().turn >= t + 2, t0, { timeout: 15000 });   // turns advance by themselves at 1x
       assert.equal(await page.locator('#autoSpd').innerText(), '1×');
@@ -64,7 +67,7 @@ describe('auto', { concurrency: CONC }, () => {
     try {
       await page.evaluate(() => { while (window.__dbg.auto.state().speed !== 1) window.__dbg.auto.speed(); });
       await freezeAuto(page);                       // Auto is on but cannot take a turn by itself: only the tap can change anything
-      await page.click('#autoBtn');
+      await autoOn(page);
       const before = await snap(page);
       assert.equal(before.on, 1);
       // tap a free floor tile right next to the player (the player is drawn at the middle of the map): a normal tap there would move
@@ -77,9 +80,9 @@ describe('auto', { concurrency: CONC }, () => {
       assert.equal(at.on, 0, 'Auto is off right after the tap');
       assert.deepEqual([at.turn, at.x, at.y], [before.turn, before.x, before.y], 'the tap itself issued no move');
       assert.equal(await page.evaluate(() => window.__dbg.auto.timers()), 0, 'timer cancelled');
-      assert.match(await page.evaluate(() => window.__dbg().log.slice(-3).join('|')), /took over/);
+      assert.match(await page.evaluate(() => window.__dbg().log.slice(-3).join('|')), /Auto off/);
       // and Auto can be switched on again in the same run
-      await fastAuto(page, 30); await page.click('#autoBtn');
+      await fastAuto(page, 30); await autoOn(page);
       await page.waitForFunction((t) => window.__dbg().turn > t, at.turn, { timeout: 15000 });
       assert.equal((await snap(page)).on, 1);
       assert.deepEqual(errors, []);
@@ -104,7 +107,7 @@ describe('auto', { concurrency: CONC }, () => {
   it('reload: the run resumes PAUSED and nothing acts until a tap (also from a save that says Auto was on, as after a crash)', async () => {
     const { page, ctx, errors } = await fresh('mage', 15);
     try {
-      await fastAuto(page, 30); await page.click('#autoBtn');
+      await fastAuto(page, 30); await autoOn(page);
       await page.waitForFunction(() => window.__dbg().turn >= 3, null, { timeout: 15000 });
       const mid = await snap(page); assert.equal(mid.on, 1);
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('dcr_run_v2')).auto.on), 1, 'saved as on');
@@ -116,8 +119,8 @@ describe('auto', { concurrency: CONC }, () => {
       assert.equal(await page.locator('#autoSpd').isVisible(), false);
       await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));   // longer than one decision interval at 1x
       assert.equal((await snap(page)).turn, loaded.turn, 'no turn passed on its own');
-      await fastAuto(page, 30); await page.click('#autoBtn');
-      await page.waitForFunction((t) => window.__dbg().turn > t, loaded.turn, { timeout: 15000 });   // a tap on AUTO resumes it
+      await fastAuto(page, 30); await autoOn(page);
+      await page.waitForFunction((t) => window.__dbg().turn > t, loaded.turn, { timeout: 15000 });   // Auto play in the menu resumes it
       // crash case: the save still says on=1 (no chance to pause it before the page went away)
       await page.evaluate(() => { window.__dbg.auto.stop('x'); window.__dbg.fn.save(); const o = JSON.parse(localStorage.getItem('dcr_run_v2')); o.auto.on = 1; localStorage.setItem('dcr_run_v2', JSON.stringify(o)); });
       const c = await resume(); assert.equal(c.on, 0);
@@ -157,14 +160,14 @@ describe('auto', { concurrency: CONC }, () => {
     const { page, ctx } = await fresh('warrior', 17);
     try {
       await freezeAuto(page);
-      await page.click('#autoBtn');
+      await autoOn(page);
       assert.equal(await page.evaluate(() => window.__dbg().auto.on), 1);
       await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
       assert.equal(await page.evaluate(() => window.__dbg().auto.on), 0);
       assert.match(await page.evaluate(() => window.__dbg().log.slice(-2).join('|')), /hidden/);
       assert.equal(await page.evaluate(() => window.__dbg.auto.timers()), 0);
       await page.evaluate(() => { delete document.hidden; });
-      await page.click('#autoBtn');
+      await autoOn(page);
       await page.evaluate(() => window.__dbg.api.finish('abandon'));
       assert.deepEqual(await page.evaluate(() => [window.__dbg().auto.on, window.__dbg.auto.timers(), window.__dbg().over]), [0, 0, true]);
       assert.equal(await page.locator('#autoBox').isVisible(), false, 'no Auto control on the recap');
@@ -395,22 +398,23 @@ describe('auto', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('390x844: the Auto control is >=44px, clear of the minimap, log and button rows; no page scroll, also with chips and Auto on', async () => {
+  it('390x844: the Auto strip (indicator, speed, stop) is in the top bar, >=44px, off the map; only the modifier icon is on the map; no page scroll', async () => {
     const { page, ctx } = await fresh('warrior', 42);
     try {
       await freezeAuto(page);   // layout only: Auto is switched on but takes no turn, so no dialog can appear
       await page.evaluate(() => { const G = window.__dbg(); G.daily = '2026-01-01'; G.hard = 1; G.mod = 'cursed'; });
-      await page.click('#autoBtn'); await page.click('#autoSpd');
-      await page.waitForFunction(() => document.getElementById('autoTag').offsetParent !== null && document.querySelectorAll('#chips .chip').length === 3);
+      await autoOn(page); await page.click('#autoSpd');
+      await page.waitForFunction(() => document.getElementById('autoTag').offsetParent !== null && document.querySelectorAll('#chips .chip').length === 1);
       const L = await page.evaluate(() => {
         const r = (e) => { const b = (typeof e === 'string' ? document.querySelector(e) : e).getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
-        return { btn: r('#autoBtn'), spd: r('#autoSpd'), tag: r('#autoTag'), chips: [...document.querySelectorAll('#chips .chip')].map(r), log: r('#log'), bar2: r('#bar2'), cv: r('#cv'),
-          scroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight] };
+        return { btn: r('#autoBtn'), spd: r('#autoSpd'), tag: r('#autoTag'), chip: r('#chips .chip'), hud: r('#hud'), log: r('#log'), cv: r('#cv'), stats: document.getElementById('stats').textContent,
+          onMap: document.querySelectorAll('#cv button').length, scroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight] };
       });
-      assert.ok(L.btn.h >= 44 && L.btn.w >= 44 && L.spd.h >= 44 && L.spd.w >= 44);
-      assert.ok(L.btn.b <= L.cv.b + 0.5 && L.btn.r <= L.cv.r + 0.5 && L.spd.r <= L.cv.r + 0.5, 'inside the map area');
-      assert.ok(L.tag.b <= L.btn.t, 'the strip sits above the buttons, not over them');
-      for (const c of L.chips) assert.ok(c.r < L.btn.l || c.t >= L.tag.b || c.b <= L.tag.t, 'chips do not overlap the Auto control');
+      assert.ok(L.btn.h >= 44 && L.btn.w >= 44 && L.spd.h >= 44 && L.spd.w >= 44 && L.chip.h >= 44 && L.chip.w >= 44);
+      assert.ok(L.btn.b <= L.hud.b + 0.5 && L.spd.b <= L.hud.b + 0.5 && L.hud.b <= L.cv.t + 0.5, 'the Auto strip is in the top bar, above the map');
+      assert.ok(L.btn.r <= 391 && L.spd.l >= L.tag.r, 'indicator, speed and stop fit side by side');
+      assert.equal(L.onMap, 1, 'the map carries one button: the modifier icon');
+      assert.match(L.stats, /📅/); assert.match(L.stats, /💀/);   // Daily / Hard moved to the top bar
       assert.ok(L.cv.b <= L.log.t + 0.5 && L.cv.r <= 391);
       assert.deepEqual(L.scroll, [390, 844]);
     } finally { await ctx.close(); }

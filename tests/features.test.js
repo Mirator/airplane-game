@@ -113,14 +113,14 @@ describe('features', { concurrency: CONC }, () => {
       assert.equal(s.opts.length, 2);
       await page.locator('#b_down').tap();
       await page.waitForSelector('#modalBox h2');
-      assert.match(await page.locator('#modalBox h2').textContent(), /Choose your path/);
+      assert.match(await page.locator('#modalBox h2').textContent(), /pick a path/);
       const btns = await page.locator('#modalBox button').evaluateAll((bs) => bs.map((b) => { const r = b.getBoundingClientRect(); return { t: b.textContent, h: r.height, w: r.width }; }));
       assert.equal(btns.length, 3);
       for (const b of btns) assert.ok(b.h >= 44 && b.w >= 44, JSON.stringify(b));
       for (const name of ['The Crypt', 'The Ossuary']) assert.ok(btns.slice(0, 2).some((b) => b.t.includes(name)), 'theme ' + name + ' shown: ' + JSON.stringify(btns.map((b) => b.t)));
-      for (let i = 0; i < 2; i++) assert.match(btns[i].t, /No modifier|Risk:/);
+      for (let i = 0; i < 2; i++) assert.match(btns[i].t, /Plain floor|Risk:/);
       // Stay: nothing changes
-      await page.locator('#modalBox button', { hasText: /Stay on this floor/ }).tap();
+      await page.locator('#modalBox button', { hasText: /Stay here/ }).tap();
       assert.equal(await page.evaluate(() => window.__dbg().floor), 1);
       // second option by touch
       await page.locator('#b_down').tap();
@@ -331,7 +331,7 @@ describe('features', { concurrency: CONC }, () => {
         play('dead', { floor: 2, kills: 1 });
         return { texts, streakAfterWins, streak: m.streak, bstreak: m.bstreak, fast: m.rec.n.warrior.fast };
       });
-      assert.match(recap.texts[0], /Score:\s*\d+/);
+      assert.match(recap.texts[0], /Score\s*\d+/);
       assert.match(recap.texts[1], /NEW RECORD/); assert.match(recap.texts[1], /Achievement/); assert.match(recap.texts[1], /First Victory/);
       assert.match(recap.texts[2], /fastest win/, 'a quicker win is a new record');
       assert.doesNotMatch(recap.texts[3], /fastest win/, 'a slower win is not');
@@ -339,9 +339,10 @@ describe('features', { concurrency: CONC }, () => {
       assert.equal(recap.fast, 500);
       await page.evaluate(() => window.__dbg.api.showTitle());
       await reload(page);
+      await page.locator('#btnMore').click();
       await page.locator('#btnRecords').click();
       const rec = await page.locator('#titleBox').textContent();
-      assert.match(rec, /Runs 5/); assert.match(rec, /Wins 3/); assert.match(rec, /Best streak 3/); assert.match(rec, /Fastest win 500 turns/);
+      assert.match(rec, /Runs 5/); assert.match(rec, /Wins 3/); assert.match(rec, /\(best 3\)/); assert.match(rec, /Fastest 500t/);
       await page.locator('#btnBack').click();
       await page.locator('#btnAch').click();
       const have = await page.locator('#titleBox [data-ach][data-have="1"]').evaluateAll((els) => els.map((e) => e.dataset.ach));
@@ -400,22 +401,26 @@ describe('features', { concurrency: CONC }, () => {
   it('Hard toggle is locked before the first win; unlocked it toggles, persists and starts a harder run (Daily stays normal)', async () => {
     const a = await newPage(browser, { seed: 11, meta: BASE_META });
     try {
-      assert.equal(await a.page.locator('#hardBtn').isDisabled(), true);
-      assert.match(await a.page.locator('#hardBtn').textContent(), /win/i);
+      assert.equal(await a.page.locator('#hardBtn').count(), 0, 'no Hard box on the title');
+      await a.page.locator('#btnNew').click();
+      assert.equal(await a.page.locator('#hardBtn').count(), 0, 'hidden on the class pick until the first win');
       assert.equal(await a.page.evaluate(() => window.__dbg.mods.hardOn()), false);
       assert.deepEqual(a.errors, []);
     } finally { await a.ctx.close(); }
     const b = await newPage(browser, { seed: 12, meta: { ...BASE_META, wins: 1, best: 8 } });
     try {
+      assert.equal(await b.page.locator('#titleBox #hardBtn').count(), 0, 'not on the title');
+      await b.page.locator('#btnNew').click();
       assert.equal(await b.page.locator('#hardBtn').isDisabled(), false);
       await b.page.locator('#hardBtn').click();
       assert.match(await b.page.locator('#hardBtn').textContent(), /ON/);
       await reload(b.page);
+      await b.page.locator('#btnNew').click();
       assert.match(await b.page.locator('#hardBtn').textContent(), /ON/);
-      await startRun(b.page, 'warrior'); await closeModal(b.page);
+      await b.page.locator('#title button', { hasText: /Warrior/ }).first().click(); await dbgReady(b.page); await closeModal(b.page);
       const h = await b.page.evaluate(() => { const G = window.__dbg(), F = window.__dbg.fn; const e = F.makeEnemy('goblin', 1, 1, 3); const hp = e.hp; G.hard = 0; const e2 = F.makeEnemy('goblin', 1, 1, 3); G.hard = 1; return { hard: G.hard, hp, hp0: e2.hp, pots: G.inv.pot }; });
       assert.equal(h.hard, 1); assert.ok(h.hp > h.hp0, 'hard enemies are tougher'); assert.equal(h.pots, 0, 'one fewer starting potion');
-      assert.ok(await b.page.locator('#chips .chip.hard').count());
+      assert.match(await b.page.locator('#stats').textContent(), /💀/, 'Hard shows in the top bar');
       // Daily ignores the toggle
       await b.page.evaluate(() => { window.__dbg.api.finish('abandon'); });
       await b.page.locator('#modalBox button').click();
@@ -453,12 +458,16 @@ describe('features', { concurrency: CONC }, () => {
       for (const k of ['gold', 'hp', 'atk', 'pot', 'def', 'wins', 'best', 'kills', 'elites']) assert.equal(m[k], old[k], k);
       assert.deepEqual(m.unl.rogue, 1); assert.equal(m.unl.scroll, 1); assert.equal(m.unl.midas, 1);
       assert.deepEqual(m.rec, { n: {}, h: {} }); assert.equal(m.runs, 0); assert.equal(m.streak, 0); assert.ok(m.ach.win1, 'first win is recognised retroactively');
+      await page.locator('#btnNew').click();
       assert.equal(await page.locator('#hardBtn').isDisabled(), false, 'an existing winner gets Hard');
+      await page.locator('#titleBox button', { hasText: /Back/ }).click();
+      await page.locator('#btnMore').click();
       await page.locator('#btnRecords').click();
       assert.match(await page.locator('#titleBox').textContent(), /Runs 0/);
       await page.locator('#btnBack').click();
+      await page.locator('#titleBox button', { hasText: /Back/ }).click();
       await page.locator('#btnUpg').click();
-      assert.match(await page.locator('#titleBox').textContent(), /Hardy \(Lv 2\/8\)/);
+      assert.match(await page.locator('#titleBox').textContent(), /Hardy 2\/8/);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });
@@ -478,7 +487,7 @@ describe('features', { concurrency: CONC }, () => {
       assert.equal(s.ver, 3); assert.equal(s.mod, null); assert.equal(s.legacy, 1); assert.ok(s.turn >= 4);
       await page.evaluate(() => { const G = window.__dbg(); G.enemies.length = 0; const k = G.map.indexOf(2); G.p.x = k % 30; G.p.y = Math.floor(k / 30); window.__dbg.fn.computeVis(); });
       await page.locator('#b_down').tap();
-      assert.match(await page.locator('#modalBox h2').textContent(), /Choose your path/);
+      assert.match(await page.locator('#modalBox h2').textContent(), /pick a path/);
       await page.locator('#modalBox button').first().tap();
       assert.equal(await page.evaluate(() => window.__dbg().floor), 2);
       // history-based achievements are not granted for a run whose history is unknown

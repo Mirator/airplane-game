@@ -107,7 +107,7 @@ function shopping(G){
 // exit choice: score each branch by its modifier (higher = safer for the bot); BOT_CFG.branch can override per modifier
 const BRANCH_SCORE={'No modifier':5,Silent:4.5,Flooded:4,Dark:3.5,'Rich vein':3,'Cursed ground':2.5,Unstable:2,Hunted:1.5,Horde:1};
 function handleBranch(G,btns){
- const opts=btns.filter(b=>!/Stay on this floor/.test(b.textContent));
+ const opts=btns.filter(b=>!/Stay here/.test(b.textContent));
  const sc=b=>{const t=b.textContent;let best=-1;for(const k in BRANCH_SCORE)if(t.indexOf(k)>=0)best=(BOT_CFG.branch&&BOT_CFG.branch[k]!=null?BOT_CFG.branch[k]:BRANCH_SCORE[k]);return best;};
  if(BOT_CFG.branchRandom){opts[Math.floor(Math.random()*opts.length)].click();return;}
  opts.sort((a,b)=>sc(b)-sc(a));
