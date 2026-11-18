@@ -103,3 +103,12 @@ button.autopick{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 .dlt{padding:4px 10px;border-radius:12px;font-size:15px;font-weight:800;background:#252a45}
 .dlt.up{color:#6fe08c;background:#183a26}.dlt.dn{color:#ff7a7a;background:#442026}.dlt.same{color:#bbb9cc}
 .rl{font-size:14px;text-align:center;color:#d4d2e4}
+
+.hess{display:flex;flex-direction:column;gap:6px}
+.hess p{font-size:14px}
+.hsec{border-top:1px solid #333a60}
+.hsec summary{min-height:44px;display:flex;align-items:center;font-weight:700;font-size:14px;cursor:pointer;color:#ffe9a8;list-style:none}
+.hsec summary::-webkit-details-marker{display:none}
+.hsec summary::before{content:'▸';display:inline-block;width:1.2em}
+.hsec[open] summary::before{content:'▾'}
+.hsec[open]{padding-bottom:6px}

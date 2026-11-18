@@ -7,6 +7,7 @@ const W=30,H=30,MAXF=8;   // map size and number of floors (floor 8 = dragon lai
 // NOTE: descriptive strings in the tables below (perk/trait/unlock text, help screen) still contain hand-written copies of
 // some numbers - update them together when changing a value.
 const BAL = {
+ ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window
   // --- dungeon layout (mapgen.js) ---
   map: {
     span: 22,              // rooms are placed inside the top-left span x span corner of the 30x30 grid (shorter floors)
@@ -198,7 +199,7 @@ const EN={
  goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
  archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
  hound:{n:'Hound',e:'🐺',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
- guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield: takes '+Math.round(BAL.weapon.shieldFront*100)+'% from the front, '+Math.round(BAL.weapon.shieldRanged*100)+'% ranged. Hit from behind.'},
+ guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield takes '+Math.round(BAL.weapon.shieldFront*100)+'% from front, '+Math.round(BAL.weapon.shieldRanged*100)+'% ranged. Flank it.'},
  skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
  ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
  troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},

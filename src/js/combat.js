@@ -23,7 +23,7 @@ function killEnemy(e,src){
   if(ch==='soul'){if(p.cls==='warrior')gainRage(BAL.charm.soulRage,true);else if(p.cls==='mage')p.mana=Math.min(mmax(),p.mana+BAL.charm.soulMana);else for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;}
   if(p.cls==='mage'){let m=BAL.mana.perKill+(pc('well')?BAL.perk.wellKill:0);if(G.syn.ow)m*=2;p.mana=Math.min(mmax(),p.mana+m);}}
  if(e.hunter)huntReward(e);
- else if(e.elite){dropAt(e.x,e.y,{t:'key',v:0});floatFx(e.x,e.y,'KEY','#ffd24a');msg('The elite drops a brass key!');}
+ else if(e.elite){dropAt(e.x,e.y,{t:'key',v:0});callout(e.x,e.y,'KEY','#ffd24a');msg('The elite drops a brass key!');}
  else if(rf()<BAL.drops.potionChance*(G.hard?BAL.hard.dropPotionMul:1))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  else if(rf()<(modIs('horde')?BAL.mod.horde.goldDrop:BAL.drops.goldChance))G.items.push({x:e.x,y:e.y,t:'gold',v:rnd(BAL.drops.goldMin,BAL.drops.goldMax)+G.floor});
  if(pc('midas'))dropAt(e.x,e.y,{t:'gold',v:rnd(BAL.drops.midasMin,BAL.drops.midasMax)+G.floor*BAL.drops.midasPerFloor});
@@ -179,6 +179,6 @@ function endTurn(){
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
- computeVis();save();render();
+ lowHpWatch();computeVis();save();render();
  afterModals();
 }

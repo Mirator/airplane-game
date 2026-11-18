@@ -161,12 +161,23 @@ function render(){
   if(now<pulseUntil&&!rm){const a=1-(pulseUntil-now)/700;ctx.strokeStyle='rgba(255,220,90,'+(1-a)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(px+ts/2,py+ts/2,ts*(0.5+1.4*a),0,7);ctx.stroke();ctx.lineWidth=1;more0=true;}}
  drawMini(ts);
  let more=more0||shk||!!stepAnim;
- fx=fx.filter(f=>now-f.t<800);
+ fx=fx.filter(f=>now-f.t<(f.d||800));
+ let ci=0;   // second simultaneous callout sits one line higher
  for(const f of fx){
-  const a=(now-f.t)/800,px=ox+f.x*ts+ts/2,py=oy+f.y*ts+ts*0.2-(rm?0.25:a)*ts*0.6;
-  ctx.globalAlpha=1-a*a;ctx.font='bold '+Math.round(ts*(f.big?0.62:0.42))+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const du=f.d||800,a=(now-f.t)/du;let px=ox+f.x*ts+ts/2,py=oy+f.y*ts+ts*0.2-(rm?0.25:a)*ts*0.6;
+  ctx.globalAlpha=1-a*a;ctx.font='bold '+Math.round(ts*(f.c?0.5:f.big?0.62:0.42))+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  if(f.c){const hw=ctx.measureText(f.text).width/2+6;px=Math.max(hw,Math.min(view.cw-hw,px));py=Math.max(14,py-ts*0.5-ci*ts*0.55);ci++;}   // callouts stay on screen, above the tile
   ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(f.text,px,py);ctx.fillStyle=f.color;ctx.fillText(f.text,px,py);ctx.globalAlpha=1;more=true;
  }
+ if(guard&&(now>=guard.until||guard.f!==G.floor||!perilAt(guard.k)))guard=null;
+ if(guard){ // danger guard: this tile needs a second tap
+  const px=ox+guard.x*ts,py=oy+guard.y*ts,pu=0.5+0.5*Math.sin(now/150);
+  ctx.fillStyle='rgba(255,200,40,'+(0.18+0.18*pu)+')';ctx.fillRect(px,py,ts,ts);
+  ctx.strokeStyle='#ffd24a';ctx.lineWidth=3;ctx.setLineDash([6,4]);ctx.strokeRect(px+2,py+2,ts-4,ts-4);ctx.setLineDash([]);ctx.lineWidth=1;
+  ctx.fillStyle='#fff';glyph('⚠️',px+ts/2,py+ts/2+1,ts*0.6);more=true;
+ }
+ if(insp&&(insp.turn!==G.turn||insp.f!==G.floor))insp=null;
+ drawInspect(ox,oy,ts);
  if(now<bannerUntil&&!G.over){const a=Math.min(1,(bannerUntil-now)/600);ctx.globalAlpha=a;let bfs=Math.round(Math.min(26,view.cw/14));ctx.font='bold '+bfs+'px sans-serif';while(bfs>11&&ctx.measureText(bannerText).width>view.cw-34){bfs--;ctx.font='bold '+bfs+'px sans-serif';}ctx.textAlign='center';ctx.textBaseline='middle';const bw=ctx.measureText(bannerText).width+28;ctx.fillStyle='rgba(5,5,12,0.72)';ctx.fillRect(view.cw/2-bw/2,view.ch*0.16,bw,40);ctx.fillStyle=th.wt;ctx.fillRect(view.cw/2-bw/2,view.ch*0.16+38,bw,2);ctx.fillStyle='#fff';ctx.fillText(bannerText,view.cw/2,view.ch*0.16+20);ctx.globalAlpha=1;more=true;}
  if(now<flashUntil){ctx.fillStyle='rgba(220,30,30,'+(0.35*(flashUntil-now)/250)+')';ctx.fillRect(0,0,view.cw,view.ch);more=true;}
  if(more&&!rafPending){rafPending=true;requestAnimationFrame(function(){rafPending=false;render();});}

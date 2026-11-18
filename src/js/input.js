@@ -2,6 +2,9 @@
 
 cv.addEventListener('click',function(ev){
  if(!G)return;
+ if(lpDone){lpDone=false;return;}   // the release of a press-and-hold (inspect): not a tap
+ bannerUntil=0;                      // any tap clears the floor banner
+ if(insp){clearInspect();if(!armed)return;}   // a tap dismisses the inspect card (while aiming it also goes on to target)
  const r=cv.getBoundingClientRect();
  if(bigMap){bigMap=false;render();return;}
  const mm=view.mm,cx=ev.clientX-r.left,cy=ev.clientY-r.top;
@@ -21,3 +24,5 @@ document.addEventListener('keydown',function(ev){
  if(d){ev.preventDefault();walkTok++;tryMove(d[0],d[1]);}
 });
 $('menuBtn').addEventListener('click',showMenu);
+// a tap on any button also dismisses the inspect card (the button still does its job)
+document.addEventListener('click',function(ev){if(insp&&ev.target!==cv)clearInspect();});

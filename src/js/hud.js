@@ -44,9 +44,12 @@ function abStatus(k){
  if(c.rage&&(p.rage||0)<c.rage)return {dis:1,sub:c.rage+' rage'};
  if(c.mana&&(p.mana||0)<c.mana)return {dis:1,sub:c.mana+' mana'};
  if(k==='knife'&&(G.knives||0)<1)return {dis:1,sub:'no knives'};
- if((k==='cleave'||k==='nova'||k==='bash'||k==='backstab')&&!(k==='bash'||k==='backstab'?advEnemies(true):chebEnemies()).length)return {dis:1,sub:costLabel(k)};
- if(k==='charge'&&!chargeLines().length)return {dis:1,sub:costLabel(k)};
- if((k==='bolt'||k==='knife')&&!enemyShots(BAL.ability[k].range).length)return {dis:1,sub:k==='knife'?'×'+G.knives:costLabel(k)};
+ // why a targeted ability cannot fire: only O(visible foes) checks, no map scan
+ if((k==='cleave'||k==='nova'||k==='bash'||k==='backstab')&&!(k==='bash'||k==='backstab'?advEnemies(true):chebEnemies()).length)return {dis:1,sub:G.enemies.some(e=>G.vis[ix(e.x,e.y)])?'too far':'no target'};
+ if(k==='charge'&&!chargeLines().length)return {dis:1,sub:G.enemies.some(e=>G.vis[ix(e.x,e.y)])?'no line':'no target'};
+ if((k==='bolt'||k==='knife')&&!enemyShots(BAL.ability[k].range).length){
+  const R=BAL.ability[k].range,vis=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
+  return {dis:1,sub:!vis.length?'no target':vis.some(e=>manh(e,p)<=R)?'no line':'too far'};}
  return {dis:0,sub:k==='knife'?'×'+G.knives:costLabel(k)};
 }
 function updateBar(){

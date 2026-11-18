@@ -129,7 +129,7 @@ function pickOne(it){
  }
  else if(it.t==='fire'){G.inv.fire++;msg('+1 Flames.');}
  else if(it.t==='tele'){G.inv.tele++;msg('+1 Teleport.');}
- else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('Got a brass key.');}
+ else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('Got a brass key.');callout(G.p.x,G.p.y,'KEY','#ffd24a');}
  if(take){G.items=G.items.filter(o=>o!==it);sfx('pickup');}
  G.stopWalk=true;
 }

@@ -175,7 +175,7 @@ describe('ui', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('text budgets: tagline <= 45, ability / perk / trait / charm / off-hand / weapon / armor / modifier lines <= 55, path risk and gain <= 30 characters', async () => {
+  it('text budgets: tagline <= 45, enemy / ability / perk / trait / charm / off-hand / weapon / armor / modifier lines <= 55, path risk and gain <= 30 characters', async () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 25 });
     try {
       const all = await page.evaluate(() => {
@@ -184,6 +184,7 @@ describe('ui', { concurrency: CONC }, () => {
         for (const p of T.PERKS) add('line', 'perk ' + p.id, p.d);
         for (const s of T.SYN) add('line', 'synergy ' + s.id, s.d);
         for (const k in T.TR) add('line', 'trait ' + k, T.TR[k].d);
+        for (const k in T.EN) add('line', 'enemy ' + k, T.EN[k].tr);   // shown on the long-press card
         for (const k in T.CH) add('line', 'charm ' + k, X.charmRule(k));
         for (const k in T.OFF) add('line', 'offhand ' + k, X.offRule(k));
         for (const k in T.WP) add('line', 'weapon ' + k, X.wpRule(k));

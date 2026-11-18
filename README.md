@@ -43,10 +43,11 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 | `enemies.js`, `combat.js`, `abilities.js` | AI, wind-ups, healers, dragon phases; damage, shields, status effects, resources, turn end; the 12 class abilities (`DO`), `useAbility`, spear reach |
 | `items.js`, `perks.js`, `player.js` | gear slots, derived stats (`meleeAtk`, `mmax`, `spellMul`...), generation, comparison, pickup, consumables; perk pool / granting / synergies; XP |
 | `features.js`, `run.js` | traps, shrine, merchant; run start, floor population, descend, end screen |
-| `walk.js`, `input.js` | movement, auto-walk, Explore, tap handling; click/key listeners |
+| `walk.js`, `input.js` | movement, auto-walk, Explore, tap handling incl. the danger guard (`perilAt`: a revealed trap / red tile / about-to-break crack needs a second tap; tap-to-walk and Explore route around, or stop in front); click/key listeners |
 | `auto.js` | **Auto** (autopilot): one timer, one decision per tick through the same action functions a tap uses (`tryMove`, `useAbility`, `drink`, `descend`, the dialog buttons); dialog choices, class ability priorities, watchdog, the top-bar strip (indicator / speed / stop). Numbers: `BAL.auto`; perk and modifier priorities `AUTO_PERKS` / `AUTO_MODS` in balance.js |
 | `modals.js`, `help.js`, `title.js`, `screens.js`, `hud.js` | UI screens (title + More, class picker with Details, upgrades; Records and Achievements), the ability row, the Items / Explore / Wait / Stairs row and the Items tray (Potion, Flames, Teleport), HUD |
-| `render.js`, `minimap.js`, `effects.js`, `audio.js` | canvas drawing, minimap, juice (shake, float text), WebAudio |
+| `render.js`, `minimap.js`, `effects.js`, `audio.js` | canvas drawing, minimap, juice (shake, float text, on-map `callout`s, low-HP / elite watchers), WebAudio |
+| `inspect.js` | long-press / right-click inspect card (drawn on the canvas) and the press-and-hold detection; `BAL.ui` holds its timings |
 | `main.js` | boot + the `window.__dbg` debug/test API (the test bots rely on it - keep it stable) |
 
 ## Run variety, goals and records

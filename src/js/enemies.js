@@ -114,7 +114,7 @@ function enemiesAct(free){
   if(!e.awake)continue;
   if(!see&&!e.alarm&&dist[ix(e.x,e.y)]>BAL.enemyAi.loseTrackDist){e.awake=false;continue;}
   if(d.slowAct){if(e.rest){e.rest=0;continue;}e.rest=1;}
-  if(d.boss&&!e.enraged&&e.hp<e.mhp*(G.hard?BAL.hard.enrageFrac:BAL.enemyAi.enrageFrac)){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');floatFx(e.x,e.y,'ENRAGED','#f55');}
+  if(d.boss&&!e.enraged&&e.hp<e.mhp*(G.hard?BAL.hard.enrageFrac:BAL.enemyAi.enrageFrac)){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');callout(e.x,e.y,'ENRAGED','#f55');}
   if(d.heal&&!free&&!(e.hcd>0)){
    let tg=null,bf=BAL.enemyAi.healBelow;
    for(const o of G.enemies){if(o===e||o.dead)continue;const fr=o.hp/o.mhp;

@@ -162,7 +162,7 @@ describe('features', { concurrency: CONC }, () => {
       await page.evaluate(() => window.__dbg.fn.newFloor(3, { mod: 'silent', v: 0 }));
       const chip = page.locator('#chips .chip.mod');
       await chip.waitFor();
-      const box = await chip.boundingBox(); assert.ok(box.height >= 44 && box.width >= 44, JSON.stringify(box));
+      const box = await page.evaluate(() => { const r = document.querySelector('#chips .chip.mod').getBoundingClientRect(); return { width: r.width, height: r.height }; }); assert.ok(box.height >= 44 && box.width >= 44, JSON.stringify(box));
       await chip.tap();
       await page.waitForFunction(() => document.getElementById('toast').style.opacity === '1');
       assert.match(await page.locator('#toast').textContent(), /Silent/);

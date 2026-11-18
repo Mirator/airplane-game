@@ -22,7 +22,7 @@ function showRecords(){
  if(!days.length)dh+='<br><small>None played yet.</small>';
  for(const d of days){const r=meta.dly[d];dh+='<br><small>'+d+': '+(r.score?(CLS[r.cls]?CLS[r.cls].e+' ':'')+(r.won?'<b style="color:#8fe39a">WON</b>':'floor '+r.floor)+' &middot; '+r.score+' pts':'started, no result')+(r.auto?' <em class="tag act">Auto</em>':'')+(r.att>1?' &middot; '+r.att+' tries':'')+'</small>';}
  add(dh,'border:1px solid #3a3f64;border-radius:10px;padding:8px');
- add('<small>Score: floors, kills, levels, plus a bonus for fast wins. Hard x'+BAL.hard.scoreMul+'. Saved on this device.</small>');
+ add('<small>Score: floors, kills, levels, fast-win bonus. Hard x'+BAL.hard.scoreMul+'.</small>');
  backBtn(t);
  $('title').style.display='flex';
 }

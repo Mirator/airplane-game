@@ -10,6 +10,7 @@ window.__dbg.api={SHOP:SHOP,cost:cost,sfx:sfx,toggleSound:toggleSound,deathTip:d
 window.__dbg.mods={MODS:MODS,ACH:ACH,HARD_RULES:HARD_RULES,showBranch:showBranch,earn:earn,checkAchievements:checkAchievements,scoreOf:scoreOf,recordRun:recordRun,recOf:recOf,hardUnlocked:hardUnlocked,hardOn:hardOn,todayKey:todayKey,toast:toast,showRecords:showRecords,showAchievements:showAchievements,showDailyPicker:function(){showClassPicker({daily:true});},waterSet:function(){return Array.from(waterSet());},hashStr:hashStr,setForce:function(id){dbgForce=id||null;}};
 window.__dbg.auto={state:function(){return AUTO;},start:function(sync){return autoStart(!!sync);},stop:function(why){autoStop(why||'stopped');},toggle:autoToggle,speed:autoSpeedCycle,step:function(){return autoStep(true);},tick:autoTick,
  runSync:function(cap){cap=cap||12000;let n=0;while(AUTO.on&&G&&!G.over&&n++<cap)autoStep(true);return n;},timers:function(){return AUTO.tm?1:0;},choose:autoChoose,gearScore:autoGearScore,watch:autoWatch};
+window.__dbg.insp=function(){return insp;};window.__dbg.view=function(){return view;};window.__dbg.callout=callout;window.__dbg.callouts=function(){const n=performance.now();return fx.filter(f=>f.c&&n-f.t<f.d).map(f=>f.text);};window.__dbg.banner=function(){return bannerUntil>performance.now();};window.__dbg.guard=function(){return guard;};window.__dbg.lowHp=function(){return hpLow;};
 window.__dbg.perkIds=PERKS.map(p=>p.id);
 window.__dbg.traits=Object.keys(TR);
 window.__dbg.tables={BAL:BAL,EN:EN,CLS:CLS,ABIL:ABIL,WP:WP,ARM:ARM,OFF:OFF,CH:CH,PERKS:PERKS,SYN:SYN,TR:TR};
@@ -24,4 +25,4 @@ window.__dbg.spawnGear=function(slot,k,tr,v){
  return null;
 };
 // player-facing text generators, for the text-budget tests
-window.__dbg.text={abilityDesc:abilityDesc,classBlurb:classBlurb,classDetail:classDetail,wpRule:wpRule,armRule:armRule,offRule:offRule,charmRule:charmRule,itemRule:itemRule,deathTip:deathTip,optHtml:optHtml,CLASS_TAG:CLASS_TAG};
+window.__dbg.text={abilityDesc:abilityDesc,classBlurb:classBlurb,classDetail:classDetail,wpRule:wpRule,armRule:armRule,offRule:offRule,charmRule:charmRule,inspectLines:inspectLines,itemRule:itemRule,deathTip:deathTip,optHtml:optHtml,CLASS_TAG:CLASS_TAG};

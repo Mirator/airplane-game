@@ -27,7 +27,7 @@ function newFloor(f,opt){
  G.mod=modOf(opt.mod)?opt.mod:null;G.variant=opt.v|0;
  if(G.daily)withStream(hashStr(G.daily+'|F'+f+'|'+G.variant+'|'+(G.mod||'-')),function(){buildFloor(f);});else buildFloor(f);
  const th=themeOf(f,G.variant),m=G.mod?modOf(G.mod):null;
- bannerText='Floor '+f+' - '+th.n;bannerUntil=performance.now()+2600;
+ bannerText='Floor '+f+' - '+th.n;bannerUntil=performance.now()+1800;
  if(m){bannerText+=' '+m.e+' '+m.n;msg(m.e+' '+m.n+': '+m.tip);}
  G.opts=null;
  if(f+1<MAXF)G.opts=rollOpts(f+1);

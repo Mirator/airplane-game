@@ -11,7 +11,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 // slowest first: the longest file starts at once, short ones fill the gaps
-const FILES = ['auto', 'features', 'smoke', 'kits', 'ui', 'save', 'mapgen', 'build'].map((n) => n + '.test.js');
+const FILES = ['auto', 'features', 'smoke', 'kits', 'ui', 'ux2', 'save', 'mapgen', 'build'].map((n) => n + '.test.js');
 
 const argv = process.argv.slice(2);
 const bail = argv.includes('--bail');
