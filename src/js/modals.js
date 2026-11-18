@@ -4,11 +4,11 @@ function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(ge
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
 // kind + button.k are plain labels (data attributes) so Auto can tell dialogs and choices apart without parsing text
 function showModal(title,html,buttons,kind,icon){
- armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';
+ armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win');
  const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
-  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.k)el.dataset.k=bt.k;
+  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;
   el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
   el.addEventListener('click',function(e){e.stopPropagation();bt.fn(el);});
   b.appendChild(el);
@@ -22,6 +22,9 @@ function perkTags(pk){
  if(SYN.some(s=>(s.a===pk.id&&pc(s.b))||(s.b===pk.id&&pc(s.a))))t+='<em class="tag syn">SYNERGY</em>';
  return t;
 }
+// leading icon chip for choice cards (perks / upgrades): a few specific icons, the rest share the generic perk mark
+const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',trapper:'trap_spike',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
+function cardHtml(id,inner){return '<span class="chp">'+ic(CARD_IC[id]||'perk',28)+'</span><span class="ct">'+inner+'</span>';}
 function showPerk(){
  if(!G||G.pending<=0)return;
  walkTok++;
@@ -30,7 +33,7 @@ function showPerk(){
  const opts=pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3);
  showModal('Level '+G.p.lvl+': pick a perk','',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
-  return {k:pk.id,html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
+  return {k:pk.id,html:cardHtml(pk.id,'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>'),cls:'hasic',fn:function(){
    addPerk(pk.id);G.pending--;closeModal();save();render();
    if(G.pending>0)showPerk();else afterModals();
   }};}),'perk');
@@ -79,13 +82,13 @@ function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false};
  showModal('Menu','',[
-  {label:'Resume',c:1,big:1,fn:closeModal},
+  {html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
   {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(){closeModal();autoStart();}},
-  {label:'Perks',c:1,fn:function(){showPerks(showMenu);}},
-  {label:'Controls',c:1,fn:function(){showHelp(showMenu);}},
-  {label:soundLabel(),c:1,fn:function(el){toggleSound();el.textContent=soundLabel();}},
-  {label:'Abandon run',c:1,fn:function(el){
-   if(!arm.v){arm.v=true;el.textContent='Tap again to abandon';return;}
+  {html:ic('perk',20)+' Perks',c:1,fn:function(){showPerks(showMenu);}},
+  {html:ic('info',20)+' Controls',c:1,fn:function(){showHelp(showMenu);}},
+  {html:ic('snd',20)+' '+soundLabel(),c:1,fn:function(el){toggleSound();el.innerHTML=ic('snd',20)+' '+soundLabel();}},
+  {html:ic('x',20)+' Abandon run',c:1,fn:function(el){
+   if(!arm.v){arm.v=true;el.innerHTML=ic('x',20)+' Tap again to abandon';return;}
    closeModal();finish('abandon');}}
  ],'menu');
 }

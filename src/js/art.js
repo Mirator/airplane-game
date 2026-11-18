@@ -10,14 +10,14 @@ const Q={k:INK,w:'#f2ecdc',W:'#ffffff',y:'#ffc93c',Y:'#d38f1f',z:'#ffe58a',s:'#a
 const PAL={
  ink:INK,gold:'#ffc93c',goldS:'#d38f1f',danger:'#ff3b3b',accent:'#46dcf5',
  warrior:'#3f86ff',mage:'#a463ff',rogue:'#2fcf8a',
- hpHi:'#4fd97a',hpMid:'#ffcc33',hpLow:'#ff4a4a',
+ hpHi:'#4fd97a',hpMid:'#ffb020',hpLow:'#ff4a4a',
  panel:'#171a2b',panel2:'#232845',line:'#3c4272',text:'#ece9f6',dim:'#a7a5bf'
 };
 // floor themes: dark, desaturated environments (characters carry the saturation). fa/fb floor, fc detail, fs contact shadow, wt wall top, wf wall front, we mortar, wh wall edge light
 const ENV=[
- {n:'The Crypt',fa:'#454b6e',fb:'#4c5378',fc:'#343a5c',fs:'#14172b',wt:'#666fa2',wf:'#2e3358',we:'#1f2342',wh:'#8f98c8',mw:'#4b548a',mf:'#8f97c4',mfd:'#4b5078'},
- {n:'The Caverns',fa:'#385a50',fb:'#3f6358',fc:'#2a4640',fs:'#0f1e1a',wt:'#5a8a78',wf:'#27413a',we:'#1a2e29',wh:'#86bba6',mw:'#3f6b5c',mf:'#86b09c',mfd:'#46665a'},
- {n:'The Embers',fa:'#5a3a33',fb:'#63413a',fc:'#442a26',fs:'#1d0f0c',wt:'#94503a',wf:'#43201b',we:'#2c130f',wh:'#c47a58',mw:'#7e3d2c',mf:'#c08460',mfd:'#6b4234'}
+ {n:'The Crypt',fa:'#4a5176',fb:'#525a82',fc:'#3a4062',fs:'#14172b',wt:'#2b3052',wf:'#3a4170',we:'#20243f',wh:'#4a5386',mw:'#4b548a',mf:'#8f97c4',mfd:'#4b5078',em:0},
+ {n:'The Caverns',fa:'#3d6358',fb:'#446c60',fc:'#2f4d46',fs:'#0f1e1a',wt:'#22392f',wf:'#2f4d43',we:'#1a2e29',wh:'#3f6b5c',mw:'#3f6b5c',mf:'#86b09c',mfd:'#46665a',em:0},
+ {n:'The Embers',fa:'#44363a',fb:'#4b3c40',fc:'#33282b',fs:'#1d0f0c',wt:'#34201a',wf:'#4a2a22',we:'#2c130f',wh:'#8a4a30',mw:'#7e3d2c',mf:'#c08460',mfd:'#6b4234',em:1}
 ];
 // ---- colour helpers (tile palettes only; sprites use fixed colours) ----
 function hx(c){return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];}
@@ -25,7 +25,7 @@ function hex3(r,g,b){return '#'+[r,g,b].map(v=>('0'+Math.max(0,Math.min(255,Math
 function mixc(a,b,t){const A=hx(a),B=hx(b);return hex3(A[0]+(B[0]-A[0])*t,A[1]+(B[1]-A[1])*t,A[2]+(B[2]-A[2])*t);}
 function grayc(c){const A=hx(c),l=0.3*A[0]+0.59*A[1]+0.11*A[2];return hex3(l,l,l);}
 // remembered (out of sight) version of a colour: desaturated and darker
-function dimc(c){return mixc(mixc(c,grayc(c),0.55),'#07080f',0.58);}
+function dimc(c){return mixc(mixc(c,grayc(c),0.25),'#07080f',0.5);}
 
 // ---- path helpers: everything is an SVG path string so one definition serves canvas (Path2D) and inline SVG ----
 const rr=v=>Math.round(v*10)/10;
@@ -42,16 +42,17 @@ const SPR={};
 function def(id,tones,layers){SPR[id]={t:tones,l:layers};}
 const cache={},pcache={};
 let artMissing=[];
+const RAGE=['#ff5a2a','#a8241a','#ffa070'];   // the enraged boss: hotter body tones
 function colOf(d,k,variant){
  let c=Q[k];
- if(!c){const i='abc'.indexOf(k);c=i>=0&&k.length===1?d.t[i]:k;}
+ if(!c){const i='abc'.indexOf(k);c=i>=0&&k.length===1?(variant==='rage'?RAGE[i]:d.t[i]):k;}
  return variant==='gray'?grayc(c):c;
 }
-function paintLayer(c,L,fill,stroke){
+function paintLayer(c,L,fill,stroke,extra){
  const d=L[1],sw=L[2],tf=L[4];let p=pcache[d];if(!p)p=pcache[d]=new Path2D(d);
  c.save();
  if(tf==='m'){c.translate(100,0);c.scale(-1,1);}else if(tf){c.translate(tf[1],tf[2]);c.rotate(tf[0]*Math.PI/180);c.translate(-tf[1],-tf[2]);}
- if(stroke){c.lineWidth=(sw||0)+OUT*2;c.strokeStyle=stroke;c.stroke(p);if(!sw){c.fillStyle=stroke;c.fill(p);}}
+ if(stroke){c.lineWidth=(sw||0)+OUT*2+(extra||0);c.strokeStyle=stroke;c.stroke(p);if(!sw){c.fillStyle=stroke;c.fill(p);}}
  else if(sw){c.lineWidth=sw;c.strokeStyle=fill;c.stroke(p);}
  else{c.fillStyle=fill;c.fill(p);}
  c.restore();
@@ -60,6 +61,7 @@ function paintLayer(c,L,fill,stroke){
 function paintSprite(c,s,variant){
  c.lineJoin='round';c.lineCap='round';
  const oc=variant==='flash'?'#fff':INK;
+ if(s.halo&&variant!=='flash'&&variant!=='gray'){c.globalAlpha=0.4;for(const L of s.l)if(L[3]!==0)paintLayer(c,L,null,'#f2ecdc',5);c.globalAlpha=1;}   // foes: a faint light rim under the ink keeps them apart from any floor
  for(const L of s.l)if(L[3]!==0)paintLayer(c,L,null,oc);
  for(const L of s.l)paintLayer(c,L,variant==='flash'?'#fff':colOf(s,L[0],variant),null);
 }
@@ -99,41 +101,78 @@ function ic(id,px,cls){
 // ---- environment tiles: pre-rendered once per theme / size / look, then blitted ----
 function tileKey(th,kind,v,lit,ts){return th.n+'|'+kind+'|'+v+'|'+(lit?1:0)+'|'+ts+'|'+(view.dpr||1);}
 const tcache={};
+// rounded rect with per-corner radii [tl,tr,br,bl] (0 = square corner)
+function rrc(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r[0],y);c.lineTo(x+w-r[1],y);if(r[1])c.arcTo(x+w,y,x+w,y+r[1],r[1]);else c.lineTo(x+w,y);c.lineTo(x+w,y+h-r[2]);if(r[2])c.arcTo(x+w,y+h,x+w-r[2],y+h,r[2]);else c.lineTo(x+w,y+h);c.lineTo(x+r[3],y+h);if(r[3])c.arcTo(x,y+h,x,y+h-r[3],r[3]);else c.lineTo(x,y+h);c.lineTo(x,y+r[0]);if(r[0])c.arcTo(x,y,x+r[0],y,r[0]);else c.lineTo(x,y);c.closePath();}
+// flagstone layouts: stones as [x,y,w,h] in tile fractions (the gaps between them show the darker joint colour)
+const FLAGS=[
+ [[0,0,1,0.52],[0,0.52,0.44,0.48],[0.44,0.52,0.56,0.48]],
+ [[0,0,0.56,1],[0.56,0,0.44,0.5],[0.56,0.5,0.44,0.5]],
+ [[0,0,0.4,0.6],[0.4,0,0.6,0.6],[0,0.6,1,0.4]],
+ [[0,0,1,0.38],[0,0.38,0.62,0.62],[0.62,0.38,0.38,0.62]]
+];
 function tileBmp(th,kind,v,lit,ts){
  const k=tileKey(th,kind,v,lit,ts);let b=tcache[k];if(b)return b;
  const dpr=view.dpr||1,w=Math.round(ts*dpr);b=mkCanvas(w,w);const c=b.getContext('2d');c.scale(w/ts,w/ts);
  const L=x=>lit?x:dimc(x);
  if(kind==='floor'||kind==='floors'){ // floor; 's' = a wall sits right above it, so it gets a soft contact shadow
-  c.fillStyle=L(v===1?th.fb:th.fa);c.fillRect(0,0,ts,ts);
-  c.fillStyle=L(th.fc);c.globalAlpha=0.55;
-  if(v===2){c.beginPath();c.moveTo(ts*0.2,ts*0.62);c.lineTo(ts*0.42,ts*0.5);c.lineTo(ts*0.52,ts*0.6);c.lineTo(ts*0.78,ts*0.4);c.lineWidth=Math.max(1.2,ts*0.045);c.strokeStyle=L(th.fc);c.lineJoin='round';c.stroke();}
-  else if(v===3){c.beginPath();c.arc(ts*0.3,ts*0.66,ts*0.07,0,7);c.arc(ts*0.62,ts*0.4,ts*0.055,0,7);c.arc(ts*0.7,ts*0.74,ts*0.04,0,7);c.fill();}
-  c.globalAlpha=0.16;c.fillStyle='#000';c.fillRect(0,ts-1,ts,1);c.fillRect(ts-1,0,1,ts);c.globalAlpha=1;
+  // v: 0..3 = flagstone layout (and which of the two floor tones); layout 2 also gets a chipped corner; the Embers get sparse ember specks
+  const g=Math.max(0.8,ts*0.045),lay=FLAGS[v===1?1:v===2?2:v===3?3:0],base=L(v===1||v===3?th.fb:th.fa);
+  c.fillStyle=L(th.fc);c.fillRect(0,0,ts,ts);
+  c.fillStyle=base;
+  for(const q of lay){rrc(c,q[0]*ts+g,q[1]*ts+g,q[2]*ts-2*g,q[3]*ts-2*g,[ts*0.07,ts*0.07,ts*0.07,ts*0.07]);c.fill();}
+  if(v===2){c.fillStyle=L(th.fc);c.beginPath();c.moveTo(ts-g,ts-g);c.lineTo(ts-g-ts*0.2,ts-g);c.lineTo(ts-g,ts-g-ts*0.17);c.closePath();c.fill();}
+  if(th.em&&v===3){c.fillStyle=lit?'#ff9a3a':L('#ff9a3a');c.globalAlpha=0.8;c.beginPath();c.arc(ts*0.3,ts*0.7,Math.max(1.1,ts*0.04),0,7);c.arc(ts*0.37,ts*0.79,Math.max(0.8,ts*0.028),0,7);c.arc(ts*0.74,ts*0.3,Math.max(0.9,ts*0.03),0,7);c.fill();c.globalAlpha=1;}
   if(kind==='floors'){c.globalAlpha=lit?0.5:0.35;c.fillStyle=L(th.fs);c.fillRect(0,0,ts,ts*0.3);c.globalAlpha=lit?0.25:0.18;c.fillRect(0,ts*0.3,ts,ts*0.12);c.globalAlpha=1;}
  }else if(kind==='water'){
-  c.fillStyle=lit?'rgba(48,120,230,0.5)':'rgba(30,70,150,0.38)';c.fillRect(0,0,ts,ts);
-  c.strokeStyle=lit?'rgba(205,234,255,0.85)':'rgba(130,170,220,0.4)';c.lineWidth=Math.max(1.5,ts*0.06);c.lineCap='round';c.beginPath();
-  const o=v?ts*0.2:0;for(const wy of [ts*0.36,ts*0.7]){c.moveTo(ts*0.1+o,wy);c.quadraticCurveTo(ts*0.28+o,wy-ts*0.14,ts*0.46+o,wy);c.quadraticCurveTo(ts*0.64+o,wy+ts*0.14,ts*0.8+o,wy);}c.stroke();
- }else{ // wall: top face + (when the tile below is open) a darker front face with brick lines
+  // one merged pool: v is the 4-bit mask of sides that have water next to them (1 up, 2 right, 4 down, 8 left); open sides are inset (a shore)
+  const ins=Math.max(2,ts*0.09),u=!(v&1),r=!(v&2),d=!(v&4),l=!(v&8),R=ts*0.18;
+  const x0=l?ins:0,y0=u?ins:0,x1=ts-(r?ins:0),y1=ts-(d?ins:0),cr=[u&&l?R:0,u&&r?R:0,d&&r?R:0,d&&l?R:0];
+  c.fillStyle=lit?'rgba(47,111,208,0.72)':'rgba(30,66,130,0.55)';rrc(c,x0,y0,x1-x0,y1-y0,cr);c.fill();
+  c.strokeStyle=lit?'rgba(143,196,255,0.7)':'rgba(110,150,200,0.35)';c.lineWidth=Math.max(1.2,ts*0.05);c.lineCap='round';
+  const e=c.lineWidth/2;
+  c.beginPath();if(u){c.moveTo(x0+cr[0],y0+e);c.lineTo(x1-cr[1],y0+e);}if(d){c.moveTo(x0+cr[3],y1-e);c.lineTo(x1-cr[2],y1-e);}if(l){c.moveTo(x0+e,y0+cr[0]);c.lineTo(x0+e,y1-cr[3]);}if(r){c.moveTo(x1-e,y0+cr[1]);c.lineTo(x1-e,y1-cr[2]);}c.stroke();
+  c.strokeStyle=lit?'rgba(205,234,255,0.8)':'rgba(130,170,220,0.35)';c.lineWidth=Math.max(1.3,ts*0.055);c.beginPath();
+  const o=(v&1)?ts*0.05:0,wl=ts*0.2,wr=ts*0.8;for(const wy of [ts*0.4,ts*0.68]){c.moveTo(wl+o,wy);c.quadraticCurveTo(wl+ts*0.15+o,wy-ts*0.1,wl+ts*0.3+o,wy);c.quadraticCurveTo(wl+ts*0.45+o,wy+ts*0.1,Math.min(wr,wl+ts*0.6+o),wy);}c.stroke();
+ }else if(kind==='fogedge'){ // soft edge of the lit area: v = side (0 up, 1 right, 2 down, 3 left), drawn over a lit tile that borders a remembered one
+  const g=v===0?c.createLinearGradient(0,0,0,ts*0.5):v===2?c.createLinearGradient(0,ts,0,ts*0.5):v===1?c.createLinearGradient(ts,0,ts*0.5,0):c.createLinearGradient(0,0,ts*0.5,0);
+  g.addColorStop(0,'rgba(7,8,15,0.38)');g.addColorStop(1,'rgba(7,8,15,0)');c.fillStyle=g;c.fillRect(0,0,ts,ts);
+ }else{ // wall: tops are the darkest plane and merge into one mass; a front face (when the tile below is open) is a touch lighter, with a highlight lip and brick lines
   const front=kind==='wallf',fh=front?ts*0.42:0,top=ts-fh;
   c.fillStyle=L(th.wt);c.fillRect(0,0,ts,ts);
-  c.fillStyle=L(th.wh);c.globalAlpha=0.45;c.fillRect(0,0,ts,Math.max(1.5,ts*0.07));c.globalAlpha=1;
   if(front){
    c.fillStyle=L(th.wf);c.fillRect(0,top,ts,fh);
-   c.fillStyle='#000';c.globalAlpha=0.28;c.fillRect(0,top,ts,Math.max(1.5,ts*0.06));c.globalAlpha=1;
+   c.fillStyle=L(th.wh);c.globalAlpha=0.75;c.fillRect(0,top,ts,Math.max(1.5,ts*0.07));c.globalAlpha=1;
+   c.fillStyle='#000';c.globalAlpha=0.2;c.fillRect(0,top+Math.max(1.5,ts*0.07),ts,Math.max(1,ts*0.05));c.globalAlpha=1;
    c.strokeStyle=L(th.we);c.lineWidth=Math.max(1,ts*0.04);c.beginPath();
    const m=top+fh*0.52;c.moveTo(0,m);c.lineTo(ts,m);
    const o=ts*(v%2?0.7:0.3),o2=(o+ts*0.5)%ts;c.moveTo(o,top);c.lineTo(o,m);c.moveTo(o2,m);c.lineTo(o2,ts);c.stroke();
-  }else{c.strokeStyle=L(th.we);c.globalAlpha=0.5;c.lineWidth=1;c.strokeRect(0.5,0.5,ts-1,ts-1);c.globalAlpha=1;}
+  }
  }
  return tcache[k]=b;
 }
+// the unexplored dark: one pre-rendered 4x4-tile patch of angular rock facets, tiled as a pattern in world space
+let rockPat=null,rockKey='';
+function rockPattern(ts){
+ const dpr=view.dpr||1,k=ts+'|'+dpr;
+ if(rockKey===k)return rockPat;
+ const n=4,w=Math.round(ts*n*dpr),cv2=mkCanvas(w,w),c=cv2.getContext('2d');c.scale(w/(ts*n),w/(ts*n));
+ c.fillStyle='#0b0c16';c.fillRect(0,0,ts*n,ts*n);
+ for(let gy=0;gy<n*2;gy++)for(let gx=0;gx<n*2;gx++){
+  const h=hash2(gx+101,gy+57),cx=(gx+0.5)*ts/2,cy=(gy+0.5)*ts/2,r=ts*(0.28+0.2*((h%7)/7)),a=(h>>3)%628/100;
+  c.fillStyle=h&1?'#0f1120':'#0d0e19';c.beginPath();
+  for(let i=0;i<4;i++){const an=a+i*1.57+((h>>(4+i))&3)*0.25,rr2=r*(0.7+0.4*(((h>>(8+i))&3)/3));c.lineTo(cx+Math.cos(an)*rr2,cy+Math.sin(an)*rr2);}
+  c.closePath();c.fill();
+ }
+ rockKey=k;rockPat=ctx.createPattern(cv2,'repeat');
+ try{rockPat.setTransform(new DOMMatrix().scale(1/dpr));}catch(e){}
+ return rockPat;
+}
 // tiny deterministic hash (no Math.random: map looks must not consume the game's random stream)
 function hash2(x,y){let h=(x*374761393+y*668265263)|0;h=(h^(h>>>13))*1274126177|0;return ((h^(h>>>16))>>>0);}
-function floorVar(x,y){const h=hash2(x,y)%10;return h<4?0:h<7?1:h<8?2:h<9?3:0;}
+function floorVar(x,y){const h=hash2(x,y)%100;return h<38?0:h<66?1:h<94?2:3;}
 
 // per-frame fast path for the tile loop: a numeric lookup table (no string keys per tile) resolved once per theme / size
-const TK={floor:0,floors:1,wallf:2,wallt:3,water:4};
+const TK={floor:0,floors:1,wallf:2,wallt:3,water:4,fogedge:5};
 let lutKey='',lut=null;
 function tileLut(th,ts){
  const k=th.n+'|'+ts+'|'+(view.dpr||1);
@@ -141,6 +180,6 @@ function tileLut(th,ts){
  return lut;
 }
 function tileFast(L,th,kind,v,lit,ts){
- const i=((TK[kind]*4+v)*2)+(lit?1:0);
+ const i=((TK[kind]*16+v)*2)+(lit?1:0);
  return L[i]||(L[i]=tileBmp(th,kind,v,lit,ts));
 }

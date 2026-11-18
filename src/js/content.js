@@ -11,20 +11,12 @@ const SFX={
  win:[[523,.12,'triangle',.09],[659,.12,'triangle',.09],[784,.12,'triangle',.09],[1047,.35,'triangle',.09]]
 };
 const THEMES=ENV;
-// each depth band has a second look for the "other" exit: same colours rotated in hue, with its own name
-function tintTheme(t,name,deg){
- const f=c=>{
-  const r=parseInt(c.slice(1,3),16)/255,g=parseInt(c.slice(3,5),16)/255,b=parseInt(c.slice(5,7),16)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;
-  let h=0,s=0;
-  if(d){s=d/(1-Math.abs(2*l-1));h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}
-  h=(h+deg+360)%360;
-  const C=(1-Math.abs(2*l-1))*s,X=C*(1-Math.abs((h/60)%2-1)),m=l-C/2,k=Math.floor(h/60),rgb=[[C,X,0],[X,C,0],[0,C,X],[0,X,C],[X,0,C],[C,0,X]][k%6];
-  return '#'+rgb.map(v=>('0'+Math.round((v+m)*255).toString(16)).slice(-2)).join('');
- },o={n:name};
- for(const k in t)if(k!=='n')o[k]=f(t[k]);
- return o;
-}
-const THEMES2=[tintTheme(THEMES[0],'The Ossuary',70),tintTheme(THEMES[1],'The Fungal Grotto',-75),tintTheme(THEMES[2],'The Ashen Halls',-35)];
+// each depth band has a second, hand-picked look for the "other" exit (own palette and name)
+const THEMES2=[
+ {n:'The Ossuary',fa:'#4f4a44',fb:'#57514a',fc:'#3d3934',fs:'#17130f',wt:'#2f2b27',wf:'#433d36',we:'#25211d',wh:'#8a7f6c',mw:'#6a6050',mf:'#b0a58e',mfd:'#5a5246',em:0},
+ {n:'The Fungal Grotto',fa:'#3f5a63',fb:'#46636c',fc:'#2f4650',fs:'#0e1b20',wt:'#2a2748',wf:'#3a3763',we:'#1f1d38',wh:'#6a5ca6',mw:'#5c4f94',mf:'#8ab0bf',mfd:'#4a6670',em:0},
+ {n:'The Ashen Halls',fa:'#4a4748',fb:'#524f50',fc:'#383536',fs:'#161212',wt:'#2d2a2b',wf:'#433f40',we:'#201c1d',wh:'#c0702f',mw:'#6a5a52',mf:'#b0a8a4',mfd:'#5c5652',em:1}
+];
 function themeOf(f,v){const i=f<=3?0:f<=6?1:2;return v===1&&f<MAXF?THEMES2[i]:THEMES[i];}
 const ENAMES=['Gorak','Vexa','Morn','Sable','Thrain','Ilsa','Brakk','Nyx'],ETITLES=['the Cruel','the Bloodied','Ironhide','the Hungry','Gravecaller','Emberhand'];
 // Ability button defs per key: icon, short name, targeting (adj = adjacent enemy, line = enemy in a straight line,

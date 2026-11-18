@@ -80,6 +80,7 @@ function setH(el,h){if(el._h!==h){el._h=h;el.innerHTML=h;}}
 function updateHud(){
  if(!G)return;const p=G.p;
  $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
+ {const fr=p.hp/p.mhp,col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,f=$('hpfill');if(f._c!==col){f._c=col;f.style.background=col;}}
  setH($('hptxt'),ic(clsOf(p).e,17)+' HP '+p.hp+'/'+p.mhp);
  const rb=$('resbar'),rf=$('resfill'),rt=$('restxt');
  if(p.cls==='warrior'){rb.className='res rage';rf.style.width=Math.min(100,100*(p.rage||0)/BAL.rage.max)+'%';setH(rt,'Rage '+Math.floor(p.rage||0));}

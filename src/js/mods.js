@@ -64,7 +64,7 @@ function crackTick(){
  for(const c of G.cracks){if(--c.t>0)keep.push(c);else boom.push(c);}
  G.cracks=keep;
  for(const c of boom){
-  if(!rmo())puffs.push({x:c.x,y:c.y,t:performance.now(),s:Math.random()*6});
+  puffAdd(c.x,c.y);
   const d=U.dmgBase+Math.floor(G.floor/U.dmgFloorDiv);
   if(p.hp>0&&p.x===c.x&&p.y===c.y){p.hp-=d;G.killer='a collapsing floor';playerHurtFx(d);floatFx(p.x,p.y,'-'+d,'#ff5a5a');msg('The floor collapses under you! -'+d+' HP.');secondWind();}
   const e=enemyAt(c.x,c.y);

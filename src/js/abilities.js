@@ -192,7 +192,7 @@ const DO={
   const R=a.radius+(prism?O.prismRadius:0);
   const dmg=Math.max(1,Math.round((a.base+a.perFloor*G.floor)*G.p.fireMul*spellMul()*(prism?O.prismMul:1)));
   vfxAdd('fire',G.p.x,G.p.y,tx,ty,R);floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball: '+dmg+' damage.');
-  if(!rmo())puffs.push({x:tx,y:ty,t:performance.now(),s:Math.random()*6});
+  puffAdd(tx,ty);
   for(const e of G.enemies.slice())if(!e.dead&&Math.max(Math.abs(e.x-tx),Math.abs(e.y-ty))<=R){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
   endTurn();
  },

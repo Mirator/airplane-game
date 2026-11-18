@@ -1,12 +1,56 @@
 // effects.js - cosmetic effects state: screen shake, floating combat text, hurt flash.
 
 function shake(a){if(rmo())return;shakeUntil=performance.now()+220;shakeAmt=a;}
+// hurt flash: a red vignette at the screen edge, scaled by the share of max HP lost (0.12..0.5); only a hit of >=20% max HP washes the whole screen. None with reduced motion.
+let flashAmt=0,flashFull=false;
 function playerHurtFx(d){
- const p=G.p,now=performance.now();flashes.p=now;flashUntil=now+250;sfx('hurt');
- const big=d>=Math.max(6,p.mhp*0.2);buzz(big?70:30);if(big)shake(6);
+ const p=G.p,now=performance.now();flashes.p=now;sfx('hurt');
+ const share=d/Math.max(1,p.mhp),big=d>=Math.max(6,p.mhp*0.2);
+ if(!rmo()){
+  const a=Math.max(0.12,Math.min(0.5,share*2.2)),live=now<flashUntil;
+  flashFull=(live&&flashFull)||share>=0.2;flashAmt=live?Math.max(flashAmt,a):a;flashUntil=now+(flashFull?250:180);
+ }
+ buzz(big?70:30);if(big)shake(6);
 }
 
-function floatFx(x,y,text,color,big){fx.push({x,y,text,color,big:!!big,t:performance.now()});}
+// ---- sequencing: something that travels lands later than the action that threw it. What it hits (flash, number, death, the foe's own
+// step) waits for it: holds[x,y] = the moment a projectile arrives on that tile. Cosmetic only; the game state has already moved on.
+let holds={},faces={};
+const TRAVEL={bolt:210,knife:190,fire:160,charge:130};
+function holdAt(x,y){const h=holds[x+','+y];if(!h)return 0;const d=h-performance.now();return d>0?d:0;}
+function holdSet(x,y,ms){const k=x+','+y,t=performance.now()+ms;if(!holds[k]||holds[k]<t)holds[k]=t;}
+// ---- floating labels. kind n = damage / heal number (bare outlined digits), s = status word (small pill, lower case), a = announcement (upper-case pill).
+// Every label is placed when it is spawned: its box is tested against the labels already alive on the screen (at the moment it appears) and it
+// is stacked upward until it overlaps none. A status word waits 250 ms behind the number on its tile; the same word twice within 160 ms is one label.
+const LBL_SZ={n:0.42,s:0.30,a:0.34},LBL_MS={n:800,s:700,a:900};
+let lblCtx=null;const lblWc={};
+function lblW(text,sz,k){ // box width in tile units
+ const key=text+'|'+k;let w=lblWc[key];
+ if(w==null){if(!lblCtx)lblCtx=mkCanvas(4,4).getContext('2d');lblCtx.font='800 100px system-ui,-apple-system,sans-serif';w=lblWc[key]=lblCtx.measureText(text).width/100;}
+ return w*sz+(k==='n'?0.12:sz*1.1);
+}
+function lblPos(f,T){ // centre of the label's box at time T, in tile units
+ const a=Math.max(0,(T-f.t)/800);
+ return [f.x+0.5+(f.dxo||0),f.y+0.2+(f.off||0)-a*0.6];
+}
+function floatFx(x,y,text,color,big){
+ const now=performance.now();
+ const k=/^[-+]?\d|^!$/.test(text)?'n':(text===text.toUpperCase()&&/[A-Z]/.test(text))?'a':'s';
+ let t=now+holdAt(x,y);const t0=t;
+ for(const g of fx){if(g.c)continue;
+  if(k!=='n'&&g.text===text&&Math.abs(g.t0-t0)<160)return;                       // one word per volley
+  if(k==='s'&&g.k==='n'&&g.x===x&&g.y===y&&g.t>now-300)t=Math.max(t,g.t+250);}  // after the number, not on top of it
+ const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={x:x,y:y,text:text,color:color,big:!!big,t:t,t0:t0,k:k,sz:sz,d:LBL_MS[k],off:0,dxo:0};
+ const w=lblW(text,sz,k),h=sz*(k==='n'?1.15:1.5);
+ for(let i=0;i<14;i++){
+  f.off=-i*Math.max(0.3,h);
+  let hit=false;const pa=lblPos(f,t);
+  for(const g of fx){if(g.c||t>g.t+g.d||g.t>t+f.d)continue;const Tc=Math.max(t,g.t),A=lblPos(f,Tc),B=lblPos(g,Tc),gw=lblW(g.text,g.sz,g.k),gh=g.sz*(g.k==='n'?1.15:1.5);
+   if(Math.abs(A[0]-B[0])<(w+gw)/2&&Math.abs(A[1]-B[1])<(h+gh)/2){hit=true;break;}}
+  if(!hit)break;
+ }
+ fx.push(f);
+}
 // callout: a brief on-map word or two (<=3 words, ~1 s) for the few events worth seeing without reading the log. Drawn on the canvas (so it can
 // never take a tap), at most BAL.ui.calloutMax at once (a third one is dropped; the log keeps the history), no motion with reduced motion.
 function callout(x,y,text,color){
@@ -33,9 +77,15 @@ function eliteWatch(){
 // (a seeded run must play out identically with or without them), and all are skipped with prefers-reduced-motion. ----
 let lunges={},ghosts=[],vfx=[];
 const VFX_MS={bolt:300,knife:240,nova:380,blink:320,fire:440,cleave:240,charge:280,bash:240,brace:340,backstab:260,vanish:340,smoke:430};
-function lunge(id,dx,dy){if(rmo())return;lunges[id]={t:performance.now(),dx:Math.sign(dx),dy:Math.sign(dy)};}
-function ghostAdd(e){if(rmo())return;ghosts.push({id:EN[e.t].e,x:e.x,y:e.y,elite:!!e.elite,boss:!!EN[e.t].boss,t:performance.now()});}
-function vfxAdd(k,x,y,x2,y2,r){if(rmo())return;vfx.push({k:k,x:x,y:y,x2:x2==null?x:x2,y2:y2==null?y:y2,r:r||1,t:performance.now(),d:VFX_MS[k]||300});}
+function lunge(id,dx,dy){if(dx)faces[id]=Math.sign(dx);if(rmo())return;lunges[id]={t:performance.now(),dx:Math.sign(dx),dy:Math.sign(dy)};}
+function ghostAdd(e){if(rmo())return;const boss=!!EN[e.t].boss;ghosts.push({id:EN[e.t].e,x:e.x,y:e.y,elite:!!e.elite,boss:boss,rage:!!e.enraged,t:performance.now()+holdAt(e.x,e.y)});if(boss)shake(8);}
+function puffAdd(x,y){if(rmo())return;puffs.push({x:x,y:y,t:performance.now()+holdAt(x,y),s:Math.random()*6});}
+function vfxAdd(k,x,y,x2,y2,r){
+ if(rmo())return;
+ vfx.push({k:k,x:x,y:y,x2:x2==null?x:x2,y2:y2==null?y:y2,r:r||1,t:performance.now(),d:VFX_MS[k]||300});
+ if(TRAVEL[k]){const R=k==='fire'?(r||1):0;for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++)holdSet(x2+dx,y2+dy,TRAVEL[k]);}
+ else if(k==='nova'){for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++)holdSet(x+dx,y+dy,55*Math.max(Math.abs(dx),Math.abs(dy)));}
+}
 const lerp=(a,b,t)=>a+(b-a)*t;
 function ring(cx,cy,r,col,w,al){ctx.globalAlpha=Math.max(0,al);ctx.strokeStyle=col;ctx.lineWidth=w;ctx.beginPath();ctx.arc(cx,cy,Math.max(0.5,r),0,7);ctx.stroke();ctx.globalAlpha=1;}
 function disc(cx,cy,r,col,al){ctx.globalAlpha=Math.max(0,al);ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,Math.max(0.5,r),0,7);ctx.fill();ctx.globalAlpha=1;}

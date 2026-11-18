@@ -56,11 +56,11 @@ function showTitle(keep){
  if(hasSave()){const b=big(add('button','Continue run','c'));b.id='btnContinue';b.addEventListener('click',continueRun);}
  const nb=big(add('button','New run','c'));nb.id='btnNew';guard(nb,'New run',function(){showClassPicker();});
  const g=add('div','');g.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px';
- const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.className='c';b.innerHTML=html;b.style.minHeight='56px';b.style.padding='6px 4px';b.style.whiteSpace='nowrap';b.addEventListener('click',fn);g.appendChild(b);return b;};
- const db=cell('btnDaily','<span class="cl">'+ic('cal',20)+' Daily</span>'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
+ const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.className='c';b.innerHTML=html;b.classList.add('tri');b.addEventListener('click',fn);g.appendChild(b);return b;};
+ const db=cell('btnDaily',ic('cal',22)+'<span class="tl">Daily</span>'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
  guard(db,'Daily',function(){showClassPicker({daily:true});});
- cell('btnUpg','<span class="cl">'+ic('cart',20)+' Upgrades</span><small style="display:block;font-size:11px" class="gold">'+meta.gold+' '+ic('coin',12)+'</small>',function(){showUpgrades();});
- cell('btnMore','More',function(){showMore();});
+ cell('btnUpg',ic('cart',22)+'<span class="tl">Upgrades</span><i class="pill gold">'+meta.gold+' '+ic('coin',12)+'</i>',function(){showUpgrades();});
+ cell('btnMore',ic('menu',22)+'<span class="tl">More</span>',function(){showMore();});
  $('title').style.display='flex';
  if(keep)t.scrollTop=st;
 }
@@ -72,8 +72,8 @@ function showMore(){
  const row=(id,html,fn)=>{const b=add('button',html,'c');b.id=id;b.addEventListener('click',fn);return b;};
  row('btnRecords',ic('medal',20)+' Records',function(){showRecords();});
  row('btnAch',ic('trophy',20)+' Achievements <small>'+ACH.filter(a=>meta.ach[a.id]).length+'/'+ACH.length+'</small>',function(){showAchievements();});
- row('btnControls','Controls',function(){showHelp(closeModal);});
- const sb=row('btnSound',soundLabel(),function(){toggleSound();sb.textContent=soundLabel();});
+ row('btnControls',ic('info',20)+' Controls',function(){showHelp(closeModal);});
+ const sb=row('btnSound',ic('snd',20)+' '+soundLabel(),function(){toggleSound();sb.innerHTML=ic('snd',20)+' '+soundLabel();});
  const bk=add('button','Back','c');bk.addEventListener('click',function(){showTitle();});
 }
 // permanent upgrades and unlocks (bought with banked gold)
@@ -85,7 +85,7 @@ function showUpgrades(){
  add('h2','Boosts').style.fontSize='16px';
  for(const s of SHOP){
   const c=cost(s),lv=meta[s.k],maxed=lv>=shopMax(s);
-  const b=add('button','<b>'+s.n+' '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+'</b><span>'+s.d+' · '+(maxed?'MAX':'<span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>');
+  const b=add('button',cardHtml(s.k,'<b>'+s.n+' '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+'</b><span>'+s.d+' · '+(maxed?'MAX':'<span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>'),'hasic');
   b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(meta[s.k]>=shopMax(s)||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showUpgrades();});
  }
@@ -95,7 +95,7 @@ function showUpgrades(){
   if(have)sub='<span style="color:#6fd08c">Unlocked</span>';
   else if(u.ach)sub=ic('lock',13)+' '+u.ach+' ('+u.prog()+')';
   else{sub='<span class="gold">'+u.cost+' '+ic('coin',13)+'</span>';dis=meta.gold<u.cost;}
-  const b=add('button','<b>'+u.n+'</b><span>'+u.d+' · '+sub+'</span>');b.disabled=dis;
+  const b=add('button',cardHtml(u.id,'<b>'+u.n+'</b><span>'+u.d+' · '+sub+'</span>'),'hasic');b.disabled=dis;
   if(have){b.style.opacity='.85';b.style.borderColor='#2a8a5a';}
   if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showUpgrades();});
  }
@@ -105,13 +105,14 @@ function showUpgrades(){
 
 // title scene: flat vector night sky, moon, tower on the hill, a dragon over it and rising embers (no image files)
 function titleLogo(){
- const em=[[30,96,2.4],[58,70,1.8],[92,104,2.2],[268,92,2.6],[296,70,1.8],[250,112,2],[170,64,1.6],[130,88,1.8],[214,100,2.2]].map(a=>'<circle cx="'+a[0]+'" cy="'+a[1]+'" r="'+a[2]+'" fill="#ff9a3a" opacity=".85"/>').join('');
- return '<svg class="scene" viewBox="0 0 320 150" aria-hidden="true" focusable="false">'+
-  '<circle cx="232" cy="46" r="44" fill="#ff9a3a" opacity=".1"/><circle cx="232" cy="46" r="26" fill="#efe8d2"/><circle cx="224" cy="40" r="5" fill="#d9d0b4"/><circle cx="241" cy="55" r="3.4" fill="#d9d0b4"/>'+
-  '<path d="M0 110 L40 80 L74 100 L118 62 L160 96 L206 70 L252 98 L292 76 L320 94 L320 150 L0 150z" fill="#23284d"/>'+
+ const em=[[30,156,2.4],[58,130,1.8],[92,164,2.2],[268,152,2.6],[296,130,1.8],[250,172,2],[170,124,1.6],[130,148,1.8],[214,160,2.2],[110,90,1.6],[300,70,1.8]].map(a=>'<circle cx="'+a[0]+'" cy="'+a[1]+'" r="'+a[2]+'" fill="#ff9a3a" opacity=".85"/>').join('');
+ const stars=[[20,20],[60,34],[100,14],[150,26],[40,70],[84,54],[190,12],[286,22],[300,48]].map(a=>'<circle cx="'+a[0]+'" cy="'+a[1]+'" r="1.2" fill="#dfe6ff" opacity=".6"/>').join('');
+ return '<svg class="scene" viewBox="0 0 320 210" aria-hidden="true" focusable="false">'+stars+
+  '<circle cx="232" cy="64" r="56" fill="#ff9a3a" opacity=".1"/><circle cx="232" cy="64" r="34" fill="#efe8d2"/><circle cx="222" cy="56" r="6" fill="#d9d0b4"/><circle cx="243" cy="76" r="4" fill="#d9d0b4"/>'+
+  '<g transform="translate(0 60)"><path d="M0 110 L40 80 L74 100 L118 62 L160 96 L206 70 L252 98 L292 76 L320 94 L320 150 L0 150z" fill="#23284d"/>'+
   '<path d="M0 124 L50 106 L110 120 L170 100 L240 118 L320 104 L320 150 L0 150z" fill="#161a36"/>'+
   '<g fill="#0c0e1f"><rect x="136" y="64" width="48" height="62"/><rect x="128" y="52" width="16" height="74"/><rect x="176" y="48" width="16" height="78"/><path d="M126 52 L136 34 L146 52z"/><path d="M174 48 L184 28 L194 48z"/><rect x="136" y="58" width="6" height="8"/><rect x="148" y="58" width="6" height="8"/><rect x="160" y="58" width="6" height="8"/><rect x="172" y="58" width="6" height="8"/></g>'+
   '<g fill="#ffc93c"><rect x="133" y="76" width="6" height="10" rx="3"/><rect x="181" y="72" width="6" height="10" rx="3"/><rect x="154" y="98" width="12" height="16" rx="6"/><rect x="156" y="82" width="8" height="8" rx="2"/></g>'+
-  '<path d="M0 134 Q80 122 160 136 Q240 124 320 134 L320 150 L0 150z" fill="#0a0b18"/>'+
-  '<g transform="translate(44 6) scale(0.56)">'+svgInner('dragon')+'</g>'+em+'</svg>';
+  '<path d="M0 134 Q80 122 160 136 Q240 124 320 134 L320 150 L0 150z" fill="#0a0b18"/></g>'+
+  '<g transform="translate(150 6) scale(1.62)">'+svgInner('dragon')+'</g>'+em+'</svg>';
 }

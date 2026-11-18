@@ -13,7 +13,7 @@ function curseDrain(){
 function killEnemy(e,src){
  if(e.dead)return;
  e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
- const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');if(!rmo())puffs.push({x:e.x,y:e.y,t:performance.now(),s:Math.random()*6});ghostAdd(e);
+ const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');puffAdd(e.x,e.y);ghostAdd(e);
  gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));
  if(d.boss){G.won=true;return;}
  if(modIs('horde')&&!G.enemies.length)earn('horde');
@@ -40,7 +40,7 @@ function hurtEnemy(e,dmg,col,crit,kind){
   if(kind!=='melee')m=Math.min(m,BAL.weapon.shieldRanged);
   if(m<1){dmg=Math.max(1,Math.round(dmg*m));floatFx(e.x,e.y,'shield','#9ab');}
  }
- e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now();floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
+ e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now()+holdAt(e.x,e.y);floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
 }
 // resolve a hit: kill if dead, else maybe execute
 function settle(e,src){
@@ -120,7 +120,7 @@ function hurtPlayer(e,dmg,melee,verb){
   dmg=Math.max(1,Math.round(dmg*BAL.ability.brace.reduce));refl=melee?Math.round(raw*G.brace.reflect):0;
   floatFx(p.x,p.y,'braced','#9cf');if(--G.brace.hits<=0)G.brace=null;
  }
- p.hp-=dmg;G.killer=nm(e);flashUntil=performance.now()+250;floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
+ p.hp-=dmg;G.killer=nm(e);floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
  msg('The '+nm(e)+' '+(verb||(melee?'hits':'blasts'))+' you for '+dmg+'.');playerHurtFx(dmg);
  gainRage(BAL.rage.taken);
  secondWind();
