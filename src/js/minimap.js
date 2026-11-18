@@ -1,7 +1,7 @@
 // minimap.js - minimap / big-map drawing (rounded dark panel, theme colours, round markers).
 
 function drawMini(){
- const th=themeOf(G.floor,G.variant),big=bigMap,cs=big?Math.max(4,Math.floor(Math.min(view.cw-8,view.ch-8)/W)):3;
+ const th=themeOf(G.floor,G.variant),big=bigMap,cs=big?Math.max(4,Math.floor(Math.min(view.cw-8,view.ch-8)/W)):Math.max(3,Math.round(baseTs()/12));
  // the small map is cropped to what has been seen (+2 cells, at least 48 px), anchored top-right; the big map is the whole floor
  let bx0=0,by0=0,bx1=W-1,by1=H-1;
  if(!big){

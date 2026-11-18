@@ -1,9 +1,15 @@
 // render.js - canvas sizing and the main render() pass: tiles (pre-rendered, blitted), sprites (pre-rendered, blitted), effects overlays, fog, banner.
 
+// wide layout (side panel) is decided by CSS; the log shows more lines there
+const wideMq=window.matchMedia?window.matchMedia('(min-width:960px) and (min-height:500px) and (min-aspect-ratio:11/10)'):null;
+function isWide(){return !!(wideMq&&wideMq.matches);}
+// base tile size: about 11.5 tiles across the short side, never below 28 and never above BAL.ui.camMaxTs (sprites stay crisp, big screens show more map instead)
+function baseTs(){return Math.min(BAL.ui.camMaxTs,Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5)));}
 function resize(){
  const box=$('cv'),r=box.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
  view.cw=Math.max(50,r.width);view.ch=Math.max(50,r.height);view.dpr=dpr;
  cv.width=Math.round(view.cw*dpr);cv.height=Math.round(view.ch*dpr);
+ LOGN=isWide()?9:3;
  render();
 }
 if(window.ResizeObserver)new ResizeObserver(resize).observe($('cv'));
@@ -190,7 +196,7 @@ function render(){
  let shk=false;
  if(now<shakeUntil&&!rm){const sa=shakeAmt*(shakeUntil-now)/220;ctx.translate((Math.random()*2-1)*sa,(Math.random()*2-1)*sa);ctx.fillStyle='#07070d';ctx.fillRect(-12,-12,view.cw+24,view.ch+24);shk=true;}
  view.tg=armed?targetTiles(armed):null;   // the aimed ability's tiles, computed once per frame (camera and reticles both use them)
- const ts0=Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5)),cam=camPlan(ts0);
+ const ts0=baseTs(),cam=camPlan(ts0);
  const ts=cam?cam.ts:ts0;
  const fox=cam?cam.ox:Math.round(view.cw/2-(p.x+0.5)*ts),foy=cam?cam.oy:Math.round(view.ch/2-(p.y+0.5)*ts);
  if(lastPos&&lastPos.f===G.floor&&(lastPos.x!==p.x||lastPos.y!==p.y)){

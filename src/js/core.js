@@ -8,3 +8,4 @@ let AC=null,flashes={},shakeUntil=0,shakeAmt=0,puffs=[],pulseUntil=0,stepAnim=nu
 let shrineQ=false,trapConfirm=-1,bannerText='',bannerUntil=0,wsc={arr:null,set:new Set()},toastQ=[],toastBusy=false,chipHtml='';
 let gearQ=null,insp=null,lp=null,lpAt=-1e9,lpDone=false,guard=null,hpLow=false,hpLowG=null,eliteSeen=new Set(),eliteG=null;
 let claimed=new Set(),goneT=new Map(),lastAtk=null,frameT=null,modalAt=0,lastDown=0,modalGrace=0;
+let LOGN=3;   // message-log lines shown (3 in the bottom bar layout, more in the wide side panel)

@@ -92,7 +92,7 @@ function updateHud(){
  autoUi();
 }
 function renderLog(){
- if(!G)return;const l=G.log.slice(-3);
+ if(!G)return;const l=G.log.slice(-LOGN);
  $('log').innerHTML=l.map(t=>'<div></div>').join('');
  const ch=$('log').children;for(let i=0;i<l.length;i++)ch[i].textContent=l[i];
 }
