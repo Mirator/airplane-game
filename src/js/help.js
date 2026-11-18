@@ -8,6 +8,7 @@ function showHelp(back){
  let h='<div class="hess">'+
   '<p><b>Tap</b> a tile to walk, an enemy to attack, yourself to wait.</p>'+
   '<p><b>Hold</b> (or right-click) a foe, a tile or yourself to inspect it. Tap to close.</p>'+
+  '<p><b>Keys:</b> arrows or WASD move and attack, 1-4 abilities, Space wait, E explore, I items, Q potion, Enter stairs, Esc cancel or menu.</p>'+
   '<p><b>Abilities:</b> tap one, then a lit tile. Dim ones say why.</p>'+
   '<p><b>Red tiles</b> hit next turn: step off. Walking onto danger or a trap needs a second tap.</p>'+
   '<p><b>Explore</b> finds new ground, then the stairs. <b>Items</b> holds potion, flames, teleport. The menu has Auto, perks and sound.</p></div>'+

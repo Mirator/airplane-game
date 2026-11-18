@@ -426,6 +426,6 @@ function autoTravel(dz,cz,tz){
 }
 
 // a phone turned sideways covers the game with a rotate hint (styles.css #rot): Auto must not keep playing unseen behind it
-try{const mq=window.matchMedia('(orientation:landscape) and (max-height:520px) and (max-width:1000px)');
+try{const mq=window.matchMedia('(orientation:landscape) and (max-height:499px) and (max-width:1000px)');
  const rotCheck=function(e){if(e.matches&&AUTO.on)autoStop('Auto paused: rotate your phone.');};
  if(mq.addEventListener)mq.addEventListener('change',rotCheck);else if(mq.addListener)mq.addListener(rotCheck);}catch(e){}

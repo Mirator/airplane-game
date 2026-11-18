@@ -106,7 +106,25 @@ function showMore(){
  row('btnAch',ic('trophy',20)+' Achievements <small>'+ACH.filter(a=>meta.ach[a.id]).length+'/'+ACH.length+'</small>',function(){showAchievements();});
  row('btnControls',ic('info',20)+' Controls',function(){showHelp(closeModal);});
  const sb=row('btnSound',ic('snd',20)+' '+soundLabel(),function(){toggleSound();sb.innerHTML=ic('snd',20)+' '+soundLabel();});
+ const rb=row('btnReset',ic('x',20)+' Reset all progress',showResetAsk);rb.classList.add('danger');rb.style.marginTop='10px';
  const bk=add('button','Back','c');bk.addEventListener('click',function(){showTitle();});
+}
+// reset: two deliberate steps. Step 1 asks (Cancel is the big default), step 2 asks again with the red button at the TOP and Cancel at the bottom.
+function showResetAsk(){
+ showModal('Reset all progress?','<p class="sub">Gold, upgrades, blueprints, records, settings and your saved run are lost.</p>',[
+  {k:'cancel',label:'Cancel',c:1,cls:'keep',fn:closeModal},
+  {k:'reset1',label:'Erase everything...',c:1,cls:'danger',fn:function(){closeModal();showResetSure();}}
+ ],'reset');
+ $('modalBox').classList.add('reset');
+}
+function showResetSure(){
+ showModal('Really erase everything?','<p class="sub">This cannot be undone.</p>',[
+  {k:'reset2',label:'Yes, erase all progress',c:1,cls:'danger',fn:function(el){
+   el.disabled=true;
+   wipeAll(function(){closeModal();noticeOld=false;showTitle();});}},
+  {k:'cancel',label:'Cancel',c:1,cls:'keep',fn:closeModal}
+ ],'reset');
+ $('modalBox').classList.add('reset');
 }
 // permanent upgrades and unlocks (bought with banked gold): tab Upgrades (levels, either/or pairs, unlocks) and tab Blueprints (idleui.js)
 function shopTabs(t,tab){

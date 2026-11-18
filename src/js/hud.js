@@ -15,8 +15,9 @@ const BTNS=[
  {id:'b_down',fn:act(descend)}
 ];
 const TRAYBTNS=[{id:'b_pot',fn:act(drink)},{id:'b_fire',fn:act(fireball)},{id:'b_tele',fn:act(teleport)}];
-for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
-for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
+const KEYS={b_items:'I',b_exp:'E',b_wait:'Space',b_down:'Enter',b_pot:'Q'};
+for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.dataset.key=KEYS[b.id];el.addEventListener('click',b.fn);$('bar').appendChild(el);}
+for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;if(KEYS[b.id])el.dataset.key=KEYS[b.id];el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
 function trayOpen(){return $('tray').style.display!=='none';}
 function setTray(on){
  $('tray').style.display=on?'flex':'none';
@@ -29,8 +30,8 @@ document.addEventListener('click',function(ev){
  setTray(false);
 });
 const ab2=$('bar2');
-for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
-$('gearBtn').innerHTML=ic('equip',28);$('menuBtn').innerHTML=ic('menu',26);
+for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.dataset.key=String(i+1);el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
+$('menuBtn').dataset.key='Esc';$('gearBtn').innerHTML=ic('equip',28);$('menuBtn').innerHTML=ic('menu',26);
 for(const el of document.querySelectorAll('[data-slot]'))el.innerHTML=ic(el.dataset.slot==='stop'?'x':'auto',16);
 $('gearBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showEquip(closeModal);});
 function bset(id,icn,lab,badge,dis){

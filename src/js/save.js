@@ -83,7 +83,7 @@ function idbOpen(cb){
 }
 // writes are coalesced: one transaction in flight, only the newest value waits behind it
 function idbFlush(){
- if(idbBusy||idbWant===undefined)return;idbBusy=true;
+ if(resetting||idbBusy||idbWant===undefined)return;idbBusy=true;
  idbOpen(function(db){
   const v=idbWant;idbWant=undefined;
   if(!db){idbBusy=false;return;}
@@ -138,4 +138,24 @@ function continueRun(){
   if(autoWas)msg('Auto is paused. Tap AUTO to resume.');
   if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
+}
+
+// ---- reset: wipes everything this game stored (meta save, run save, Auto speed; localStorage and the IndexedDB mirror) and nothing else on the origin
+let resetting=false;
+function freshMeta(){
+ for(const k of Object.keys(meta))delete meta[k];
+ Object.assign(meta,{seenHelp:0,gold:0,wins:0,best:0,unl:{}},META_DEFAULTS());
+ meta.kills=0;meta.elites=0;meta.sound=0;meta.mv=2;cleanMeta();
+}
+function wipeAll(done){
+ resetting=true;idbWant=undefined;
+ try{for(const k of [META_KEY,RUN_KEY].concat(OLD_RUN_KEYS,[AUTO_SPEED_KEY]))localStorage.removeItem(k);}catch(e){}
+ freshMeta();noticeOld=false;G=null;armed=null;
+ try{AUTO.speed=BAL.auto.speeds[0];}catch(e){}
+ let fin=false;const end=function(){if(fin)return;fin=true;resetting=false;try{if(idbConn){idbConn.close();idbConn=null;}}catch(e){}if(done)done();};
+ const drop=function(){try{if(idbConn){idbConn.close();idbConn=null;}const r=indexedDB.deleteDatabase(IDB_NAME);r.onsuccess=r.onerror=r.onblocked=end;}catch(e){end();}};
+ setTimeout(end,1500);
+ const wait=function(){if(idbBusy)return setTimeout(wait,30);
+  idbOpen(function(db){if(!db){end();return;}try{const tx=db.transaction('s','readwrite');tx.objectStore('s').clear();tx.oncomplete=drop;tx.onerror=tx.onabort=end;}catch(e){end();}});};
+ wait();
 }

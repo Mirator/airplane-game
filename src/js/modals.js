@@ -6,7 +6,7 @@ function modalOpen(){return $('modal').style.display!=='none'||$('title').style.
 // A dialog that opens because of something that happened (level-up, gear underfoot, shrine, exit choice, merchant, end of run) may appear
 // under a finger that is still tapping the map. Real taps are ignored for BAL.ui.modalGraceMs after it opens, and so is any tap whose finger
 // went down BEFORE it opened (never both counted). Clicks made through the DOM (Auto, bots) and keyboard activations are not touched.
-const GRACE_KINDS={perk:1,gear:1,shrine:1,path:1,shop:1,end:1};
+const GRACE_KINDS={perk:1,gear:1,shrine:1,path:1,shop:1,end:1,reset:1};
 document.addEventListener('pointerdown',function(){lastDown=performance.now();},true);
 function modalBlocked(e){
  if(!modalGrace||!e||!e.isTrusted)return false;
@@ -15,7 +15,7 @@ function modalBlocked(e){
 function showModal(title,html,buttons,kind,icon){
  const wasOpen=$('modal').style.display!=='none';
  modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]?BAL.ui.modalGraceMs:0;
- armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win');
+ armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
  const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
