@@ -11,7 +11,7 @@ function showHelp(back){
   r('⏳','Wait','Skips a turn (also: tap yourself).')+
   r('⬇️','Stairs','Goes down one floor when you stand on the ▼ tile.')+
   '<p><b>Ability buttons (the row above the bar)</b></p>'+
-  r('🎯','Four abilities per class','Each button shows its icon, name and cost (or the turns until it recharges). A dim button cannot be used right now: tap it and the log says why. Self abilities fire at once. Targeted ones arm: valid tiles light up, tap one to use it, or tap yourself / the red Cancel button to back out. Every ability uses one turn.')+
+  r('🎯','Four abilities per class','Each button shows its icon, name and cost (or the turns until it recharges). A dim button cannot be used right now: tap it and the log says why. Self abilities fire at once. Targeted ones arm: valid tiles light up, tap one to use it, or tap the same button again (it turns into Cancel) or tap yourself to back out. Nothing covers the map while you aim. Every ability uses one turn.')+
   r('⚔️','Weapons','Sword: balanced. Axe: hits the enemies next to you or the target too. Spear: reach '+WP.spear.reach+' - tap an enemy two tiles away in a straight line. Dagger: crit and sneak bonus. Staff: spell power and mana, weak melee.')+
   r('🛡','Armor, off-hand, charm','Armor trades defense for resources (plate: strong but slows mana and rage; robe: spell power and mana but no defense; leather: dodge). Each class has its own off-hands that change one ability. A charm is one passive rule. Tap 🎒 to see everything you wear.')+
   '<p><b>Tap controls</b></p>'+

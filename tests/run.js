@@ -7,7 +7,6 @@
 // Prints one line per file, then every failing test with its error. `FAILED: <file> :: <test>` lines are machine-readable.
 'use strict';
 const { spawn } = require('node:child_process');
-const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 

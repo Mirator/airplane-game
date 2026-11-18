@@ -4,7 +4,7 @@
 'use strict';
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { launch, newPage, startRun, openRun, quiet, HELPERS, CONC } = require('./lib/harness');
+const { launch, newPage, startRun, openRun, quiet, HELPERS, CONC, reload } = require('./lib/harness');
 
 let browser;
 before(async () => { browser = await launch(); });
@@ -45,6 +45,7 @@ describe('kits', { concurrency: CONC }, () => {
         T.setup(7); G.p.rage = 100; G.p.def = 0;
         const hit = (n) => { let s = 0; for (let i = 0; i < n; i++) { const hp = G.p.hp; G.p.hp = G.p.mhp = 9999; const g = T.foe('goblin', 1, 0); F.hurtPlayer(g, 40, true); s += 9999 - G.p.hp; g.dead = true; G.enemies = []; } return s / n; };
         out.plainHit = hit(6);
+        G.p.def = 12; out.defHit = hit(6); G.p.def = 0;                 // BAL.combat.armorK = 12: 12 defense halves a hit
         out.brace = F.use('brace'); out.braceState = !!G.brace && G.brace.hits > 0;
         G.brace = { hits: 99, t: 99, reflect: 0 }; out.braceHit = hit(6); G.brace = null;
         G.p.rage = 0; out.noRageBrace = F.whyNot('brace');
@@ -53,6 +54,10 @@ describe('kits', { concurrency: CONC }, () => {
         F.playerAttack(k); out.rageDealt = G.p.rage;
         G.p.rage = 0; G.p.hp = G.p.mhp = 9999; F.hurtPlayer(k, 10, true); out.rageTaken = G.p.rage;
         T.setup(7); G.p.rage = 50; F.endTurn(); out.rageDecay = G.p.rage;
+        // crits: a certain crit hits about twice as hard as a certain non-crit
+        T.setup(7); G.p.atk = 50; const cr = T.foe('goblin', 1, 0); cr.hp = cr.mhp = 9999;
+        G.p.crit = -5; let h0 = cr.hp; F.playerAttack(cr); out.hitPlain = h0 - cr.hp;
+        G.p.crit = 5; h0 = cr.hp; F.playerAttack(cr); out.hitCrit = h0 - cr.hp;
         return out;
       });
       const B = { dealt: 8, taken: 12, decay: 4 };
@@ -67,6 +72,8 @@ describe('kits', { concurrency: CONC }, () => {
       assert.equal(r.chargeAdjacent, 0, 'Charge cannot target an adjacent enemy');
       assert.ok(r.charge && r.moved === 3 && r.chargeStun);
       assert.ok(r.brace && r.braceState);
+      assert.ok(r.defHit < r.plainHit * 0.65, `defense reduces damage taken: ${r.defHit} vs ${r.plainHit}`);
+      assert.ok(r.hitCrit > r.hitPlain * 1.8, `a crit hits about twice as hard: ${r.hitCrit} vs ${r.hitPlain}`);
       assert.ok(r.braceHit < r.plainHit * 0.75, `a braced hit hurts far less: ${r.braceHit} vs ${r.plainHit}`);
       assert.match(r.noRageBrace, /Not enough rage/);
       assert.equal(r.rageDealt, B.dealt); assert.equal(r.rageTaken, B.taken); assert.equal(r.rageDecay, 50 - B.decay);
@@ -158,8 +165,11 @@ describe('kits', { concurrency: CONC }, () => {
         T.setup(7); G.items.push({ x: G.p.x + 1, y: G.p.y, t: 'knife', v: 0 }); G.knives = 1;   // a knife next to you
         F.tryMove(1, 0); out.pickedUp = G.knives === 2;
         T.setup(7); const a = T.foe('goblin', 4, 0), b = T.foe('goblin', 5, 0);
-        out.smoke = F.use('smoke', a.x, a.y); out.smokeCloud = G.smoke.length === 1; out.blinded = a.blind > 0 && !a.awake;
+        out.smoke = F.use('smoke', a.x, a.y); out.smokeCloud = G.smoke.length === 1; out.blinded = a.blind === window.__dbg.tables.BAL.ability.smoke.blindTurns - 1 && !a.awake;   // blind for blindTurns, one already counted down
         out.cdSmoke = G.cd.smoke > 0;
+        // sneak attack: a plain melee hit on an enemy that has not noticed you is a multiple of the same hit on an awake one
+        const hitOn = (awake) => { T.setup(7); G.p.atk = 50; G.p.crit = -5; const t = T.foe('goblin', 1, 0, awake); t.hp = t.mhp = 9999; F.playerAttack(t); return 9999 - t.hp; };
+        const unaware = hitOn(false), aware = hitOn(true); out.sneak = unaware > aware * 1.7;
         return out;
       });
       assert.ok(r.bsUnaware && r.bsBehind && r.bsAware && r.bigVsWeak, 'backstab: big on unaware, weak otherwise ' + JSON.stringify(r));
@@ -169,6 +179,7 @@ describe('kits', { concurrency: CONC }, () => {
       assert.ok(r.knife && r.knivesLeft === 1 && r.knifeDropped, 'knife thrown and dropped');
       assert.ok(r.pickedUp, 'knife picked up again');
       assert.ok(r.smoke && r.smokeCloud && r.blinded && r.cdSmoke);
+      assert.ok(r.sneak, 'a sneak attack on an unaware enemy hits much harder');
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });
@@ -182,15 +193,37 @@ describe('kits', { concurrency: CONC }, () => {
       await page.evaluate(() => { window.T.setup(7); window.T.foe('goblin', 3, 0); window.__dbg().p.mana = 30; });
       await quiet(page);   // the floor-start banner animation has ended (see quiet() in the harness for why that matters)
       await page.click('#a_0');                                            // Bolt: arms
-      assert.equal(await page.isVisible('#cancelBtn'), true);
-      await page.click('#cancelBtn');
-      assert.equal(await page.isVisible('#cancelBtn'), false);
+      assert.equal(await page.evaluate(() => document.getElementById('a_0').classList.contains('armed')), true);
+      // while a target is being picked nothing may cover the map: every point of the map area must hit the canvas
+      const covered = await page.evaluate(() => { const r = document.getElementById('cv').getBoundingClientRect(), bad = []; for (let y = r.top + 6; y < r.bottom; y += 12) for (let x = r.left + 6; x < r.right; x += 12) { const e = document.elementFromPoint(x, y); if (!e || e.id !== 'c') bad.push((e && (e.id || e.className)) + '@' + Math.round(x) + ',' + Math.round(y)); } return bad; });
+      assert.deepEqual(covered, [], 'something overlays the map while targeting');
+      // a real tap on an enemy standing low on the middle column (where the old floating Cancel button sat) casts the spell
+      const box = await page.locator('#c').boundingBox();
+      const ts = Math.max(28, Math.floor(Math.min(box.width, box.height) / 11.5));
+      const k = Math.floor((box.height / 2 - 30) / ts);
+      const low = await page.evaluate((k) => { const G = window.__dbg(); G.enemies.length = 0; G.p.x = 15; G.p.y = 10; for (let i = 0; i <= k; i++) G.map[(10 + i) * 30 + 15] = 1; const t = window.T.foe('goblin', 0, k); t.hp = t.mhp = 999; return true; }, k);
+      await quiet(page);
+      const ty = box.y + box.height / 2 + k * ts;
+      assert.ok(low && ty > box.y + box.height - 8 - 44 - 10 && ty < box.y + box.height, 'the target tile is in the strip the Cancel button used to cover: ' + ty + ' in ' + JSON.stringify(box));
+      await page.mouse.click(box.x + box.width / 2, ty);
+      assert.ok(await page.evaluate(() => window.__dbg().enemies[0].hp < 999), 'the bottom-middle enemy was hit');
+      await page.evaluate(() => { const G = window.__dbg(); G.enemies.length = 0; window.T.foe('goblin', 3, 0); G.p.mana = 30; G.cd.bolt = 0; });
+      await quiet(page);
+      await page.click('#a_0');
+      await page.click('#a_0');                                            // the armed button is the Cancel
+      assert.equal(await page.evaluate(() => document.getElementById('a_0').classList.contains('armed')), false);
       assert.equal(await page.evaluate(() => document.getElementById('a_3').classList.contains('dis')), false, 'Fireball is usable with mana');
       await page.evaluate(() => { window.__dbg().p.mana = 0; });
       await quiet(page);
       await page.click('#a_3');                                            // Fireball with no mana: refused, reason in the log, button greyed
       assert.match(await page.evaluate(() => window.__dbg().log.slice(-1)[0]), /Not enough mana/);
       assert.equal(await page.evaluate(() => document.getElementById('a_3').classList.contains('dis')), true, 'Fireball is greyed out without mana');
+      // the bar's other buttons follow the state too: Potion needs a potion, Stairs needs the stairs
+      const dis = (id) => page.evaluate((i) => document.getElementById(i).classList.contains('dis'), id);
+      await page.evaluate(() => { const G = window.__dbg(); G.inv.pot = 0; G.enemies = []; window.__dbg.fn.endTurn(); });
+      assert.equal(await dis('b_pot'), true, 'Potion is greyed out with none left'); assert.equal(await dis('b_down'), true, 'Stairs is greyed out away from the stairs');
+      await page.evaluate(() => { const G = window.__dbg(); G.inv.pot = 2; const k = G.map.indexOf(2); G.p.x = k % 30; G.p.y = Math.floor(k / 30); window.__dbg.fn.endTurn(); });
+      assert.equal(await dis('b_pot'), false); assert.equal(await dis('b_down'), false, 'Stairs is usable on the stairs');
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });
@@ -256,6 +289,53 @@ describe('kits', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
+  it('perks: stat perks change the stats, Second Wind saves you once per floor', async () => {
+    const { page, ctx, errors } = await fresh('warrior', 26);
+    try {
+      const r = await page.evaluate(() => {
+        const D = window.__dbg, G = D(), F = D.fn, T = window.T, p = G.p, out = {};
+        const atk0 = p.atk, mhp0 = p.mhp;
+        D.grant('glass'); out.glassAtk = p.atk - atk0; out.glassHp = p.mhp; out.glassWant = Math.max(8, Math.round(mhp0 * 0.75));
+        // level-up: enough XP gives a level, more max HP and a perk to choose
+        const B = D.tables.BAL, need = B.xp.base + p.lvl * B.xp.perLevel, lvl0 = p.lvl, mhp1 = p.mhp;
+        p.xp = need - 1; T.setup(7); D.api.killEnemy(T.foe('goblin', 3, 0, false));
+        out.lvl = p.lvl - lvl0; out.lvlHp = p.mhp - mhp1; out.pending = G.pending; G.pending = 0;
+        D.grant('second'); T.setup(7); p.hp = 5; p.dodge = 0;
+        const g = T.foe('goblin', 1, 0);
+        F.hurtPlayer(g, 500, true); out.saved = p.hp; out.used = !!G.swUsed;
+        p.hp = 5; F.hurtPlayer(g, 500, true); out.second = p.hp;
+        return out;
+      });
+      assert.equal(r.glassAtk, 5, 'Glass Cannon: +5 attack'); assert.equal(r.glassHp, r.glassWant, 'Glass Cannon: -25% max HP');
+      assert.equal(r.lvl, 1, 'enough XP levels you up'); assert.ok(r.lvlHp > 0, 'a level gives max HP'); assert.equal(r.pending, 1, 'and a perk choice');
+      assert.equal(r.saved, 1, 'Second Wind leaves you at 1 HP'); assert.ok(r.used);
+      assert.ok(r.second <= 0, 'only once per floor');
+      assert.deepEqual(errors, []);
+    } finally { await ctx.close(); }
+  });
+
+  it('traps: spike damage (halved by Trapfinder), dart poison, alarm wakes every enemy', async () => {
+    const { page, ctx, errors } = await fresh('warrior', 27);
+    try {
+      const r = await page.evaluate(() => {
+        const D = window.__dbg, G = D(), F = D.fn, T = window.T, B = D.tables.BAL, p = G.p, out = {};
+        T.setup(7); p.dodge = 0;
+        const trap = (k) => { const t = { x: p.x, y: p.y, k, rev: 0, done: 0 }; G.traps = [t]; return t; };
+        p.hp = p.mhp = 100; D.api.springPlayer(trap('spike')); out.spike = 100 - p.hp; out.spikeWant = B.trap.spikeBase + G.floor;
+        p.hp = p.mhp = 100; D.api.springPlayer(trap('dart')); out.dartTurns = G.ppois && G.ppois.t; out.dartDmg = G.ppois && G.ppois.d;
+        const hp0 = p.hp; F.endTurn(); out.dartTick = hp0 - p.hp; G.ppois = null;
+        const e1 = T.foe('goblin', 3, 0, false), e2 = T.foe('rat', 4, 0, false);
+        D.api.springPlayer(trap('alarm')); out.alarm = e1.awake && e2.awake;
+        D.grant('trapper'); p.hp = p.mhp = 100; D.api.springPlayer(trap('spike')); out.spikeHalf = 100 - p.hp;
+        return out;
+      });
+      assert.equal(r.spike, r.spikeWant, 'a spike trap hurts'); assert.equal(r.spikeHalf, Math.ceil(r.spikeWant / 2), 'Trapfinder halves it');
+      assert.ok(r.dartTurns > 0 && r.dartTick === r.dartDmg, 'a dart poisons: damage every turn');
+      assert.ok(r.alarm, 'an alarm wakes everything');
+      assert.deepEqual(errors, []);
+    } finally { await ctx.close(); }
+  });
+
   it('an old-version run save is discarded cleanly: no crash, no Continue, one-line notice, meta intact', async () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 21, meta: { seenHelp: 1, gold: 777, hp: 2, unl: { rogue: 1, mage: 1 } } });
     try {
@@ -263,7 +343,7 @@ describe('kits', { concurrency: CONC }, () => {
       await page.evaluate(() => {
         localStorage.setItem('dcr_run_v1', JSON.stringify({ floor: 3, p: { cls: 'warrior', hp: 30, mhp: 42, wb: 2, ab: 1, wn: 'Mace', an: 'Rags', wt: null, at: null }, map: new Array(900).fill(1), enemies: [], items: [], turn: 99 }));
       });
-      await page.reload();
+      await reload(page);
       await page.waitForSelector('#titleBox button');
       assert.equal(await page.locator('#title button', { hasText: /Continue run/ }).count(), 0);
       assert.match(await page.locator('#titleBox').textContent(), /older version/i);
@@ -271,11 +351,26 @@ describe('kits', { concurrency: CONC }, () => {
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('dcr_meta_v1')).gold), 777);
       // same shape under the current key but without a version stamp is also discarded
       await page.evaluate(() => localStorage.setItem('dcr_run_v2', JSON.stringify({ floor: 2, p: { cls: 'mage', hp: 10, mhp: 24 }, map: new Array(900).fill(1) })));
-      await page.reload();
+      await reload(page);
       await page.waitForSelector('#titleBox button');
       assert.equal(await page.locator('#title button', { hasText: /Continue run/ }).count(), 0);
       await startRun(page, 'mage');                                       // a new run still starts normally
       assert.equal(await page.evaluate(() => window.__dbg().ver), 3);
+      // a complete, well-formed run whose version stamp is unknown (1 = too old, 99 = from the future) is discarded too
+      for (const ver of [1, 99]) {
+        await page.evaluate(async (v) => {                       // tamper with the run in localStorage AND in the IndexedDB mirror
+          const idb = (fn) => new Promise((res) => { const rq = indexedDB.open('dcr_run_mirror', 1); rq.onsuccess = () => fn(rq.result, res); });
+          const read = () => idb((db, res) => { const g = db.transaction('s', 'readonly').objectStore('s').get('run2'); g.onsuccess = () => res(g.result); });
+          window.__dbg.fn.save(); const ls = localStorage.getItem('dcr_run_v2');
+          for (let i = 0; i < 500 && (await read()) !== ls; i++) await new Promise((r) => setTimeout(r, 10));   // the game's own mirror write has landed
+          const o = JSON.parse(ls); o.ver = v; const js = JSON.stringify(o); localStorage.setItem('dcr_run_v2', js);
+          await idb((db, res) => { const tx = db.transaction('s', 'readwrite'); tx.objectStore('s').put(js, 'run2'); tx.oncomplete = () => res(); });
+        }, ver);
+        await reload(page);
+        await page.waitForSelector('#titleBox button');
+        assert.equal(await page.locator('#title button', { hasText: /Continue run/ }).count(), 0, 'version ' + ver + ' run is not offered');
+        await startRun(page, 'mage');
+      }
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

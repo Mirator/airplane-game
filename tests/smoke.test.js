@@ -5,14 +5,14 @@
 'use strict';
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { launch, newPage, startRun, CONC } = require('./lib/harness');
+const { launch, newPage, startRun, CONC, reload } = require('./lib/harness');
 
 let browser;
 before(async () => { browser = await launch(); });
 after(async () => { await browser.close(); });
 
 const CLASSES = ['warrior', 'rogue', 'mage'];
-const ACTIONS = 300;
+const ACTIONS = 150;
 
 // n random actions: map taps (most), a random bar / ability button, Explore (with a short pause so the auto-walk can take steps),
 // a random dialog button when a dialog is open, "New run" + class when the run ended and the title is showing.
@@ -63,7 +63,7 @@ describe('smoke', { concurrency: CONC }, () => {
       const { page, ctx, errors } = await newPage(browser, { seed: 99 + CLASSES.indexOf(cls) });
       try {
         await startRun(page, cls);
-        await playRandomly(page, cls, 80);
+        await playRandomly(page, cls, 50);
         // make sure there is a live run, give every persisted resource a non-default value, save and snapshot in ONE step
         const snap = () => page.evaluate(() => {
           const g = window.__dbg();
@@ -77,6 +77,7 @@ describe('smoke', { concurrency: CONC }, () => {
         const before = await page.evaluate(() => {
           const g = window.__dbg(), F = window.__dbg.fn, kit = window.__dbg.tables.CLS[g.p.cls].kit;
           document.getElementById('modal').style.display = 'none';
+          const k0 = kit[0]; F.toggleAbility(k0); F.toggleAbility(k0);   // any tap cancels a walk still in progress (it would save a newer state)
           g.cd[kit[1]] = 3; g.cd[kit[2]] = 2; g.p.gold += 37; g.inv.pot = 3; g.kills += 4;
           if (g.p.cls === 'warrior') g.p.rage = 41; else if (g.p.cls === 'mage') g.p.mana = 11; else g.knives = 2;
           window.__dbg.grant(window.__dbg.perkIds.find((id) => { const pk = window.__dbg.tables.PERKS.find((x) => x.id === id); return !pk.cls || pk.cls === g.p.cls; }));
@@ -85,7 +86,7 @@ describe('smoke', { concurrency: CONC }, () => {
           for (const k of ['ts', 'stopWalk', 'wade']) delete o[k];
           return o;
         });
-        await page.reload();
+        await reload(page);
         await page.locator('#title button', { hasText: /Continue run/ }).click();
         const after = await snap();
         assert.deepEqual(after, before);

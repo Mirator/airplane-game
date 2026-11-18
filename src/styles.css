@@ -40,7 +40,8 @@ button:disabled{opacity:.4}
 #bar2 button{flex:1;min-width:0;min-height:56px;padding:2px 1px;line-height:1.05}
 #bar2 .ai{font-size:19px;display:block;line-height:1.1}
 #bar2 small.sub{font-size:10px;opacity:.8;color:#ffe9a8}
-#cancelBtn{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:3;min-height:44px;padding:6px 18px;background:#7a2a2a;border-color:#ff8a8a;font-weight:700;box-shadow:0 2px 10px #000a}
+#cv.arming #autoBox{display:none!important}
+#cv.arming #chips{pointer-events:none;opacity:.35}
 button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a inset}
 .tag{display:inline-block;font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:#6a3fb5;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
 .tag.act{background:#b5731f}.tag.syn{background:#2a8a5a}

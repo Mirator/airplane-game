@@ -47,7 +47,8 @@ button:disabled{opacity:.4}
 #bar2 button{flex:1;min-width:0;min-height:56px;padding:2px 1px;line-height:1.05}
 #bar2 .ai{font-size:19px;display:block;line-height:1.1}
 #bar2 small.sub{font-size:10px;opacity:.8;color:#ffe9a8}
-#cancelBtn{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:3;min-height:44px;padding:6px 18px;background:#7a2a2a;border-color:#ff8a8a;font-weight:700;box-shadow:0 2px 10px #000a}
+#cv.arming #autoBox{display:none!important}
+#cv.arming #chips{pointer-events:none;opacity:.35}
 button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a inset}
 .tag{display:inline-block;font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:#6a3fb5;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
 .tag.act{background:#b5731f}.tag.syn{background:#2a8a5a}
@@ -89,7 +90,7 @@ button.autopick{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
   <div id="xpbar"><div id="xpfill"></div></div>
   <div id="stats"></div>
  </div>
- <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="autoBox" style="display:none"><div id="autoTag" style="display:none">🤖 AUTO · tap the map to take over</div><div id="autoRow"><button id="autoBtn" aria-label="Auto: play the run automatically" aria-pressed="false">🤖 AUTO</button><button id="autoSpd" aria-label="Auto speed" style="display:none">1×</button></div></div><div id="toast" aria-live="polite"></div><button id="cancelBtn" style="display:none">Cancel</button></div>
+ <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="autoBox" style="display:none"><div id="autoTag" style="display:none">🤖 AUTO · tap the map to take over</div><div id="autoRow"><button id="autoBtn" aria-label="Auto: play the run automatically" aria-pressed="false">🤖 AUTO</button><button id="autoSpd" aria-label="Auto speed" style="display:none">1×</button></div></div><div id="toast" aria-live="polite"></div></div>
  <div id="log"></div>
  <div id="bar2"></div>
  <div id="bar"></div>
@@ -1962,7 +1963,7 @@ function toggleAbility(k){
  const why=whyNot(k);
  if(why){msg(why);if(armed){armed=null;}render();return;}
  if(ABIL[k].tg==='self'){useAbility(k);return;}
- armed=k;msg(ABIL[k].n+' armed: tap a highlighted target (tap yourself or Cancel to back out).');render();
+ armed=k;msg(ABIL[k].n+' armed: tap a highlighted target (tap the button again or yourself to back out).');render();
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- weapon reach (spear) ----
@@ -2438,7 +2439,7 @@ function showHelp(back){
   r('⏳','Wait','Skips a turn (also: tap yourself).')+
   r('⬇️','Stairs','Goes down one floor when you stand on the ▼ tile.')+
   '<p><b>Ability buttons (the row above the bar)</b></p>'+
-  r('🎯','Four abilities per class','Each button shows its icon, name and cost (or the turns until it recharges). A dim button cannot be used right now: tap it and the log says why. Self abilities fire at once. Targeted ones arm: valid tiles light up, tap one to use it, or tap yourself / the red Cancel button to back out. Every ability uses one turn.')+
+  r('🎯','Four abilities per class','Each button shows its icon, name and cost (or the turns until it recharges). A dim button cannot be used right now: tap it and the log says why. Self abilities fire at once. Targeted ones arm: valid tiles light up, tap one to use it, or tap the same button again (it turns into Cancel) or tap yourself to back out. Nothing covers the map while you aim. Every ability uses one turn.')+
   r('⚔️','Weapons','Sword: balanced. Axe: hits the enemies next to you or the target too. Spear: reach '+WP.spear.reach+' - tap an enemy two tiles away in a straight line. Dagger: crit and sneak bonus. Staff: spell power and mana, weak melee.')+
   r('🛡','Armor, off-hand, charm','Armor trades defense for resources (plate: strong but slows mana and rage; robe: spell power and mana but no defense; leather: dodge). Each class has its own off-hands that change one ability. A charm is one passive rule. Tap 🎒 to see everything you wear.')+
   '<p><b>Tap controls</b></p>'+
@@ -2621,10 +2622,11 @@ const BTNS=[
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 const ab2=$('bar2');
 for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
-$('cancelBtn').addEventListener('click',function(e){e.stopPropagation();walkTok++;if(G&&!G.over)cancelTarget();});
 $('gearBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showEquip(closeModal);});
 function bset(id,ic,lab,badge,dis){
- const el=$(id);el.innerHTML='<span style="font-size:19px;display:block;line-height:1.1">'+ic+'</span><small>'+lab+'</small>'+(badge!==''&&badge!=null?'<i class="bd" style="font-style:normal">'+badge+'</i>':'');
+ // only touch the DOM when the content changes: rewriting a button mid-press drops the tap
+ const el=$(id),h='<span style="font-size:19px;display:block;line-height:1.1">'+ic+'</span><small>'+lab+'</small>'+(badge!==''&&badge!=null?'<i class="bd" style="font-style:normal">'+badge+'</i>':'');
+ if(el._h!==h){el._h=h;el.innerHTML=h;}
  el.classList.toggle('dis',!!dis);
 }
 // cheap status for a button: never scans the map for tile targets (render runs every animation frame)
@@ -2645,10 +2647,10 @@ function updateBar(){
  for(let i=0;i<4;i++){
   const k=kt[i],A=ABIL[k],el=$('a_'+i),st=abStatus(k),isA=armed===k;
   el.classList.toggle('armed',isA);el.classList.toggle('dis',!isA&&!!st.dis);
-  el.innerHTML='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small><small class="sub">'+(isA?'tap a target':st.sub)+'</small>';
+  const h='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small><small class="sub">'+(isA?'tap a target':st.sub)+'</small>';
+  if(el._h!==h){el._h=h;el.innerHTML=h;}
  }
- $('cancelBtn').style.display=armed?'block':'none';
- if(armed)$('cancelBtn').textContent='✖ Cancel '+ABIL[armed].n;
+ $('cv').classList.toggle('arming',!!armed); // nothing may cover map tiles while a target is being picked
  const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
  bset('b_pot','🧪','Potion','×'+inv.pot,inv.pot<=0);
  bset('b_fire','📜','Flames','×'+inv.fire,inv.fire<=0);

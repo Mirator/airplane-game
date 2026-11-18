@@ -68,24 +68,48 @@ The 🤖 AUTO button (bottom right of the map; the top right holds the minimap) 
 
 ```
 node build.js          # regenerate index.html
-node tests/run.js      # (or npm test) build check, map generation, smoke tests; non-zero exit on failure
+node tests/run.js      # (or npm test) the whole suite, about 10 s on 4 cores; non-zero exit on failure
+npm run mutate         # mutation check of the suite: implants ~100 realistic bugs one at a time, about 15-25 min
 node tests/sim.js      # slow balance simulator (not part of npm test), e.g. --runs 50 --seed 1
 ```
 
 Needs Node 22 and Playwright installed globally (`require('playwright')`; Chromium). There are no package dependencies.
 
-- `tests/build.test.js` - committed `index.html` equals a fresh build; no external requests.
-- `tests/mapgen.test.js` - 200 generated floors: stairs/boss reachable, locked room sealed but optional, boss arena safe tiles.
-- `tests/features.test.js` - every modifier makes a completable floor over many seeds and its rules work; exit choice by touch; the same Daily date gives identical floors in two fresh page loads; records / achievements persist across reload; Hard locked before the first win; old meta save and old (v2) run save migrate.
-- `tests/kits.test.js` - each class uses each of its four abilities, gear goes into all four slots through the compare modal, gear rules (spear/axe/dagger/plate/robe/charm), an old-version run save is discarded cleanly, every new enemy spawns and acts.
-- `tests/smoke.test.js` - each class at 390x844 and 1280x800 with random taps and bar/modal buttons: zero console/page
-  errors, layout fits, reload + Continue restores turn/floor.
-- `tests/auto.test.js` - Auto: a floor per class, tap hands control back without moving, reload resumes paused, half gold + recap label + Auto tags, watchdog, gear / perk / path / shrine / merchant dialogs, one timer under rapid toggling, hidden page, old saves, 390x844 layout.
-- `tests/save.test.js` - run save survives `kill -9` of the browser (Chromium commits localStorage only about once a minute, so the run is mirrored into IndexedDB), and a finished run is not resurrected.
+**Running the suite.** `tests/run.js` starts one `node --test` process per test file (in parallel, one per CPU core) and prints one line per
+file plus every failing test. Inside a file the tests run concurrently, each in its own browser context (fresh localStorage / IndexedDB).
+Options: `--bail` (stop at the first failure), `--jobs N`, and file-name words (`node tests/run.js kits auto`). `TEST_CONCURRENCY=N`
+changes how many tests of one file run at once (default 4). The suite is CPU-bound (headless Chromium, ~35 core-seconds), so it gets faster
+with cores; tests wait on conditions, never on fixed delays, and no assertion has an upper time bound, so it stays green on a loaded machine.
+
+- `tests/build.test.js` - committed `index.html` equals a fresh build; no external requests; one inline script and style.
+- `tests/mapgen.test.js` - 120 generated floors (15 per depth): stairs/boss reachable, locked room sealed but optional, boss arena safe tiles.
+- `tests/features.test.js` - modifiers (generation over many seeds and each rule), exit choice by touch, locked treasure room (key drop, door), merchant, Daily seeding (floors independent of history, seeded combat), records / streaks / fastest win / achievements, gold banking and Hard, save migrations.
+- `tests/kits.test.js` - each class's four abilities with their costs, cooldowns and resource gain/decay; gear slots and rules; perks; traps; enemy behaviours (hound, ogre, guard numbers, cultist, wind-up telegraphs, dragon phases and enrage); ability-button states; an old-version run save is discarded.
+- `tests/smoke.test.js` - random play (in-page, real DOM events) at 390x844 and 1280x800: zero console/page errors, layout fits; reload + Continue restores the whole saved run field by field.
+- `tests/auto.test.js` - Auto: a floor per class, tap / key / hidden page hand control back without moving, reload resumes paused, half gold + recap label, watchdog, dialogs (gear / perk / path / shrine / merchant), one timer under rapid toggling, layout.
+- `tests/save.test.js` - run save survives `kill -9` of the browser (IndexedDB mirror), a finished run is not resurrected.
 - `tests/sim.js` - bot campaigns: win rate, death floor and killer table per class and upgrade level (options documented in its header comment, including `--hard` and `--force <modifier>`; `--botcfg '{"kite":0,"snipe":0,"choke":0}'` switches the bot's human-style tactics off for A/B runs, `--lib` swaps the bot file).
-- `tests/equiv.js A.html B.html` - seeded determinism check between two builds (used to prove refactors change nothing);
-  `tests/codecmp.js A.html [B.html]` - normalised source diff between two builds.
-- `tests/lib/` - shared Playwright helpers and the in-page bot.
+- `tests/lib/` - shared Playwright helpers (`harness.js`) and the in-page bots.
+
+**Test helpers worth knowing** (`tests/lib/harness.js`): `openRun` starts a run through the game's own `startRun()`; `newPage` seeds the
+permanent save and `Math.random`; `reload(page)` reloads without losing the newest localStorage write (Chromium flushes it lazily and a
+page loaded right afterwards can miss it); `quiet(page)` waits until the bar stops being re-rendered before a real click on a bar button
+(a press that straddles a re-render is not delivered as a click); animation frames run at 10/s in tests (`{frames: 'full'}` opts out).
+
+**Mutation check.** `tests/mutate.js` copies the repo to a temporary folder, applies ONE bug from its list (`MUTATIONS`, plain data: file,
+exact `find` text, replacement), rebuilds, runs the suite and records which test caught it or that it SURVIVED. The real `src/` is never
+written (nothing to restore, even after a crash or Ctrl-C) and is fingerprinted before and after. A kill must reproduce: the failing file
+is re-run and a mutation that no longer fails is reported FLAKY and counted as not killed. Exit code 1 if any mutation survived.
+
+```
+node tests/mutate.js                 # all mutations, each run stops at its first failing test
+node tests/mutate.js --only M07,save # some ids or areas (combat, warrior, mage, rogue, gear, enemies, modifiers, save, auto, ...)
+node tests/mutate.js --all           # whole suite per mutation: lists EVERY test that fails (kill matrix, slower)
+node tests/mutate.js --check         # only check that every mutation still applies to src/ (run this after editing src/)
+```
+
+When a change to `src/` makes a mutation's `find` text disappear the run stops with `INVALID`: update that entry. A SURVIVED line means
+the suite would not notice that bug: add or tighten a test (prefer an assertion in an existing test over a new browser session).
 
 ## Balance pass
 

@@ -263,7 +263,7 @@ function toggleAbility(k){
  const why=whyNot(k);
  if(why){msg(why);if(armed){armed=null;}render();return;}
  if(ABIL[k].tg==='self'){useAbility(k);return;}
- armed=k;msg(ABIL[k].n+' armed: tap a highlighted target (tap yourself or Cancel to back out).');render();
+ armed=k;msg(ABIL[k].n+' armed: tap a highlighted target (tap the button again or yourself to back out).');render();
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- weapon reach (spear) ----

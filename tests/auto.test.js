@@ -6,7 +6,7 @@
 'use strict';
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, CONC } = require('./lib/harness');
+const { launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, CONC, reload } = require('./lib/harness');
 
 let browser;
 before(async () => { browser = await launch(); });
@@ -53,7 +53,7 @@ describe('auto', { concurrency: CONC }, () => {
       await page.click('#autoSpd'); assert.equal(await page.locator('#autoSpd').innerText(), '4×');
       assert.equal(await page.evaluate(() => localStorage.getItem('dcr_auto_speed')), '4');
       assert.equal(await page.evaluate(() => window.__dbg().auto.on), 1, 'changing speed does not stop Auto');
-      await page.reload();
+      await reload(page);
       assert.equal(await page.evaluate(() => window.__dbg.auto.state().speed), 4, 'speed choice survives a reload');
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
@@ -108,7 +108,7 @@ describe('auto', { concurrency: CONC }, () => {
       await page.waitForFunction(() => window.__dbg().turn >= 3, null, { timeout: 15000 });
       const mid = await snap(page); assert.equal(mid.on, 1);
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('dcr_run_v2')).auto.on), 1, 'saved as on');
-      const resume = async () => { await page.reload(); await page.click('#btnContinue'); await dbgReady(page); return snap(page); };
+      const resume = async () => { await reload(page); await page.click('#btnContinue'); await dbgReady(page); await closeModal(page); return snap(page); };   // (Continue re-opens a pending level-up dialog)
       const loaded = await resume();   // (the page being hidden during the reload already paused it)
       assert.equal(loaded.on, 0, 'paused after reload');
       assert.equal(await page.evaluate(() => window.__dbg().auto.used), 1, 'the half-gold flag is kept');
@@ -313,17 +313,17 @@ describe('auto', { concurrency: CONC }, () => {
     const { page, ctx, errors } = await fresh('warrior', 25);
     try {
       await page.evaluate(() => { while (window.__dbg.auto.state().speed !== 1) window.__dbg.auto.speed(); window.__dbg().pending = 1; window.__dbg.auto.start(false); window.__dbg.api.afterModals(); });
-      // from the moment the choice is highlighted until the dialog closes (only a lower bound: a loaded machine may take longer)
+      // from the moment the choice is highlighted until the dialog closes. Timestamps are taken by MutationObservers, which run right after
+      // the task that changed the DOM, so a busy machine cannot make the measurement shorter than the real time (a lower bound only).
       const r = await page.evaluate(() => new Promise((res) => {
         const m = document.getElementById('modal'), picks = () => m.querySelectorAll('#modalBox button.autopick').length;
         let t0 = null, maxPicks = 0;
-        const poll = () => {
-          if (t0 === null && picks() === 1) t0 = performance.now();
+        const mo = new MutationObserver(() => {
           maxPicks = Math.max(maxPicks, picks());
-          if (t0 !== null && m.style.display === 'none') return res({ ms: performance.now() - t0, maxPicks, flash: window.__dbg.tables.BAL.auto.flashMs });
-          setTimeout(poll, 4);
-        };
-        poll();
+          if (t0 === null && picks() === 1) t0 = performance.now();
+          if (t0 !== null && m.style.display === 'none') { mo.disconnect(); res({ ms: performance.now() - t0, maxPicks, flash: window.__dbg.tables.BAL.auto.flashMs }); }
+        });
+        mo.observe(m, { attributes: true, subtree: true, childList: true });
       }));
       assert.equal(r.maxPicks, 1, 'exactly one button is highlighted');
       assert.ok(r.ms >= r.flash * 0.8, `the pick stays visible for about ${r.flash} ms (saw ${Math.round(r.ms)})`);
@@ -389,7 +389,7 @@ describe('auto', { concurrency: CONC }, () => {
     const { page, ctx, errors } = await fresh('warrior', 41);
     try {
       await page.evaluate(() => { window.__dbg.fn.save(); const o = JSON.parse(localStorage.getItem('dcr_run_v2')); delete o.auto; localStorage.setItem('dcr_run_v2', JSON.stringify(o)); });
-      await page.reload(); await page.click('#btnContinue'); await dbgReady(page);
+      await reload(page); await page.click('#btnContinue'); await dbgReady(page);
       assert.deepEqual(await page.evaluate(() => window.__dbg().auto), { on: 0, used: 0, noticed: 0 });
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }

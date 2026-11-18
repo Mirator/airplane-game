@@ -5,7 +5,6 @@ const { chromium } = require('playwright');
 
 const GAME = path.resolve(process.env.GAME_HTML || path.join(__dirname, '..', '..', 'index.html'));
 const URL = 'file://' + GAME;
-const BLANK = 'file://' + path.join(__dirname, 'blank.html');   // same (file://) storage origin as the game, but loads in a few ms
 
 // How many tests of one file run at the same time (every test has its own browser context, so they cannot see each other).
 const CONC = +process.env.TEST_CONCURRENCY || 4;
@@ -28,10 +27,31 @@ function fakeDateInit(ymd) {
   window.Date = class extends R { constructor(...a) { if (a.length) super(...a); else super(fixed); } static now() { return fixed; } };
 }
 
+// Chromium sends localStorage writes to its storage service asynchronously, and a page loaded right afterwards can read BEFORE the
+// previous page's newest write arrived (the "lost localStorage write" quirk; it made tests that reload straight after a save flaky).
+// That is Chromium's business, not the game's: what the game must get right is WHAT it writes and how it reads it back. So
+// reload(page) takes the page's localStorage as the page itself sees it (always complete), hands it to the next document through
+// window.name (navigation state, never lost) and the restore script installed by newPage() makes it the document's localStorage
+// before any game code runs. The game still boots from whatever it wrote itself; only the browser's lazy flush is taken out.
+const RESTORE = () => {
+  try {
+    if (window.name.indexOf('__ls:') === 0) {
+      const d = JSON.parse(window.name.slice(5)); window.name = '';
+      localStorage.clear(); for (const [k, v] of d) localStorage.setItem(k, v);
+    }
+  } catch (e) { /* storage blocked */ }
+};
+// The game redraws its canvas on every animation frame while an effect runs (the floor banner alone keeps it busy for 2.6 s after
+// every new floor). Software-rendered headless Chromium pays dearly for that, and no test depends on the frame rate, so frames are
+// requested at 10 per second instead of 60 (pass {frames: 'full'} to newPage to opt out).
+const SLOW_FRAMES = () => { window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 100); };
+async function reload(page) {
+  await page.evaluate(() => { window.name = '__ls:' + JSON.stringify(Object.entries(localStorage)); });
+  await page.reload();
+}
+
 // New page with error collection. opts: {w,h,seed,meta,reducedMotion,touch,fakeDate}. meta pre-seeds the permanent save
 // (default: help already seen, rogue + mage unlocked). Every test gets its own browser context, i.e. fresh localStorage / IndexedDB.
-// The meta is written from a blank same-origin page and the game is then loaded ONCE (writing it from addInitScript made Chromium
-// intermittently lose the newest localStorage write across a later page.reload(), so the write happens before the game ever loads).
 async function newPage(browser, opts = {}) {
   const ctx = await browser.newContext({
     viewport: { width: opts.w || 390, height: opts.h || 844 },
@@ -44,11 +64,14 @@ async function newPage(browser, opts = {}) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console.error: ' + m.text()); });
   page.on('requestfailed', (r) => { if (!/^file:/.test(r.url())) errors.push('external request: ' + r.url()); });
   page.on('request', (r) => { if (!/^(file|data|blob|about):/.test(r.url())) errors.push('external request: ' + r.url()); });
+  await page.addInitScript(RESTORE);
+  if (opts.frames !== 'full') await page.addInitScript(SLOW_FRAMES);
   if (opts.seed != null) await page.addInitScript(seedInit, opts.seed);
   if (opts.fakeDate) await page.addInitScript(fakeDateInit, opts.fakeDate);   // [y, m0, d]: freeze the local calendar date
   const meta = opts.meta || { seenHelp: 1, gold: 0, unl: { rogue: 1, mage: 1 } };
-  await page.goto(BLANK);
-  await page.evaluate((m) => { localStorage.setItem('dcr_meta_v1', JSON.stringify(m)); }, meta);
+  // seeded by a script that runs inside the game's own document before the game boots (same storage connection as the game's read);
+  // only when the key is missing, so later reloads keep whatever progress the page saved
+  await page.addInitScript((m) => { try { if (localStorage.getItem('dcr_meta_v1') === null) localStorage.setItem('dcr_meta_v1', m); } catch (e) { /* storage blocked */ } }, JSON.stringify(meta));
   await page.goto(URL);
   return { page, ctx, errors };
 }
@@ -60,10 +83,13 @@ async function startRun(page, cls) {
   await page.locator('#title button', { hasText: CLASS_LABEL[cls] }).click();
   await dbgReady(page);
 }
-// a started run with the intro/help dialog closed, ready for window.__dbg poking
+// a started run with the intro/help dialog closed, ready for window.__dbg poking. The run is started through the game's own
+// startRun() (what the class buttons call); the title -> class picker -> button path is covered by startRun() above in smoke / save /
+// features, so most tests do not pay for two Playwright clicks and the animation frames they trigger.
 async function openRun(browser, cls, opts) {
   const r = await newPage(browser, opts);
-  await startRun(r.page, cls);
+  await r.page.evaluate((c) => window.__dbg.fn.startRun(c), cls);
+  await dbgReady(r.page);
   await closeModal(r.page);
   return r;
 }
@@ -112,4 +138,4 @@ window.T = {
   tick() { window.__dbg.fn.endTurn(); }
 };`;
 const launch = () => chromium.launch();
-module.exports = { GAME, URL, CONC, HELPERS, launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, quiet, seedInit, fakeDateInit };
+module.exports = { GAME, URL, CONC, HELPERS, reload, launch, newPage, startRun, openRun, closeModal, dbgReady, fastAuto, quiet, seedInit, fakeDateInit };

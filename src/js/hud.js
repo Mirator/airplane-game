@@ -11,10 +11,11 @@ const BTNS=[
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 const ab2=$('bar2');
 for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
-$('cancelBtn').addEventListener('click',function(e){e.stopPropagation();walkTok++;if(G&&!G.over)cancelTarget();});
 $('gearBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showEquip(closeModal);});
 function bset(id,ic,lab,badge,dis){
- const el=$(id);el.innerHTML='<span style="font-size:19px;display:block;line-height:1.1">'+ic+'</span><small>'+lab+'</small>'+(badge!==''&&badge!=null?'<i class="bd" style="font-style:normal">'+badge+'</i>':'');
+ // only touch the DOM when the content changes: rewriting a button mid-press drops the tap
+ const el=$(id),h='<span style="font-size:19px;display:block;line-height:1.1">'+ic+'</span><small>'+lab+'</small>'+(badge!==''&&badge!=null?'<i class="bd" style="font-style:normal">'+badge+'</i>':'');
+ if(el._h!==h){el._h=h;el.innerHTML=h;}
  el.classList.toggle('dis',!!dis);
 }
 // cheap status for a button: never scans the map for tile targets (render runs every animation frame)
@@ -35,10 +36,10 @@ function updateBar(){
  for(let i=0;i<4;i++){
   const k=kt[i],A=ABIL[k],el=$('a_'+i),st=abStatus(k),isA=armed===k;
   el.classList.toggle('armed',isA);el.classList.toggle('dis',!isA&&!!st.dis);
-  el.innerHTML='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small><small class="sub">'+(isA?'tap a target':st.sub)+'</small>';
+  const h='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small><small class="sub">'+(isA?'tap a target':st.sub)+'</small>';
+  if(el._h!==h){el._h=h;el.innerHTML=h;}
  }
- $('cancelBtn').style.display=armed?'block':'none';
- if(armed)$('cancelBtn').textContent='✖ Cancel '+ABIL[armed].n;
+ $('cv').classList.toggle('arming',!!armed); // nothing may cover map tiles while a target is being picked
  const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
  bset('b_pot','🧪','Potion','×'+inv.pot,inv.pot<=0);
  bset('b_fire','📜','Flames','×'+inv.fire,inv.fire<=0);

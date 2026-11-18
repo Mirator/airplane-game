@@ -3,7 +3,7 @@
 'use strict';
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { launch, newPage, startRun, openRun, closeModal, dbgReady, HELPERS, CONC } = require('./lib/harness');
+const { launch, newPage, startRun, openRun, closeModal, dbgReady, HELPERS, CONC, reload } = require('./lib/harness');
 
 let browser;
 before(async () => { browser = await launch(); });
@@ -63,7 +63,7 @@ describe('features', { concurrency: CONC }, () => {
         const clear = () => { g().enemies.length = 0; };
         // cursed: no natural regeneration, potions weakened
         F.newFloor(3, { mod: 'cursed', v: 0 }); clear(); g().p.hp = 10; for (let i = 0; i < 40; i++) F.endTurn(); o.cursedHp = g().p.hp;
-        g().inv.pot = 1; g().p.hp = 10; g().p.mhp = 100; document.getElementById('b_pot').click(); o.cursedPot = g().p.hp - 10;
+        g().inv.pot = 1; g().p.hp = 10; g().p.mhp = 100; document.getElementById('b_pot').click(); o.cursedPot = g().p.hp - 10; o.potsLeft = g().inv.pot;
         F.newFloor(3, { mod: null, v: 0 }); clear(); g().p.mhp = 100; g().p.hp = 10; g().inv.pot = 1; document.getElementById('b_pot').click(); o.plainPot = g().p.hp - 10;
         // dark: short sight
         F.newFloor(3, { mod: 'dark', v: 0 }); F.computeVis(); { const G = g(); let far = 0; for (let y = 0; y < 30; y++) for (let x = 0; x < 30; x++) if (G.vis[y * 30 + x] && Math.hypot(x - G.p.x, y - G.p.y) > B.mod.dark.sight + 1.2) far++; o.darkFar = far; }
@@ -87,6 +87,7 @@ describe('features', { concurrency: CONC }, () => {
         return o;
       });
       assert.equal(r.cursedHp, 10, 'no natural regen on cursed ground');
+      assert.equal(r.potsLeft, 0, 'a drunk potion is used up');
       assert.ok(r.cursedPot > 0 && r.cursedPot < r.plainPot, 'cursed potion heals less: ' + r.cursedPot + ' vs ' + r.plainPot);
       assert.equal(r.darkFar, 0, 'dark: nothing visible beyond the short radius');
       assert.ok(r.silentSneak > r.plainSneak, 'silent: warrior sneak attacks are stronger');
@@ -210,6 +211,32 @@ describe('features', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
+  it('merchant: a purchase costs gold and is refused when you cannot pay or the potion belt is full; elixir and scrolls apply', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 28, meta: BASE_META });
+    try {
+      const r = await page.evaluate(() => {
+        const D = window.__dbg, G = D(), p = G.p, B = D.tables.BAL, out = {};
+        G.merchant = { x: p.x + 1, y: p.y, stock: [
+          { k: 'pot', n: '🧪 Health potion', d: 'x', price: 10 }, { k: 'pot', n: '🧪 Health potion', d: 'x', price: 10 },
+          { k: 'elixir', n: '🧿 Elixir of Vigor', d: 'x', price: 30 }, { k: 'fire', n: '📜 Flame scroll', d: 'x', price: 20 }] };
+        const st = () => G.merchant.stock.map((s) => !!s.sold);
+        p.gold = 45; G.inv.pot = 0; D.api.buy(0); out.buy = [G.inv.pot, p.gold, st()[0]];
+        p.gold = 5; D.api.buy(1); out.broke = [G.inv.pot, p.gold, st()[1]];
+        p.gold = 100; G.inv.pot = p.potCap; D.api.buy(1); out.full = [G.inv.pot === p.potCap, p.gold, st()[1]];
+        const mhp = p.mhp; p.hp = 1; D.api.buy(2); out.elixir = [p.mhp - mhp, p.hp === p.mhp, p.gold];
+        const f0 = G.inv.fire; D.api.buy(3); out.fire = [G.inv.fire - f0, p.gold];
+        out.elixirHp = B.merchant.elixirHp;
+        return out;
+      });
+      assert.deepEqual(r.buy, [1, 35, true]);
+      assert.deepEqual(r.broke, [1, 5, false], 'cannot buy without the gold');
+      assert.deepEqual(r.full, [true, 100, false], 'a full potion belt refuses another potion (and keeps your gold)');
+      assert.deepEqual(r.elixir, [r.elixirHp, true, 70]);
+      assert.deepEqual(r.fire, [1, 50]);
+      assert.deepEqual(errors, []);
+    } finally { await ctx.close(); }
+  });
+
   // ------------------------------------------------------------------------------------------------ daily
   const capture = (page) => page.evaluate(() => {
     const F = window.__dbg.fn, out = [];
@@ -233,6 +260,13 @@ describe('features', { concurrency: CONC }, () => {
       // the plan for a floor does not depend on which way you went before
       const opt = await a.page.evaluate(() => { const F = window.__dbg.fn; return [0, 1].map(() => JSON.stringify(F.rollOpts(5))); });
       assert.equal(opt[0], opt[1]);
+      // ... and neither does the floor itself: the same Daily floor comes out the same after the random stream was used in between
+      const same = await a.page.evaluate(() => {
+        const F = window.__dbg.fn, G = window.__dbg(); F.newFloor(3, { mod: null, v: 0 }); const m1 = JSON.stringify([G.map, G.enemies.map((e) => [e.t, e.x, e.y]), G.items.map((i) => [i.t, i.x, i.y])]);
+        for (let i = 0; i < 7; i++) F.makeEnemy('goblin', 1, 1, 3);                       // draws from the Daily stream
+        F.newFloor(3, { mod: null, v: 0 }); return m1 === JSON.stringify([G.map, G.enemies.map((e) => [e.t, e.x, e.y]), G.items.map((i) => [i.t, i.x, i.y])]);
+      });
+      assert.equal(same, true, 'a Daily floor does not depend on what happened before');
       for (const x of [a, b, c]) assert.deepEqual(x.errors, []);
     } finally { for (const x of [a, b, c]) await x.ctx.close(); }
   });
@@ -242,8 +276,10 @@ describe('features', { concurrency: CONC }, () => {
       const x = await newPage(browser, { seed, fakeDate: [2026, 5, 15], meta: BASE_META });
       await startDaily(x.page, 'Rogue');
       const res = await x.page.evaluate(() => {
+        // a real fight: swing at a goblin next to you; every hit and every counter-attack rolls the combat stream
         const F = window.__dbg.fn, G = window.__dbg(); const log = [];
-        for (let i = 0; i < 120 && !G.over; i++) { const d = [[1, 0], [0, 1], [-1, 0], [0, -1]][i % 4]; F.tryMove(d[0], d[1]); if (document.getElementById('modal').style.display !== 'none') document.getElementById('modal').style.display = 'none'; log.push(G.p.hp + ':' + G.p.x + ':' + G.p.y + ':' + G.kills); }
+        const e = F.makeEnemy('goblin', G.p.x + 1, G.p.y, 3); e.hp = e.mhp = 400; e.awake = true;
+        for (let i = 0; i < 14 && !G.over; i++) { F.tryMove(1, 0); if (document.getElementById('modal').style.display !== 'none') document.getElementById('modal').style.display = 'none'; log.push(e.hp + ':' + G.p.hp + ':' + G.p.x + ':' + G.kills); }
         return { log: log.join('|'), turn: G.turn };
       });
       return { x, res };
@@ -253,7 +289,7 @@ describe('features', { concurrency: CONC }, () => {
       assert.equal(A.res.log, B.res.log);
       // record: end the run, reload, the Daily button reports the result
       await A.x.page.evaluate(() => { window.__dbg.api.finish('dead'); });
-      await A.x.page.reload();
+      await reload(A.x.page);
       assert.match(await A.x.page.locator('#btnDaily').textContent(), /best floor \d+ - \d+ pts/);
       const m = await A.x.page.evaluate(() => JSON.parse(localStorage.getItem('dcr_meta_v1')).dly);
       assert.equal(Object.keys(m).length, 1); assert.equal(m['2026-06-15'].att, 1);
@@ -267,7 +303,7 @@ describe('features', { concurrency: CONC }, () => {
       await startDaily(x.page, 'Warrior');
       await x.page.evaluate(() => { const F = window.__dbg.fn; for (let i = 0; i < 6; i++) F.tryMove(1, 0); F.save(); });
       const before = await x.page.evaluate(() => { const G = window.__dbg(); return { turn: G.turn, rs: G.rs, daily: G.daily }; });
-      await x.page.reload();
+      await reload(x.page);
       await x.page.locator('#title button', { hasText: /Continue run/ }).click();
       const after = await x.page.evaluate(() => { const G = window.__dbg(); return { turn: G.turn, rs: G.rs, daily: G.daily }; });
       assert.deepEqual(after, before);
@@ -302,7 +338,7 @@ describe('features', { concurrency: CONC }, () => {
       assert.equal(recap.streakAfterWins, 3); assert.equal(recap.streak, 0, 'a loss ends the win streak'); assert.equal(recap.bstreak, 3);
       assert.equal(recap.fast, 500);
       await page.evaluate(() => window.__dbg.api.showTitle());
-      await page.reload();
+      await reload(page);
       await page.locator('#btnRecords').click();
       const rec = await page.locator('#titleBox').textContent();
       assert.match(rec, /Runs 5/); assert.match(rec, /Wins 3/); assert.match(rec, /Best streak 3/); assert.match(rec, /Fastest win 500 turns/);
@@ -374,7 +410,7 @@ describe('features', { concurrency: CONC }, () => {
       assert.equal(await b.page.locator('#hardBtn').isDisabled(), false);
       await b.page.locator('#hardBtn').click();
       assert.match(await b.page.locator('#hardBtn').textContent(), /ON/);
-      await b.page.reload();
+      await reload(b.page);
       assert.match(await b.page.locator('#hardBtn').textContent(), /ON/);
       await startRun(b.page, 'warrior'); await closeModal(b.page);
       const h = await b.page.evaluate(() => { const G = window.__dbg(), F = window.__dbg.fn; const e = F.makeEnemy('goblin', 1, 1, 3); const hp = e.hp; G.hard = 0; const e2 = F.makeEnemy('goblin', 1, 1, 3); G.hard = 1; return { hard: G.hard, hp, hp0: e2.hp, pots: G.inv.pot }; });
@@ -436,7 +472,7 @@ describe('features', { concurrency: CONC }, () => {
         for (const k of ['mod', 'variant', 'opts', 'water', 'cracks', 'crackT', 'wade', 'stats', 'hard', 'daily', 'rs']) delete o[k];
         localStorage.setItem('dcr_run_v2', JSON.stringify(o));
       });
-      await page.reload();
+      await reload(page);
       await page.locator('#title button', { hasText: /Continue run/ }).click();
       const s = await page.evaluate(() => { const G = window.__dbg(); return { ver: G.ver, mod: G.mod, opts: G.opts, legacy: G.stats.legacy, turn: G.turn }; });
       assert.equal(s.ver, 3); assert.equal(s.mod, null); assert.equal(s.legacy, 1); assert.ok(s.turn >= 4);
