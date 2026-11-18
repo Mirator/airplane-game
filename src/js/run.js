@@ -135,27 +135,27 @@ function startRun(cls,opts){
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
  if(daily){const d=meta.dly[daily]||(meta.dly[daily]={att:0});if(!d.att)meta.dlyN++;d.att++;saveMeta();checkAch();}
  noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg('You descend into the Emberfall depths as a '+C.n+(daily?' (Daily '+daily+')':hard?' (Hard)':'')+'.');if(meta.unl.scroll)msg('Your starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
+ msg(C.e+' '+C.n+' descends'+(daily?' · Daily '+daily:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
 function deathTip(){
  const k=(G.killer||'').toLowerCase();
- if(/spike|trap|dart/.test(k))return 'Traps are drawn once you stand next to them. Walk around drawn traps (Explore does it for you), and never rush through unexplored rooms at low HP.';
- if(/poison/.test(k))return 'Poison ticks every turn. A potion cures it - drink one before it stacks with enemy hits.';
- if(/archer|warlock/.test(k))return 'Archers and warlocks need a clear line of sight. Break the line around a corner or a door, then close in.';
- if(/troll|dragon/.test(k))return 'Red hatched tiles mark the next big hit. Step off them (one tile is enough) and it deals nothing.';
- if(/guard/.test(k))return 'Guards shrug off '+pct(1-BAL.weapon.shieldFront)+' of frontal damage and '+pct(1-BAL.weapon.shieldRanged)+' of ranged hits. Stun or freeze one (Bash, Charge, Nova) or hit it from behind.';
- if(/hound/.test(k))return 'Hounds move two tiles per turn: you cannot kite them. Meet them in melee, or stun them as they arrive.';
- if(/cultist/.test(k))return 'Cultists heal their friends. Dive them first: Charge, Blink or throw a knife.';
- if(/\b(rat|bat|whelp)\b/.test(k))return 'Packs wear you down. Hold a corridor, or use Cleave, Frost Nova, Fireball or a Smoke Bomb.';
- if(/ogre/.test(k))return 'Ogres act every other turn. Hit while the hourglass shows, then step back before it swings.';
- if(/wall|impact/.test(k))return 'Knockback into a wall or door adds damage. Fight with open floor behind you.';
- if(/shrine|curse/.test(k))return 'Gambles and cursed gear cost HP. Check your HP before praying at a shrine.';
- if(/elite/.test(k))return 'Elite enemies are tougher than they look. Lure them into a corridor, use flame scrolls, or skip the treasure room.';
- if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP - it costs a turn but saves the run.';
- if(G.p.hp<=0&&G.inv.fire>0)return 'You died with a flame scroll unused. It hits everything in sight - use it when a crowd closes in.';
- return 'Fight in corridors and doorways so only one enemy can reach you, and rest behind a closed door when you can.';
+ if(/spike|trap|dart/.test(k))return 'Walk around drawn traps; Explore does it for you.';
+ if(/poison/.test(k))return 'A potion cures poison. Drink before it stacks with hits.';
+ if(/archer|warlock/.test(k))return 'Break the line of sight around a corner, then close in.';
+ if(/troll|dragon/.test(k))return 'Red tiles mark the next big hit. One step off and it misses.';
+ if(/guard/.test(k))return 'Guards block '+pct(1-BAL.weapon.shieldFront)+' from the front. Stun them (Bash, Charge, Nova) or hit from behind.';
+ if(/hound/.test(k))return 'Hounds move twice per turn. Fight them in melee or stun them.';
+ if(/cultist/.test(k))return 'Cultists heal allies. Dive them first: Charge, Blink or a knife.';
+ if(/\b(rat|bat|whelp)\b/.test(k))return 'Hold a corridor, or use Cleave, Nova, Fireball or Smoke.';
+ if(/ogre/.test(k))return 'Hit while the hourglass shows, then step back.';
+ if(/wall|impact/.test(k))return 'Knockback into walls adds damage. Keep open floor behind you.';
+ if(/shrine|curse/.test(k))return 'Shrine gambles and cursed gear cost HP. Check your HP first.';
+ if(/elite/.test(k))return 'Elites are tough. Lure them into a corridor or use Flames.';
+ if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP.';
+ if(G.p.hp<=0&&G.inv.fire>0)return 'You died holding Flames. Use them when a crowd closes in.';
+ return 'Fight in corridors and doorways so only one foe reaches you.';
 }
 function finish(kind){
  autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
@@ -170,16 +170,15 @@ function finish(kind){
  computeVis();render();
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
- const perks=PERKS.filter(pk=>pc(pk.id)>0).map(pk=>pk.n+(pk.max>1?' x'+pc(pk.id):'')).join(', ')||'none';
- const tags=(G.daily?' &middot; 📅 Daily '+G.daily:'')+(hard?' &middot; 💀 Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const tags=(G.daily?' &middot; 📅 Daily':'')+(hard?' &middot; 💀 Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
-  (won?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>Killed by <b>'+killTxt+'</b> on floor '+G.floor+'.</p>':'<p>You left the dungeon.</p>')+
-  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')'+tags+'<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+SLOTS.map(sl=>gearName(p.eq[sl])).filter(n=>n!=='Nothing').join('</b>, <b>')+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+(hard?' (Hard x'+BAL.hard.goldMul+')':'')+(aut?' (Auto x'+BAL.auto.goldMul+')':'')+'</span></p>'+(aut?'<p id="autoRecap" class="pl" style="border:1px solid #b5731f;border-radius:10px;padding:8px"><b>Auto run &mdash; '+autoGoldWord()+' gold</b><br><small>Auto played this run, so only '+autoGoldWord()+' of its gold went to your bank. Records, the Daily and achievements still count.</small></p>':'')+
-  '<p>Score: <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?' <b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'!</b>':'')+'</p>'+
-  (G.newUnl&&G.newUnl.length?'<p>New unlock'+(G.newUnl.length>1?'s':'')+': <b>'+G.newUnl.join(', ')+'</b></p>':'')+
-  (G.newAch&&G.newAch.length?'<p>🏆 Achievement'+(G.newAch.length>1?'s':'')+': <b>'+G.newAch.join(', ')+'</b></p>':'')+
-  (dead?'<p class="pl" style="border:1px solid #4b5080;border-radius:10px;padding:8px"><b>Tip:</b> '+deathTip()+'</p>':''),
-  [{label:'Back to title',c:1,fn:function(){closeModal();G=null;rngS=null;showTitle();}}]);
+  '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
+  '<p class="recap">'+clsOf(p).e+' <b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'<br>Floor <b>'+G.floor+'</b> &middot; <b>'+G.turn+'</b> turns &middot; <b>'+G.kills+'</b> kills</p>'+
+  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
+  (G.newAch&&G.newAch.length?'<p class="recap">🏆 <b>'+G.newAch.join(', ')+'</b></p>':'')+
+  (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),
+  [{label:'Back to title',c:1,big:1,fn:function(){closeModal();G=null;rngS=null;showTitle();}}]);
 }
 
 // Tapping the stairs: below floor 1..MAXF-2 you choose between two floors; into the dragon lair there is only one way.

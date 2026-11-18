@@ -103,30 +103,24 @@ function rollOpts(nf){
 }
 function optHtml(nf,o){
  const m=o.mod?modOf(o.mod):null,th=themeOf(nf,o.v);
- return '<b>'+th.n+' &middot; '+(m?m.e+' '+m.n:'No modifier')+'</b><span>'+
-  (m?'<i style="color:#ff9a8a;font-style:normal">Risk:</i> '+m.down+'<br><i style="color:#8fe39a;font-style:normal">Reward:</i> '+m.up:'A plain floor: no surprises, no extra loot.')+
-  (BAL.merchant.floors.includes(nf)?'<br>🧔 A merchant waits on this floor.':'')+'</span>';
+ return '<b>'+th.n+' &middot; '+(m?m.e+' '+m.n:'Plain floor')+'</b><span>'+
+  (m?'<i style="color:#ff9a8a;font-style:normal">Risk:</i> '+m.r+'<br><i style="color:#8fe39a;font-style:normal">Gain:</i> '+m.g:'No surprises, no extra loot.')+
+  (BAL.merchant.floors.includes(nf)?'<br>🧔 Merchant':'')+'</span>';
 }
 function showBranch(){
  if(!G||G.over)return;walkTok++;
  const nf=G.floor+1;if(!G.opts)G.opts=rollOpts(nf);
  const btns=G.opts.map(function(o,i){return {k:'opt'+i,html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
- btns.push({k:'stay',label:'Stay on this floor',c:1,fn:closeModal});
- showModal('Choose your path','<p>Two ways lead down to floor '+nf+'. Pick one:</p>',btns,'path');
+ btns.push({k:'stay',label:'Stay here',c:1,fn:closeModal});
+ showModal('Floor '+nf+': pick a path','',btns,'path');
 }
-// the HUD chip: tap it for a one-line explanation
+// the one map chip: the floor modifier as a small icon; tap it for a one-line reminder (Daily / Hard show in the top bar)
 function modChipHtml(){
- let h='';
- if(G.daily)h+='<button class="chip" data-chip="daily" aria-label="Daily run">📅</button>';
- if(G.hard)h+='<button class="chip hard" data-chip="hard" aria-label="Hard mode">💀</button>';
  const m=G.mod?modOf(G.mod):null;
- if(m)h+='<button class="chip mod" data-chip="mod">'+m.e+' '+m.n+'</button>';
- return h;
+ return m?'<button class="chip mod" data-chip="mod" aria-label="'+m.n+'">'+m.e+'</button>':'';
 }
 function chipText(k){
  if(k==='mod'){const m=modOf(G.mod);return m?m.e+' '+m.n+': '+m.tip:'';}
- if(k==='hard')return '💀 Hard mode: '+HARD_RULES.map(r=>r.n).join(', ')+'.';
- if(k==='daily')return '📅 Daily run for '+G.daily+': the same dungeon for everyone today.';
  return '';
 }
 $('chips').addEventListener('click',function(ev){

@@ -18,7 +18,7 @@ function showModal(title,html,buttons,kind){
 function closeModal(){$('modal').style.display='none';}
 function perkTags(pk){
  let t='';
- if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';else if(pk.beh)t+='<em class="tag">BEHAVIOUR</em>';
+ if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';
  if(SYN.some(s=>(s.a===pk.id&&pc(s.b))||(s.b===pk.id&&pc(s.a))))t+='<em class="tag syn">SYNERGY</em>';
  return t;
 }
@@ -28,65 +28,76 @@ function showPerk(){
  const pool=perkPool();
  if(!pool.length){G.pending=0;save();return;}
  const opts=pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3);
- showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
+ showModal('Level '+G.p.lvl+': pick a perk','',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {k:pk.id,html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
    addPerk(pk.id);G.pending--;closeModal();save();render();
    if(G.pending>0)showPerk();else afterModals();
   }};}),'perk');
 }
-// the equipment cards: one per slot, with what it does. full = also list the class abilities.
+// equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
  const it=G.p.eq[sl];
  if(!it)return '<small>Empty</small>';
- const st=sl==='weapon'?'+'+it.v+' attack':sl==='armor'?'defense '+armorDef(it):sl==='off'?'modifies '+ABIL[OFF[it.k].ab].n:'passive charm';
- return '<small>'+st+'. '+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
+ const st=sl==='weapon'?'+'+it.v+' attack · ':sl==='armor'?'Defense '+armorDef(it)+' · ':'';
+ return '<small>'+st+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
 }
-function gearHtml(full){
- const p=G.p,C=clsOf(p);
- let h='<div class="pl"><b>'+C.e+' '+C.n+'</b> <small>('+C.res+')</small>'+(full?classKitHtml(p.cls,true):'<br><small>'+C.kit.map(k=>ABIL[k].n).join(' / ')+'</small>')+'</div>';
- for(const sl of SLOTS){const it=p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small><br><b>'+(it?itemIcon(it)+' ':'')+(it?gearName(it):'None')+'</b><br>'+slotLines(sl)+'</div>';}
+function statStrip(){
+ const p=G.p;
+ return '<div class="stripe"><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>Lv '+p.lvl+' <small>'+p.xp+'/'+needXp(p.lvl)+' XP</small></span></div>';
+}
+function gearHtml(){
+ let h=statStrip();
+ for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?itemIcon(it)+' '+gearName(it):'None')+'</b><br>'+slotLines(sl)+'</div>';}
  return h;
 }
 function showEquip(back){
  if(!G)return;
- showModal('Equipment',gearHtml(true),[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+ const again=function(){showEquip(back);};
+ showModal('Equipment',gearHtml(),[
+  {k:'abil',label:'Abilities',c:1,fn:function(){showAbilities(again);}},
+  {k:'perks',label:'Perks',c:1,fn:function(){showPerks(again);}},
+  {label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+}
+function showAbilities(back){
+ const C=clsOf(G.p);
+ let h='';for(const k of C.kit){const a=ABIL[k];h+='<div class="pl"><b>'+a.e+' '+a.n+'</b> <small>('+abCost(k)+')<br>'+abilityDesc(k)+'</small></div>';}
+ showModal(C.e+' '+C.n,h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showPerks(back){
- let h=gearHtml(true);const own=PERKS.filter(pk=>pc(pk.id)>0);
- h+='<p><b>Perks</b></p>';
- if(!own.length)h+='<p>No perks yet. Level up to pick some.</p>';
+ let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
+ if(!own.length)h+='<p class="sub">No perks yet. Level up to pick one.</p>';
  for(const pk of own)h+='<div class="pl"><b>'+pk.n+(pk.max>1?' ×'+pc(pk.id):'')+'</b>'+perkTags(pk)+'<br><small>'+pk.d+'</small></div>';
  h+='<p><b>Synergies</b></p>';
  for(const s of SYN){
   const on=pc(s.a)&&pc(s.b);
-  h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')'+(on?' ACTIVE':'')+'<br>'+s.d+'</small></div>';
+  h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')<br>'+s.d+'</small></div>';
  }
- showModal('Equipment, perks & synergies',h,[{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
+ showModal('Perks',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false};
- showModal('Menu',gearHtml(false),[
-  {label:'Resume',c:1,fn:closeModal},
-  {label:'Equipment, perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
+ showModal('Menu','',[
+  {label:'Resume',c:1,big:1,fn:closeModal},
+  {k:'auto',label:'🤖 Auto play',c:1,fn:function(){closeModal();autoStart();}},
+  {label:'Perks',c:1,fn:function(){showPerks(showMenu);}},
   {label:'Controls',c:1,fn:function(){showHelp(showMenu);}},
   {label:soundLabel(),c:1,fn:function(el){toggleSound();el.textContent=soundLabel();}},
   {label:'Abandon run',c:1,fn:function(el){
-   if(!arm.v){arm.v=true;el.textContent='Tap again to confirm (gold is banked)';return;}
+   if(!arm.v){arm.v=true;el.textContent='Tap again to abandon';return;}
    closeModal();finish('abandon');}}
- ]);
+ ],'menu');
 }
 function showGear(){
  const it=gearQ;gearQ=null;
  if(!G||G.over||!it||G.items.indexOf(it)<0||it.x!==G.p.x||it.y!==G.p.y)return;
  walkTok++;
  const p=G.p,sl=it.t,cur=p.eq[sl],nn=gearName(it);
- const stat=x=>!x?'':sl==='weapon'?'+'+x.v+' attack':sl==='armor'?'defense '+armorDef(x):sl==='off'?'modifies '+ABIL[OFF[x.k].ab].n:'passive';
- const card=(lab,x,hl)=>'<div class="pl" style="border:2px solid '+(hl?'#ffd24a':'#4b5080')+';border-radius:10px;padding:8px"><small>'+lab+'</small><br><b>'+(x?itemIcon(x)+' '+gearName(x):'Nothing')+'</b><br><small>'+(x?stat(x)+'.<br>'+itemRule(x)+(x.tr?'<br><b>'+TR[x.tr].n+'</b>: '+TR[x.tr].d:''):'Empty slot.')+'</small></div>';
- const dl=gearDelta(it);
- const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cur,false)+card('FOUND',it,true)+'</div>'+
-  '<p style="text-align:center">If you equip it: <b>'+(dl.length?dl.join(', '):'no stat change (rules differ)')+'</b></p>';
+ // found item, what it replaces, green / red stat changes, then at most two short rule lines
+ const rule=itemRuleShort(it),rules=(rule&&rule!=='Balanced.'?'<div class="rl">'+rule+'</div>':'')+(it.tr?'<div class="rl"><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d+'</div>':'');
+ const html='<div class="found"><b>'+itemIcon(it)+' '+nn+'</b><small>replaces '+(cur?itemIcon(cur)+' '+gearName(cur):'nothing')+'</small></div>'+
+  '<div class="dl">'+gearDeltaHtml(it)+'</div>'+rules;
  showModal(SLOT_LABEL[sl]+' found',html,[
   {k:'equip',label:'Equip',c:1,big:1,fn:function(){
    if(G.items.indexOf(it)<0){closeModal();return;}
@@ -95,6 +106,6 @@ function showGear(){
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
    closeModal();save();render();
    if(G.pending>0)showPerk();}},
-  {k:'leave',label:'Leave',c:1,big:1,fn:function(){msg('You leave the '+nn+' on the floor.');closeModal();render();}}
+  {k:'leave',label:'Leave',c:1,big:1,fn:function(){msg('Left the '+nn+'.');closeModal();render();}}
  ],'gear');
 }

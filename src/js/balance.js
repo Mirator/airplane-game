@@ -174,92 +174,92 @@ const BAL = {
 const SHOP=[
  {k:'hp',n:'Hardy',d:'+'+BAL.meta.hpPerLevel+' starting HP',base:30},
  {k:'atk',n:'Sharpened',d:'+'+BAL.meta.atkPerLevel+' starting attack',base:55},
- {k:'pot',n:'Supplies',d:'+'+BAL.meta.potPerLevel+' starting potion (and belt space), up to Lv '+BAL.meta.potMaxLevel,base:40,max:BAL.meta.potMaxLevel},
- {k:'goldp',n:'Greed',d:'+'+Math.round(BAL.meta.goldPerLevel*100)+'% gold found',base:50},
+ {k:'pot',n:'Supplies',d:'+'+BAL.meta.potPerLevel+' starting potion and belt space',base:40,max:BAL.meta.potMaxLevel},
+ {k:'goldp',n:'Greed',d:'+'+Math.round(BAL.meta.goldPerLevel*100)+'% gold',base:50},
  {k:'def',n:'Padded',d:'+'+BAL.meta.defPerLevel+' starting defense',base:70}
 ];
 const SHOPMAX=8;
 function shopMax(s){return s.max||SHOPMAX;}   // per-item level cap (Supplies is capped lower: potions are limited by belt space)
 const UNLOCKS=[
- {id:'rogue',n:'🗡 Rogue class',d:'Backstab, Vanish, Throwing Knife and Smoke Bomb. No resource bar: cooldowns, knives and positioning.',cost:150},
- {id:'mage',n:'🧙 Mage class',d:'Arcane Bolt, Frost Nova, Blink and Fireball, fuelled by a mana pool. Starts with an extra flame scroll.',cost:200},
- {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord to the level-up pool.',cost:180},
- {id:'elixir',n:'Merchant: Elixir',d:'Merchants also stock an Elixir of Vigor (+'+BAL.merchant.elixirHp+' max HP, full heal).',cost:110},
- {id:'scroll',n:'Starting scroll',d:'Begin every run with a random scroll (fireball or teleport).',cost:90},
- {id:'pick4',n:'Fourth choice',d:'Level-ups offer 4 perks to choose from instead of 3.',cost:220},
- {id:'shrine',n:'Shrine favour',d:'Shrines offer a safe Blessing and better odds when you pray.',cost:110},
- {id:'phoenix',n:'Perk: Phoenix Heart',d:'Adds Phoenix Heart (revive once per run) to the pool.',ach:'Defeat the dragon',chk:function(){return meta.wins>=1;},prog:function(){return meta.wins+'/1 wins';}},
- {id:'trapper',n:'Perk: Trapfinder',d:'Adds Trapfinder (see traps from 3 tiles, take half trap damage) to the pool.',ach:'Reach floor 4',chk:function(){return meta.best>=4;},prog:function(){return 'best floor '+meta.best+'/4';}},
- {id:'midas',n:'Perk: Midas Touch',d:'Adds Midas Touch (every kill drops gold) to the pool.',ach:'Slay 50 enemies in total',chk:function(){return meta.kills>=50;},prog:function(){return meta.kills+'/50 kills';}},
- {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist (potions heal 50% more) to the pool.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
+ {id:'rogue',n:'🗡 Rogue class',d:'Backstab, Vanish, Knife, Smoke. Cooldown based.',cost:150},
+ {id:'mage',n:'🧙 Mage class',d:'Bolt, Nova, Blink, Fireball. Runs on mana.',cost:200},
+ {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord to level-ups.',cost:180},
+ {id:'elixir',n:'Merchant: Elixir',d:'Merchants sell an Elixir (+'+BAL.merchant.elixirHp+' max HP, full heal).',cost:110},
+ {id:'scroll',n:'Starting scroll',d:'Start each run with a random scroll.',cost:90},
+ {id:'pick4',n:'Fourth choice',d:'Level-ups offer 4 perks, not 3.',cost:220},
+ {id:'shrine',n:'Shrine favour',d:'Shrines offer a safe Blessing; better prayer odds.',cost:110},
+ {id:'phoenix',n:'Perk: Phoenix Heart',d:'Adds Phoenix Heart to level-ups.',ach:'Defeat the dragon',chk:function(){return meta.wins>=1;},prog:function(){return meta.wins+'/1 wins';}},
+ {id:'trapper',n:'Perk: Trapfinder',d:'Adds Trapfinder to level-ups.',ach:'Reach floor 4',chk:function(){return meta.best>=4;},prog:function(){return 'best floor '+meta.best+'/4';}},
+ {id:'midas',n:'Perk: Midas Touch',d:'Adds Midas Touch to level-ups.',ach:'Slay 50 enemies in total',chk:function(){return meta.kills>=50;},prog:function(){return meta.kills+'/50 kills';}},
+ {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist to level-ups.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
 ];
 const EN={
- rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Swarm animal: arrives in packs, moves twice per turn and surrounds you. Weak alone; Cleave, Frost Nova and Fireball shred a pack.'},
- goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain melee brute. Lunges: takes an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing, so you cannot back away from it for long.'},
- archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from up to 6 tiles (needs a clear line). Keeps its distance and flees when you get close.'},
- hound:{n:'Hound',e:'🐺',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Fast closer: moves twice per turn, so it crosses the room before a stationary shooter can kill it. Fight it in melee or stun it.'},
- guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shielded: takes only '+Math.round(BAL.weapon.shieldFront*100)+'% damage from the front and '+Math.round(BAL.weapon.shieldRanged*100)+'% from ranged hits. Stun or freeze it, or strike it from behind (opposite the way it faces).'},
- skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter. Lunges like the goblin (an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing).'},
- ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts only every other turn, but hits very hard. The hourglass shows it is recovering.'},
- troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow, lots of HP. Winds up a club smash (red tiles) that hurts and knocks you back.'},
- cultist:{n:'Cultist',e:'🧛',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Caster that stays behind its friends. Heals a wounded ally instead of attacking, otherwise blasts from 6 tiles. Priority target: dive it.'},
- bat:{n:'Bat',e:'🦇',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Swarm: a flock of fragile, fast biters. Area attacks wipe them out.'},
- warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts blasts from 6 tiles (needs a clear line). Keeps its distance.'},
- whelp:{n:'Whelp',e:'🦎',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'A dragon whelp, called by the Dragon. Fast and fragile in numbers.'},
- dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: winds up a 3-wide fire breath (red tiles). Calls whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join(' and ')+' health. Too heavy to push; stun, freeze or blind it to cancel an attack. Enraged at half health: hits harder, breathes more often and sweeps the tiles around it.'}
+ rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
+ goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
+ archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
+ hound:{n:'Hound',e:'🐺',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
+ guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield: takes '+Math.round(BAL.weapon.shieldFront*100)+'% from the front, '+Math.round(BAL.weapon.shieldRanged*100)+'% ranged. Hit from behind.'},
+ skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
+ ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
+ troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},
+ cultist:{n:'Cultist',e:'🧛',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
+ bat:{n:'Bat',e:'🦇',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
+ warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
+ whelp:{n:'Whelp',e:'🦎',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
+ dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: fire breath (red tiles), calls whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join(' and ')+' HP. Stun or blind cancels a wind-up.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
  {id:'vit',n:'Vitality',d:'+12 max HP and heal 12',f:p=>{p.mhp+=12;p.hp=Math.min(p.mhp,p.hp+12);}},
  {id:'might',n:'Might',d:'+2 attack',f:p=>{p.atk+=2;}},
  {id:'bul',n:'Bulwark',d:'+1 defense',f:p=>{p.def+=1;}},
- {id:'vamp',n:'Vampirism',d:'Heal 10% of damage dealt (min 1)',f:p=>{p.life+=0.1;}},
- {id:'keen',n:'Keen Eye',d:'+12% critical chance (x2 damage)',f:p=>{p.crit+=0.12;}},
+ {id:'vamp',n:'Vampirism',d:'Heal 10% of damage dealt',f:p=>{p.life+=0.1;}},
+ {id:'keen',n:'Keen Eye',d:'+12% crit chance',f:p=>{p.crit+=0.12;}},
  {id:'renew',n:'Renewal',d:'Heal 30% HP on each new floor',f:p=>{p.renew+=0.3;}},
  {id:'thorns',n:'Thorns',d:'Melee attackers take 2 damage',f:p=>{p.thorns+=2;}},
  {id:'pockets',n:'Deep Pockets',d:'+2 potion capacity',f:p=>{p.potCap+=2;}},
- {id:'evade',n:'Evasion',d:'+8% chance to dodge attacks',f:p=>{p.dodge+=0.08;}},
- {id:'scholar',n:'Scholar',d:'+30% XP gained',f:p=>{p.xpMul+=0.3;}},
- {id:'pyro',n:'Pyromancer',d:'Flame scrolls and the Fireball spell deal +'+Math.round(BAL.perk.pyroFire*100)+'% damage; +1 flame scroll',f:p=>{p.fireMul+=BAL.perk.pyroFire;G.inv.fire++;}},
+ {id:'evade',n:'Evasion',d:'+8% dodge',f:p=>{p.dodge+=0.08;}},
+ {id:'scholar',n:'Scholar',d:'+30% XP',f:p=>{p.xpMul+=0.3;}},
+ {id:'pyro',n:'Pyromancer',d:'Flames and Fireball +'+Math.round(BAL.perk.pyroFire*100)+'% damage; +1 Flames',f:p=>{p.fireMul+=BAL.perk.pyroFire;G.inv.fire++;}},
  {id:'regen',n:'Regeneration',d:'+1 HP every 5 turns',f:p=>{p.regen+=1;}},
- {id:'treasure',n:'Treasure Hunter',d:'+25% gold found',f:p=>{p.goldMul+=0.25;}},
- {id:'tempo',n:'Tempo',d:'All ability cooldowns are '+BAL.perk.tempoCut+' turn shorter (min 1)',beh:1},
+ {id:'treasure',n:'Treasure Hunter',d:'+25% gold',f:p=>{p.goldMul+=0.25;}},
+ {id:'tempo',n:'Tempo',d:'Ability cooldowns '+BAL.perk.tempoCut+' turn shorter',beh:1},
  // behaviour perks
- {id:'venom',n:'Venom',beh:1,max:3,d:'Hits poison for 3 turns (+1 poison damage per level; halved on bosses)'},
- {id:'chain',n:'Chain Lightning',beh:1,d:'Kills zap the nearest visible enemy (once, no further chains)'},
- {id:'blood',n:'Bloodlust',beh:1,d:'After a kill, your next hit deals +75% damage'},
- {id:'riposte',n:'Riposte',beh:1,max:3,d:'20% chance per level to counterattack when hit in melee'},
- {id:'second',n:'Second Wind',beh:1,d:'Once per floor, a lethal hit leaves you at 1 HP instead'},
- {id:'glass',n:'Glass Cannon',beh:1,d:'+5 attack but -25% max HP',f:p=>{p.atk+=5;p.mhp=Math.max(8,Math.round(p.mhp*0.75));p.hp=Math.min(p.hp,p.mhp);}},
- {id:'scav',n:'Scavenger',beh:1,max:2,d:'Slain enemies drop an extra potion 20% of the time (per level)'},
- {id:'berserk',n:'Berserk',beh:1,d:'Up to +80% damage as your HP drops'},
- {id:'exec',n:'Executioner',beh:1,d:'Instantly slay non-boss enemies below 20% HP after a hit'},
+ {id:'venom',n:'Venom',beh:1,max:3,d:'Hits poison for 3 turns; +1 damage per level'},
+ {id:'chain',n:'Chain Lightning',beh:1,d:'Kills zap the nearest visible foe'},
+ {id:'blood',n:'Bloodlust',beh:1,d:'After a kill, your next hit deals +75%'},
+ {id:'riposte',n:'Riposte',beh:1,max:3,d:'20% per level to counter melee hits'},
+ {id:'second',n:'Second Wind',beh:1,d:'Once per floor, a lethal hit leaves 1 HP'},
+ {id:'glass',n:'Glass Cannon',beh:1,d:'+5 attack, -25% max HP',f:p=>{p.atk+=5;p.mhp=Math.max(8,Math.round(p.mhp*0.75));p.hp=Math.min(p.hp,p.mhp);}},
+ {id:'scav',n:'Scavenger',beh:1,max:2,d:'20% per level: kills drop a potion'},
+ {id:'berserk',n:'Berserk',beh:1,d:'Up to +80% damage as HP drops'},
+ {id:'exec',n:'Executioner',beh:1,d:'Slay non-boss foes below 20% HP'},
  // class perks: they modify the class kit
  {id:'fury',cls:'warrior',n:'Fury',beh:1,d:'Rage gain +'+Math.round(BAL.perk.furyMul*100)+'%'},
- {id:'retrib',cls:'warrior',n:'Retribution',beh:1,d:'Brace blocks '+BAL.perk.retribHits+' more hits and reflects '+Math.round(BAL.perk.retribReflect*100)+'% of the damage'},
- {id:'stampede',cls:'warrior',n:'Stampede',beh:1,d:'Charge costs '+BAL.perk.stampedeCost+' less rage and stuns every enemy next to where you land'},
+ {id:'retrib',cls:'warrior',n:'Retribution',beh:1,d:'Brace: +'+BAL.perk.retribHits+' blocks, reflects '+Math.round(BAL.perk.retribReflect*100)+'%'},
+ {id:'stampede',cls:'warrior',n:'Stampede',beh:1,d:'Charge costs '+BAL.perk.stampedeCost+' less, stuns neighbours'},
  {id:'arcana',cls:'mage',n:'Arcane Mastery',beh:1,d:'+'+Math.round(BAL.perk.arcanaSpell*100)+'% spell power'},
- {id:'well',cls:'mage',n:'Wellspring',beh:1,d:'+'+BAL.perk.wellMana+' max mana and +'+BAL.perk.wellKill+' mana per kill',f:p=>{p.mbase+=BAL.perk.wellMana;if(G)p.mana+=BAL.perk.wellMana;}},
- {id:'deepfreeze',cls:'mage',n:'Deep Freeze',beh:1,d:'Frost Nova freezes '+BAL.perk.freezeExtra+' turns longer'},
- {id:'phase',cls:'mage',n:'Phase Step',beh:1,d:'Blink costs '+BAL.perk.phaseCost+' less mana and has no cooldown'},
- {id:'assassin',cls:'rogue',n:'Assassin',beh:1,d:'Backstab deals +'+Math.round(BAL.perk.assassinMul*100)+'% damage and recharges '+BAL.perk.assassinCd+' turns sooner'},
- {id:'bando',cls:'rogue',n:'Bandolier',beh:1,d:'+'+BAL.perk.bandoMax+' throwing knives carried'},
- {id:'shadow',cls:'rogue',n:'Shadow Cloak',beh:1,d:'Vanish recharges '+BAL.perk.shadowCd+' turns sooner and lasts '+BAL.perk.shadowTurns+' turns longer'},
+ {id:'well',cls:'mage',n:'Wellspring',beh:1,d:'+'+BAL.perk.wellMana+' max mana, +'+BAL.perk.wellKill+' mana per kill',f:p=>{p.mbase+=BAL.perk.wellMana;if(G)p.mana+=BAL.perk.wellMana;}},
+ {id:'deepfreeze',cls:'mage',n:'Deep Freeze',beh:1,d:'Nova freezes '+BAL.perk.freezeExtra+' turns longer'},
+ {id:'phase',cls:'mage',n:'Phase Step',beh:1,d:'Blink: '+BAL.perk.phaseCost+' less mana, no cooldown'},
+ {id:'assassin',cls:'rogue',n:'Assassin',beh:1,d:'Backstab +'+Math.round(BAL.perk.assassinMul*100)+'% damage, '+BAL.perk.assassinCd+' turns sooner'},
+ {id:'bando',cls:'rogue',n:'Bandolier',beh:1,d:'+'+BAL.perk.bandoMax+' knives carried'},
+ {id:'shadow',cls:'rogue',n:'Shadow Cloak',beh:1,d:'Vanish: '+BAL.perk.shadowCd+' turns sooner, '+BAL.perk.shadowTurns+' longer'},
  // unlockable perks (only in the pool once unlocked in the title shop / by achievements)
  {id:'warlord',n:'Warlord',lock:'warlord',max:2,d:'+3 attack and +1 defense',f:p=>{p.atk+=3;p.def+=1;}},
  {id:'phoenix',n:'Phoenix Heart',lock:'phoenix',beh:1,d:'Once per run, a lethal hit revives you at half HP'},
- {id:'trapper',n:'Trapfinder',lock:'trapper',beh:1,d:'Spot traps from 3 tiles away; traps do half damage to you and poison is shorter'},
- {id:'midas',n:'Midas Touch',lock:'midas',beh:1,d:'Every slain enemy drops some gold'},
- {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more (per level)'}
+ {id:'trapper',n:'Trapfinder',lock:'trapper',beh:1,d:'See traps from 3 tiles; half trap damage'},
+ {id:'midas',n:'Midas Touch',lock:'midas',beh:1,d:'Every kill drops some gold'},
+ {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more per level'}
 ];
 PERKS.forEach(p=>{if(!p.max)p.max=p.beh?1:5;});
 const SYN=[
- {id:'bv',a:'berserk',b:'vamp',n:'Blood Frenzy',d:'Lifesteal is doubled below half HP'},
+ {id:'bv',a:'berserk',b:'vamp',n:'Blood Frenzy',d:'Lifesteal doubled below half HP'},
  {id:'be',a:'blood',b:'exec',n:'Bloody Verdict',d:'Executioner threshold rises to 30%'},
- {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons its target'},
- {id:'fb',a:'fury',b:'berserk',n:'Blood Rage',d:'Rage gain is x'+BAL.perk.bloodRageMul+' below half HP'},
+ {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons'},
+ {id:'fb',a:'fury',b:'berserk',n:'Blood Rage',d:'Rage gain x'+BAL.perk.bloodRageMul+' below half HP'},
  {id:'ow',a:'arcana',b:'well',n:'Overflow',d:'Kills restore double mana'},
- {id:'sd',a:'assassin',b:'bando',n:'Silent Death',d:'A throwing knife that kills returns to your hand'}
+ {id:'sd',a:'assassin',b:'bando',n:'Silent Death',d:'A knife that kills returns to you'}
 ];
 // kit = the four ability keys (defs in content.js ABIL); start = starting weapon kind; mana = base mana pool (0 = none)
 const CLS={
@@ -316,27 +316,28 @@ const TR={
  leaden:{slot:'armor',n:'Leaden',dv:2,minF:3}
 };
 {const sg=n=>(n>=0?'+':'')+n,pc100=x=>Math.round(Math.abs(x)*100)+'%',B=BAL.trait;
- TR.cursed.d=sg(TR.cursed.dv)+' attack, but you lose '+B.cursedDrain+' HP per kill.';
- TR.vamp.d=sg(TR.vamp.dv)+' attack, but heal '+pc100(B.vampLife)+' of damage dealt.';
- TR.brutal.d=sg(TR.brutal.dv)+' attack, but '+sg(Math.round(B.brutalCrit*100))+'% crit chance.';
- TR.keen.d=sg(TR.keen.dv)+' attack, but +'+pc100(B.keenCrit)+' crit chance.';
- TR.heavy.d=sg(TR.heavy.dv)+' defense, but enemies get a free turn every '+B.heavyEvery+'th turn.';
- TR.spiked.d='Melee attackers take '+B.spikedThorns+' damage, but '+sg(B.spikedAtk)+' attack.';
- TR.leaden.d=sg(TR.leaden.dv)+' defense, but potions heal '+pc100(1-BAL.potion.leadenMul)+' less.';}
+ TR.cursed.d=sg(TR.cursed.dv)+' attack; lose '+B.cursedDrain+' HP per kill.';
+ TR.vamp.d=sg(TR.vamp.dv)+' attack; heal '+pc100(B.vampLife)+' of damage dealt.';
+ TR.brutal.d=sg(TR.brutal.dv)+' attack; '+sg(Math.round(B.brutalCrit*100))+'% crit.';
+ TR.keen.d=sg(TR.keen.dv)+' attack; +'+pc100(B.keenCrit)+' crit.';
+ TR.heavy.d=sg(TR.heavy.dv)+' defense; foes get a free turn every '+B.heavyEvery+'th turn.';
+ TR.spiked.d=sg(B.spikedAtk)+' attack; melee attackers take '+B.spikedThorns+'.';
+ TR.leaden.d=sg(TR.leaden.dv)+' defense; potions heal '+pc100(1-BAL.potion.leadenMul)+' less.';}
 const TRAPS={spike:{n:'Spike trap',c:'#ff5a5a'},dart:{n:'Dart trap',c:'#7be04b'},alarm:{n:'Alarm trap',c:'#ffd24a'}};
 
 // ===== Floor modifiers (rules: mods.js; numbers: BAL.mod). down = the price you pay, up = what you get. minF = first floor it can appear on. =====
 const MODS=(function(){
  const M=BAL.mod,p=x=>Math.round(x*100)+'%';
+ // tip = one line for the chip; r / g = a few words of risk and reward for the path choice
  return [
-  {id:'dark',tip:'Sight '+M.dark.sight+' tiles, more loot.',e:'🌑',n:'Dark',minF:2,down:'You only see '+M.dark.sight+' tiles around you.',up:'More loot: +'+M.dark.extraGold+' gold piles'+(M.dark.extraPotions?', +'+M.dark.extraPotions+' potion':'')+' and a '+p(M.dark.gearChance)+' chance of a gear drop.'},
-  {id:'flooded',tip:'Water slows you; enemies in it lose a move.',e:'🌊',n:'Flooded',minF:2,down:'Wading through water gives enemies an extra move.',up:'Enemies that enter water lose their next move; +'+M.flooded.extraGold+' gold piles.'},
-  {id:'cursed',tip:'No regen, weaker potions, a safe shrine.',e:'☠️',n:'Cursed ground',minF:2,down:'No natural regeneration and potions heal '+p(M.cursed.potionMul)+'.',up:'A shrine is guaranteed, and it offers the safe Blessing.'},
-  {id:'horde',tip:'Many weak foes, no treasure room.',e:'🐀',n:'Horde',minF:2,down:p(M.horde.countMul-1)+' more enemies, no locked treasure room, and each gives only '+p(M.horde.xpMul)+' XP.',up:'Foes have '+p(M.horde.hpMul)+' HP and '+p(1-M.horde.atkMul)+' less attack; they drop more gold.'},
-  {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'🎯',n:'Hunted',minF:M.hunted.minFloor,down:'A tough stalker hunts you from the start.',up:'Slay it for a trait item, gold, a potion and bonus XP.'},
-  {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'💰',n:'Rich vein',minF:2,down:'Enemies have +'+p(M.rich.hpMul-1)+' HP and +'+p(M.rich.atkMul-1)+' attack.',up:'Gold is doubled; +'+M.rich.extraGold+' gold piles.'},
-  {id:'silent',tip:'More traps, alarms and easy sneak attacks.',e:'🤫',n:'Silent',minF:2,down:'Twice the traps, and half of them are alarms.',up:'Enemies notice you only from '+M.silent.sight+' tiles; sneak attacks do x'+M.silent.sneakMul+' for everyone.'},
-  {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'🕳️',n:'Unstable',minF:2,down:'Tiles crack, then collapse after '+M.unstable.warn+' turns: standing on one hurts.',up:'Collapses hit enemies for x'+M.unstable.enemyMul+'; extra gear and gold.'}
+  {id:'dark',tip:'Sight '+M.dark.sight+' tiles, more loot.',e:'🌑',n:'Dark',minF:2,r:'See only '+M.dark.sight+' tiles',g:'More loot'},
+  {id:'flooded',tip:'Water slows you; foes in it lose a move.',e:'🌊',n:'Flooded',minF:2,r:'Water slows you',g:'Water slows foes; +gold'},
+  {id:'cursed',tip:'No regen, weaker potions, a safe shrine.',e:'☠️',n:'Cursed ground',minF:2,r:'No regen, potions '+p(M.cursed.potionMul),g:'Safe shrine'},
+  {id:'horde',tip:'Many weak foes, no treasure room.',e:'🐀',n:'Horde',minF:2,r:p(M.horde.countMul-1)+' more foes, no vault',g:'Weaker foes, more gold'},
+  {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'🎯',n:'Hunted',minF:M.hunted.minFloor,r:'A stalker hunts you',g:'Slay it for loot'},
+  {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'💰',n:'Rich vein',minF:2,r:'Foes +'+p(M.rich.hpMul-1)+' HP',g:'Gold x'+M.rich.goldMul},
+  {id:'silent',tip:'More traps and alarms; easy sneak attacks.',e:'🤫',n:'Silent',minF:2,r:'Twice the traps',g:'Easy sneak attacks'},
+  {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'🕳️',n:'Unstable',minF:2,r:'Floor collapses',g:'Extra gear and gold'}
  ];
 })();
 function modOf(id){return MODS.find(m=>m.id===id)||null;}
@@ -344,10 +345,10 @@ function modOf(id){return MODS.find(m=>m.id===id)||null;}
 const HARD_RULES=(function(){
  const H=BAL.hard,p=x=>Math.round(x*100)+'%';
  return [
-  {n:'Tougher foes',d:'Enemies have +'+p(H.hpMul-1)+' HP and +'+p(H.atkMul-1)+' attack; the dragon hits +'+p(H.bossAtkMul-1)+' harder.'},
-  {n:'Scarce potions',d:H.startPotions+' fewer starting potion'+(H.startPotions>1?'s':'')+', '+(H.bonusPotion?'the bonus floor potion is only '+p(H.bonusPotion)+' likely':'no bonus potion on floors')+', '+p(1-H.dropPotionMul)+' fewer potion drops.'},
-  {n:'Brood mother',d:'The dragon calls an extra brood of whelps at '+p(H.extraSummonAt)+' health and enrages at '+p(H.enrageFrac)+'.'},
-  {n:'Spoils',d:'Banked gold and score are x'+H.goldMul+'.'}
+  {n:'Tougher foes',d:'Foes +'+p(H.hpMul-1)+' HP, +'+p(H.atkMul-1)+' attack; dragon +'+p(H.bossAtkMul-1)+'.'},
+  {n:'Scarce potions',d:H.startPotions+' fewer starting potion'+(H.startPotions>1?'s':'')+', '+p(1-H.dropPotionMul)+' fewer drops.'},
+  {n:'Brood mother',d:'Extra whelps at '+p(H.extraSummonAt)+' dragon HP; enrages at '+p(H.enrageFrac)+'.'},
+  {n:'Spoils',d:'Banked gold and score x'+H.goldMul+'.'}
  ];
 })();
 // ===== Achievements. chk = state-derived check (run at kills, floor changes, run end); no chk = granted directly by the event in code.
@@ -359,8 +360,8 @@ const ACH=[
  {id:'winM',n:'Archmage',d:'Win a run as the Mage.',chk:()=>recWins('mage')>=1},
  {id:'all3',n:'Triple Crown',d:'Win with all three classes.',gold:60,chk:()=>['warrior','rogue','mage'].every(c=>recWins(c)>=1),prog:()=>['warrior','rogue','mage'].filter(c=>recWins(c)>=1).length+'/3'},
  {id:'dry',n:'Teetotaler',d:'Win without drinking a potion.',gold:50,chk:()=>statWin()&&!G.stats.pots},
- {id:'dance',n:'Dragon Dancer',d:'Win without ever being hit by the dragon\'s telegraphed attacks.',gold:60,chk:()=>statWin()&&!G.stats.dragonHit},
- {id:'bare',n:'Bare Essentials',d:'Reach floor '+BAL.ach.noArmorFloor+' without wearing any armor.',gold:40},
+ {id:'dance',n:'Dragon Dancer',d:'Win without a dragon wind-up hitting you.',gold:60,chk:()=>statWin()&&!G.stats.dragonHit},
+ {id:'bare',n:'Bare Essentials',d:'Reach floor '+BAL.ach.noArmorFloor+' with no armor.',gold:40},
  {id:'horde',n:'Hordebreaker',d:'Clear every enemy on a Horde floor.',gold:30},
  {id:'hunt',n:'Stalker Stalked',d:'Slay the stalker on a Hunted floor.',gold:30},
  {id:'daily',n:'Daily Champion',d:'Win a Daily run.',gold:40},
@@ -370,7 +371,7 @@ const ACH=[
  {id:'slayer',n:'Slayer',d:'Slay '+BAL.ach.kills+' enemies in total.',chk:()=>meta.kills>=BAL.ach.kills,prog:()=>Math.min(meta.kills,BAL.ach.kills)+'/'+BAL.ach.kills},
  {id:'elite',n:'Elite Hunter',d:'Slay '+BAL.ach.elites+' elite enemies in total.',chk:()=>meta.elites>=BAL.ach.elites,prog:()=>Math.min(meta.elites,BAL.ach.elites)+'/'+BAL.ach.elites},
  {id:'roll',n:'On a Roll',d:'Win '+BAL.ach.streak+' runs in a row.',gold:60,chk:()=>meta.bstreak>=BAL.ach.streak,prog:()=>Math.min(meta.bstreak,BAL.ach.streak)+'/'+BAL.ach.streak},
- {id:'terrain',n:'Terrain Master',d:'Leave a floor of each of the '+MODS.length+' modifiers alive.',gold:80,chk:()=>modsDone()>=MODS.length,prog:()=>modsDone()+'/'+MODS.length},
+ {id:'terrain',n:'Terrain Master',d:'Survive a floor of every modifier.',gold:80,chk:()=>modsDone()>=MODS.length,prog:()=>modsDone()+'/'+MODS.length},
  {id:'hoard',n:'Dragon\'s Hoard',d:'Carry '+BAL.ach.hoard+' gold at once.',chk:()=>!!G&&!!G.p&&G.p.gold>=BAL.ach.hoard},
  {id:'swift',n:'Swift Death',d:'Win a run in '+BAL.ach.fastTurns+' turns or fewer.',gold:50,chk:()=>statWin()&&G.turn<=BAL.ach.fastTurns}
 ];

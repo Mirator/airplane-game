@@ -78,14 +78,14 @@ function targetTiles(k){
 // reason an ability cannot be used right now ('' = usable)
 function whyNot(k){
  const A=ABIL[k],c=costOf(k),p=G.p;
- if(G.cd[k]>0)return A.n+' is recharging ('+G.cd[k]+' turn'+(G.cd[k]>1?'s':'')+').';
- if(c.rage&&(p.rage||0)<c.rage)return 'Not enough rage for '+A.n+' (need '+c.rage+', have '+Math.floor(p.rage||0)+').';
- if(c.mana&&(p.mana||0)<c.mana)return 'Not enough mana for '+A.n+' (need '+c.mana+', have '+Math.floor(p.mana||0)+').';
- if(k==='knife'&&(G.knives||0)<1)return 'No knives left. Walk over a thrown knife to pick it up.';
- if((k==='cleave'||k==='nova')&&!chebEnemies().length)return A.n+' needs an enemy next to you.';
+ if(G.cd[k]>0)return A.n+': '+G.cd[k]+' turn'+(G.cd[k]>1?'s':'')+' to recharge.';
+ if(c.rage&&(p.rage||0)<c.rage)return A.n+' needs '+c.rage+' rage (have '+Math.floor(p.rage||0)+').';
+ if(c.mana&&(p.mana||0)<c.mana)return A.n+' needs '+c.mana+' mana (have '+Math.floor(p.mana||0)+').';
+ if(k==='knife'&&(G.knives||0)<1)return 'No knives. Walk over one to pick it up.';
+ if((k==='cleave'||k==='nova')&&!chebEnemies().length)return A.n+': no enemy next to you.';
  if(A.tg!=='self'&&!targetTiles(k).length){
-  return k==='charge'?'Charge needs an enemy in a straight line, '+BAL.ability.charge.minDist+'-'+BAL.ability.charge.maxDist+' tiles away.':
-   (k==='bash'||k==='backstab')?A.n+' needs an enemy right next to you.':A.n+': no valid target in sight.';
+  return k==='charge'?'Charge: need a foe in line, '+BAL.ability.charge.minDist+'-'+BAL.ability.charge.maxDist+' tiles.':
+   (k==='bash'||k==='backstab')?A.n+': no enemy next to you.':A.n+': no target.';
  }
  return '';
 }
@@ -111,7 +111,7 @@ const DO={
   spend('bash');breakVanish();
   for(const v of victims){
    const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
-   hurtEnemy(v,dmg,'#ffb04a',false,'melee');msg('Shield Bash hits the '+nm(v)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
+   hurtEnemy(v,dmg,'#ffb04a',false,'melee');msg('Bash hits the '+nm(v)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
    if(!v.dead&&v.hp>0){stunEnemy(v,a.stun,a.stunBoss);msg('The '+nm(v)+' is stunned.');if(v===e&&v.hp>0)knock(v,dx,dy);}
    settle(v);
   }
@@ -119,7 +119,7 @@ const DO={
  },
  cleave:function(){
   const a=BAL.ability.cleave,tg=chebEnemies();spend('cleave');breakVanish();
-  msg('You cleave in a wide arc!');
+  msg('Cleave!');
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
    hurtEnemy(e,dmg,'#ffb04a',false,'melee');lifeSteal(dmg);poison(e);
@@ -144,7 +144,7 @@ const DO={
   const bulwark=eqKind('off')==='bulwark',retrib=pc('retrib');
   spend('brace');
   G.brace={hits:a.hits+(bulwark?O.bulwarkHits:0)+(retrib?BAL.perk.retribHits:0),t:a.turns,reflect:Math.max(a.reflect,bulwark?O.bulwarkReflect:0,retrib?BAL.perk.retribReflect:0)};
-  floatFx(G.p.x,G.p.y,'BRACE','#9cf');msg('You brace: the next '+G.brace.hits+' hits are halved and '+Math.round(G.brace.reflect*100)+'% is reflected.');
+  floatFx(G.p.x,G.p.y,'BRACE','#9cf');msg('Braced: next '+G.brace.hits+' hits halved.');
   endTurn();
  },
  bolt:function(tx,ty){
@@ -160,14 +160,14 @@ const DO={
   }
   for(const v of hit){
    const dmg=Math.max(1,Math.round((playerDmg(true)*a.mul+a.add)*spellMul()));
-   hurtEnemy(v,dmg,'#b48cff',false,'ranged');msg('Arcane Bolt hits the '+nm(v)+' for '+dmg+'.');
+   hurtEnemy(v,dmg,'#b48cff',false,'ranged');msg('Bolt hits the '+nm(v)+' for '+dmg+'.');
    poison(v);settle(v);
   }
   endTurn();
  },
  nova:function(){
   const a=BAL.ability.nova,tg=chebEnemies();spend('nova');breakVanish();
-  floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('A frost nova bursts around you!');
+  floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('Nova!');
   const burn=BAL.offhand.tomeBurnBase+Math.floor(G.floor/BAL.offhand.tomeBurnFloorDiv);
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg(true)*a.mul*spellMul()));
@@ -183,7 +183,7 @@ const DO={
  blink:function(tx,ty){
   const p=G.p;spend('blink');walkTok++;
   floatFx(p.x,p.y,'blink','#d9c6ff');p.x=tx;p.y=ty;msg('You blink away.');
-  pickup();if(G.map[ix(tx,ty)]===2)msg('Stairs! Tap yourself to descend.');
+  pickup();if(G.map[ix(tx,ty)]===2)msg('On the stairs.');
   endTurn();
  },
  fire:function(tx,ty){
@@ -191,7 +191,7 @@ const DO={
   spend('fire');breakVanish();
   const R=a.radius+(prism?O.prismRadius:0);
   const dmg=Math.max(1,Math.round((a.base+a.perFloor*G.floor)*G.p.fireMul*spellMul()*(prism?O.prismMul:1)));
-  floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball! '+dmg+' damage in a '+(R*2+1)+'x'+(R*2+1)+' blast.');
+  floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball: '+dmg+' damage.');
   if(!rmo())puffs.push({x:tx,y:ty,t:performance.now(),s:Math.random()*6});
   for(const e of G.enemies.slice())if(!e.dead&&Math.max(Math.abs(e.x-tx),Math.abs(e.y-ty))<=R){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
   endTurn();
@@ -214,7 +214,7 @@ const DO={
  vanish:function(){
   spend('vanish');walkTok++;G.vanish=BAL.ability.vanish.turns+(pc('shadow')?BAL.perk.shadowTurns:0);
   for(const e of G.enemies)e.awake=false;
-  floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish. Enemies lose track of you.');endTurn();
+  floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish.');endTurn();
  },
  knife:function(tx,ty){
   const e=enemyAt(tx,ty),a=BAL.ability.knife,p=G.p;spend('knife');breakVanish();
@@ -236,7 +236,7 @@ const DO={
   spend('smoke');breakVanish();
   for(let y=ty-R;y<=ty+R;y++)for(let x=tx-R;x<=tx+R;x++)if(inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==5)cells.push(ix(x,y));
   (G.smoke=G.smoke||[]).push({cells:cells,t:a.turns+(sat?O.satchelTurns:0)});
-  floatFx(tx,ty,'SMOKE','#ccd',true);msg('A smoke cloud blooms. Enemies inside are blinded.');
+  floatFx(tx,ty,'SMOKE','#ccd',true);msg('Smoke: foes inside are blinded.');
   for(const e of G.enemies){
    if(cells.indexOf(ix(e.x,e.y))<0)continue;
    e.blind=a.blindTurns;e.wind=null;if(!EN[e.t].boss)e.awake=false;
@@ -251,7 +251,7 @@ function useAbility(k,tx,ty){
  if(why){msg(why);render();return false;}
  const A=ABIL[k];
  if(A.tg!=='self'){
-  if(tx==null||!targetTiles(k).some(t=>t[0]===tx&&t[1]===ty)){msg(A.n+': tap a highlighted target.');render();return false;}
+  if(tx==null||!targetTiles(k).some(t=>t[0]===tx&&t[1]===ty)){msg(A.n+': tap a lit tile.');render();return false;}
  }
  armed=null;
  DO[k](tx,ty);
@@ -263,7 +263,7 @@ function toggleAbility(k){
  const why=whyNot(k);
  if(why){msg(why);if(armed){armed=null;}render();return;}
  if(ABIL[k].tg==='self'){useAbility(k);return;}
- armed=k;msg(ABIL[k].n+' armed: tap a highlighted target (tap the button again or yourself to back out).');render();
+ armed=k;msg(ABIL[k].n+': tap a target.');render();
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- weapon reach (spear) ----

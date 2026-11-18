@@ -41,79 +41,80 @@ const ABIL={
 // ---- descriptive text: every number below is read from BAL / the tables, never hand-copied ----
 const pct=x=>Math.round(x*100)+'%',sgn=n=>(n>=0?'+':'')+n;
 function abCost(k){const a=BAL.ability[k];return a.rage?a.rage+' rage':a.mana?a.mana+' mana':k==='knife'?'1 knife':a.cd?'cooldown '+a.cd:'free';}
-function abCdTxt(k){const c=BAL.ability[k].cd;return c?' Recharges in '+c+' turns.':'';}
+// short player-facing hints (budget: <= 60 characters each; the cost / cooldown is shown next to the name)
 function abilityDesc(k){
- const a=BAL.ability[k],O=BAL.offhand;
+ const a=BAL.ability[k];
  switch(k){
-  case 'bash':return 'Hit an adjacent enemy, stun it '+a.stun+' turns ('+a.stunBoss+' on bosses) and knock it back a tile. Free.'+abCdTxt(k);
-  case 'cleave':return 'Hit EVERY adjacent enemy for '+pct(a.mul)+' damage. Costs '+a.rage+' rage.';
-  case 'charge':return 'Rush '+a.minDist+'-'+a.maxDist+' tiles in a straight line to an enemy, hit it for '+pct(a.mul)+' and stun it '+a.stun+' turns. Costs '+a.rage+' rage.'+abCdTxt(k);
-  case 'brace':return 'Halve the next '+a.hits+' hits you take (for up to '+a.turns+' turns) and reflect '+pct(a.reflect)+' of melee damage back. Costs '+a.rage+' rage.';
-  case 'bolt':return 'Ranged blast at a visible enemy up to '+a.range+' tiles away. Cheap filler: '+a.mana+' mana.';
-  case 'nova':return 'Freeze every adjacent enemy for '+a.freeze+' turns ('+a.freezeBoss+' on bosses) and deal '+pct(a.mul)+' damage. Costs '+a.mana+' mana.'+abCdTxt(k);
-  case 'blink':return 'Teleport up to '+a.range+' tiles to a visible tile you choose. Costs '+a.mana+' mana.'+abCdTxt(k);
-  case 'fire':return 'Explode a tile within '+a.range+': every enemy within '+a.radius+' tile'+(a.radius>1?'s':'')+' takes '+Math.round(a.base+a.perFloor)+' damage on floor 1, more deeper. Costs '+a.mana+' mana.';
-  case 'backstab':return 'Strike an adjacent enemy for x'+a.mul+' damage if it is unaware, stunned, frozen, blinded, or you are behind it. Otherwise only '+pct(a.weakMul)+'.'+abCdTxt(k);
-  case 'vanish':return 'Enemies lose track of you for '+a.turns+' turns. Attacking breaks it.'+abCdTxt(k);
-  case 'knife':return 'Throw a knife (range '+a.range+', '+pct(a.mul)+' damage). It drops on the target tile: walk over it to pick it up. You carry up to '+a.max+'.';
-  case 'smoke':return 'Blind enemies in a '+(a.radius*2+1)+'x'+(a.radius*2+1)+' cloud (range '+a.range+'): they lose track, and for '+a.turns+' turns the cloud makes enemies miss '+pct(a.miss)+' of attacks.'+abCdTxt(k);
+  case 'bash':return 'Stun an adjacent foe '+a.stun+' turns and push it back.';
+  case 'cleave':return 'Hit every adjacent foe for '+pct(a.mul)+'.';
+  case 'charge':return 'Dash '+a.minDist+'-'+a.maxDist+' tiles, hit for '+pct(a.mul)+', stun '+a.stun+' turns.';
+  case 'brace':return 'Halve the next '+a.hits+' hits; reflect '+pct(a.reflect)+' of melee.';
+  case 'bolt':return 'Ranged hit on a visible foe, up to '+a.range+' tiles.';
+  case 'nova':return 'Freeze adjacent foes '+a.freeze+' turns and hit for '+pct(a.mul)+'.';
+  case 'blink':return 'Teleport up to '+a.range+' tiles.';
+  case 'fire':return 'Blast radius '+a.radius+': '+Math.round(a.base+a.perFloor)+' damage, more deeper.';
+  case 'backstab':return 'x'+a.mul+' on unaware, stunned or flanked foes; else '+pct(a.weakMul)+'.';
+  case 'vanish':return 'Foes lose you for '+a.turns+' turns. Attacking breaks it.';
+  case 'knife':return 'Throw it ('+a.range+' tiles, '+pct(a.mul)+'); walk over it to reuse.';
+  case 'smoke':return 'Blind foes in a '+(a.radius*2+1)+'x'+(a.radius*2+1)+' cloud; '+pct(a.miss)+' miss for '+a.turns+' turns.';
  }
  return '';
 }
-function classBlurb(k){
+// class card line (budget: <= 45 characters). The numbers live in classDetail.
+const CLASS_TAG={warrior:'Tough brawler. Wades into packs.',mage:'Fragile caster. Blasts from afar.',rogue:'Sneaky striker. Ambush, then vanish.'};
+function classBlurb(k){return CLASS_TAG[k]||'';}
+function classDetail(k){
  const C=CLS[k],R=BAL.rage,M=BAL.mana;
- if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds when you hit or get hit and fades out of combat. Wants to stand in the middle of a pack.';
- if(k==='mage')return C.hp+' HP. Mana pool of '+C.mana+', +'+M.regen+' per turn and +'+M.perKill+' per kill. Wants distance and careful mana management. Starts with '+C.fire+' flame scrolls.';
- return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' damage on enemies that have not noticed you. No resource bar: cooldowns, '+BAL.ability.knife.max+' throwing knives and positioning. Never takes a fair fight.';
+ if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds when you hit or are hit, and fades out of combat.';
+ if(k==='mage')return C.hp+' HP. '+C.mana+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
+ return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' damage on unaware foes. Cooldowns and '+BAL.ability.knife.max+' knives, no resource bar.';
 }
-function classKitHtml(k,full){
- return CLS[k].kit.map(a=>{const A=ABIL[a];return '<div class="pl"><b>'+A.e+' '+A.n+'</b> <small>('+abCost(a)+')'+(full?'<br>'+abilityDesc(a):'')+'</small></div>';}).join('');
-}
-function wpRule(k){
+// gear rule lines (budget: <= 60 characters). noStat drops the +attack part (the comparison shows it as a number).
+function wpRule(k,noStat){
  const w=WP[k],t=[];
- if(w.atk)t.push(sgn(w.atk)+' melee attack');
- if(w.sweep)t.push('melee hits also strike other enemies next to you or the target for '+pct(w.sweep));
- if(w.reach)t.push('reach '+w.reach+': attacks an enemy two tiles away in a straight line');
+ if(w.atk&&!noStat)t.push(sgn(w.atk)+' attack');
+ if(w.sweep)t.push('hits neighbours for '+pct(w.sweep));
+ if(w.reach)t.push('reach '+w.reach);
  if(w.crit)t.push(sgn(Math.round(w.crit*100))+'% crit');
- if(w.sneak)t.push('sneak attacks and Backstab get +'+w.sneak+' to their multiplier');
+ if(w.sneak)t.push('sneak +'+w.sneak);
  if(w.spell)t.push(sgn(Math.round(w.spell*100))+'% spell power');
- if(w.mana)t.push(sgn(w.mana)+' max mana');
- return t.length?t.join('; ')+'.':'Balanced: no modifiers.';
+ if(w.mana)t.push(sgn(w.mana)+' mana');
+ return t.length?t.join(', '):'Balanced.';
 }
 function armRule(k){
  const a=ARM[k],t=[];
  if(a.noDef)t.push('no defense');else if(a.def)t.push(sgn(a.def)+' defense');
  if(a.dodge)t.push(sgn(Math.round(a.dodge*100))+'% dodge');
  if(a.spell)t.push(sgn(Math.round(a.spell*100))+'% spell power');
- if(a.manaBase)t.push('+'+a.manaBase+' max mana, more with tier');
- if(a.mana)t.push(sgn(a.mana)+' max mana');
- if(a.manaRegenMul)t.push('mana regenerates at '+pct(a.manaRegenMul));
- if(a.rageMul)t.push('rage gain at '+pct(a.rageMul));
- return t.length?t.join('; ')+'.':'Balanced: no modifiers.';
+ if(a.manaBase)t.push('+'+a.manaBase+' mana');
+ if(a.mana)t.push(sgn(a.mana)+' mana');
+ if(a.manaRegenMul)t.push('mana regen '+pct(a.manaRegenMul));
+ if(a.rageMul)t.push('rage gain '+pct(a.rageMul));
+ return t.length?t.join(', '):'Balanced.';
 }
 function offRule(k){
- const O=BAL.offhand,A=BAL.ability;
+ const O=BAL.offhand;
  return {
-  tower:'Bash hits the target and the enemies behind it in a line of '+O.towerLine+' tiles.',
-  bulwark:'Brace blocks '+O.bulwarkHits+' more hits and reflects '+pct(O.bulwarkReflect)+' of the damage.',
-  totem:'Cleave refunds '+O.totemRage+' rage per enemy hit.',
-  tome:'Frost Nova also burns every enemy it freezes ('+O.tomeBurnTurns+' turns).',
-  prism:'Fireball radius +'+O.prismRadius+', but '+pct(1-O.prismMul)+' less damage.',
-  lens:'Bolt pierces: also hits up to '+O.lensPierce+' more enemies behind the target in a line.',
-  dagger2:'Backstab strikes twice (the second hit at '+pct(O.dagger2Frac)+').',
-  satchel:'Smoke Bomb radius +'+O.satchelRadius+' and lasts '+O.satchelTurns+' turns longer.',
+  tower:'Bash hits a line of '+O.towerLine+' tiles.',
+  bulwark:'Brace: +'+O.bulwarkHits+' blocks, reflects '+pct(O.bulwarkReflect)+'.',
+  totem:'Cleave refunds '+O.totemRage+' rage per foe.',
+  tome:'Nova also burns frozen foes '+O.tomeBurnTurns+' turns.',
+  prism:'Fireball radius +'+O.prismRadius+', '+pct(1-O.prismMul)+' less damage.',
+  lens:'Bolt pierces '+O.lensPierce+' more foes in line.',
+  dagger2:'Backstab strikes twice (2nd at '+pct(O.dagger2Frac)+').',
+  satchel:'Smoke: radius +'+O.satchelRadius+', '+O.satchelTurns+' turns longer.',
   quiver:'+'+O.quiverKnives+' knives carried.'
  }[k]||'';
 }
 function charmRule(k){
  const C=BAL.charm;
  return {
-  fang:'Heal '+C.fangHeal+' HP (more on deeper floors) whenever you kill an enemy.',
-  ward:'The first hit you take on each floor is free.',
-  eye:'Every trap on the floor is revealed when you arrive.',
-  hourglass:'Ability cooldowns recharge faster: one extra turn every '+C.hourglassEvery+' turns.',
-  veil:'Enemies notice you from '+C.veilSight+' tiles closer.',
-  flask:'The first potion you drink on each floor takes no turn.',
-  soul:'Each kill refunds: '+C.soulRage+' rage (Warrior), '+C.soulMana+' mana (Mage), 1 turn off every cooldown (Rogue).'
+  fang:'Heal '+C.fangHeal+'+ HP on each kill.',
+  ward:'The first hit each floor is free.',
+  eye:'Reveals every trap on arrival.',
+  hourglass:'Cooldowns tick +1 every '+C.hourglassEvery+' turns.',
+  veil:'Foes notice you '+C.veilSight+' tiles later.',
+  flask:'First potion each floor takes no turn.',
+  soul:'Kills refund '+C.soulRage+' rage / '+C.soulMana+' mana / 1 cooldown.'
  }[k]||'';
 }

@@ -17,7 +17,7 @@ function autoStart(sync){
  walkTok++;armed=null;
  G.auto.on=1;AUTO.on=true;AUTO.pick=null;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=G.kills;AUTO.pf=G.floor;AUTO.pexp=-1;AUTO.lastProg=G.turn;AUTO.lastStop='';AUTO.err=null;
  if(!G.auto.noticed){G.auto.noticed=1;const t='Auto runs bank '+autoGoldWord()+' gold.';msg(t);toast('🤖 '+t,4200);}
- msg('Auto on. Tap the map to take over.');
+ msg('Auto on.');
  save();render();
  if(!sync)autoSchedule(autoDelay(false));
  return true;
@@ -34,22 +34,21 @@ function autoStop(why,quiet){
  if(why)msg(why);
  save();render();
 }
-function autoToggle(){if(!G||G.over)return;if(AUTO.on)autoStop('Auto off. You are in control.');else autoStart();}
+function autoToggle(){if(!G||G.over)return;if(AUTO.on)autoStop('Auto off.');else autoStart();}
 function autoSpeedCycle(){
  const sp=BAL.auto.speeds;AUTO.speed=sp[(sp.indexOf(AUTO.speed)+1)%sp.length];
  try{localStorage.setItem(AUTO_SPEED_KEY,String(AUTO.speed));}catch(e){}
  if(AUTO.on&&AUTO.tm)autoSchedule(autoDelay(!!AUTO.pick));
  AUTO.uiKey='';autoUi();
 }
-// the button, speed button, amber frame and the "AUTO" strip (called from updateHud, so it follows every render)
+// the top-bar strip (indicator, speed, stop; shown only while Auto runs) and the thin amber frame (called from updateHud, so it follows every render)
 function autoUi(){
- const show=!!G&&!G.over,on=show&&!!(G.auto&&G.auto.on),key=(show?1:0)+'|'+(on?1:0)+'|'+AUTO.speed;
+ const on=!!G&&!G.over&&!!(G.auto&&G.auto.on),key=(on?1:0)+'|'+AUTO.speed;
  if(key===AUTO.uiKey)return;AUTO.uiKey=key;
- $('autoBox').style.display=show?'flex':'none';
- const b=$('autoBtn');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');
- b.innerHTML=on?'⏸ AUTO <small>ON</small>':'🤖 AUTO';
- const sp=$('autoSpd');sp.style.display=on?'block':'none';sp.textContent=AUTO.speed+'×';
- $('cv').classList.toggle('auto',on);$('autoTag').style.display=on?'block':'none';
+ $('autoBox').style.display=on?'flex':'none';
+ $('autoBtn').setAttribute('aria-pressed',on?'true':'false');
+ $('autoSpd').textContent=AUTO.speed+'×';
+ $('cv').classList.toggle('auto',on);
 }
 $('autoBtn').addEventListener('click',function(){autoToggle();});
 $('autoSpd').addEventListener('click',function(){autoSpeedCycle();});
@@ -58,12 +57,12 @@ $('autoSpd').addEventListener('click',function(){autoSpeedCycle();});
 document.addEventListener('click',function(ev){
  if(!AUTO.on||AUTO.self||!G||!G.auto||!G.auto.on)return;
  const t=ev.target;if(t&&t.closest&&t.closest('#autoBox'))return;
- autoStop('You took over: Auto is off.');
+ autoStop('Auto off.');
  if(t===cv)ev.stopPropagation();
 },true);
 document.addEventListener('keydown',function(ev){
  if(!AUTO.on||AUTO.self||!G||!G.auto||!G.auto.on||ev.ctrlKey||ev.metaKey||ev.altKey||ev.key==='Shift')return;
- autoStop('You took over: Auto is off.');ev.stopPropagation();ev.preventDefault();
+ autoStop('Auto off.');ev.stopPropagation();ev.preventDefault();
 },true);
 document.addEventListener('visibilitychange',function(){if(document.hidden&&AUTO.on)autoStop('Page hidden: Auto paused.');});
 

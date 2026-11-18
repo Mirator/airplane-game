@@ -3,19 +3,19 @@
 function tryMove(dx,dy){
  const p=G.p,nx=p.x+dx,ny=p.y+dy;
  if(inb(nx,ny)&&G.map[ix(nx,ny)]===5){
-  if(G.keys>0){G.keys--;G.map[ix(nx,ny)]=4;msg('The key turns - the treasure room is open!');endTurn();return true;}
-  msg('Locked. The key is carried by the marked elite (gold ring and star) on this floor.');render();return false;}
+  if(G.keys>0){G.keys--;G.map[ix(nx,ny)]=4;msg('Vault opened.');endTurn();return true;}
+  msg('Locked. The marked elite has the key.');render();return false;}
  if(merchantAt(nx,ny)){showShop();return false;}
  if(!walkable(nx,ny))return false;
  const e=enemyAt(nx,ny);
  if(e){playerAttack(e);endTurn();return true;}
- if(G.map[ix(nx,ny)]===3){G.map[ix(nx,ny)]=4;msg('You open the door.');endTurn();return true;}
+ if(G.map[ix(nx,ny)]===3){G.map[ix(nx,ny)]=4;msg('Door opened.');endTurn();return true;}
  p.x=nx;p.y=ny;pickup();
  if(waterSet().has(ix(nx,ny)))G.wade=1;
- if(G.map[ix(nx,ny)]===2){msg('Stairs! Tap yourself to descend.');G.stopWalk=true;}
+ if(G.map[ix(nx,ny)]===2){msg('On the stairs.');G.stopWalk=true;}
  endTurn();return true;
 }
-function wait(){msg('You wait.');endTurn();}
+function wait(){msg('Wait.');endTurn();}
 function startWalk(path,opts){
  opts=opts||{};
  const tok=++walkTok;
@@ -26,13 +26,13 @@ function startWalk(path,opts){
   if(tz.has(ix(path[0][0],path[0][1]))){
    const l=path[path.length-1],np=bfsPath(p.x,p.y,l[0],l[1]);
    if(np&&np.length&&!np.some(t=>tz.has(ix(t[0],t[1])))){path.length=0;for(const t of np)path.push(t);}
-   else{msg('A trap blocks the way - walk around it.');stop();return;}
+   else{msg('Trap ahead: go around.');stop();return;}
   }
   const nx=path[0][0],ny=path[0][1];
   if(enemyAt(nx,ny)){stop();return;}
   const dz=dangerSet();
-  if(dz.size&&(dangerNear(dz)||dz.has(ix(nx,ny)))){msg('Danger tiles! Auto-walk stopped.');stop();return;}
-  if(G.cracks.length&&crackSet().has(ix(nx,ny))){msg('The floor ahead is cracking - wait or go around.');stop();return;}
+  if(dz.size&&(dangerNear(dz)||dz.has(ix(nx,ny)))){msg('Danger ahead. Stopped.');stop();return;}
+  if(G.cracks.length&&crackSet().has(ix(nx,ny))){msg('Floor ahead is cracking.');stop();return;}
   if(G.map[ix(nx,ny)]!==3&&G.map[ix(nx,ny)]!==5)path.shift();
   const hp0=p.hp,v0=visIds(),f0=G.floor;G.stopWalk=false;
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
@@ -47,9 +47,9 @@ function startWalk(path,opts){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight - tap it to attack, or tap a tile to move.');render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');render();return;}
  const dz=dangerSet();
- if(dz.size&&dangerNear(dz)){msg('Danger tiles nearby - step away first.');render();return;}
+ if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
 const tz=trapSet(),cz=crackSet();
  const sleepers=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]);
@@ -68,7 +68,7 @@ const tz=trapSet(),cz=crackSet();
  const prev=res.prev;let goal=res.goal;
  if(goal<0){
   // go to stairs if seen
-  for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. Heading to the stairs.');startWalk(pa);return;}}
+  for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. To the stairs.');startWalk(pa);return;}}
   msg('Nothing left to explore.');render();return;
  }
  const path=[];let k=goal;while(k!==ix(p.x,p.y)){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
@@ -94,7 +94,7 @@ function onTap(tx,ty){
   const sh=G.shrine;
   if(sh&&!sh.used&&sh.x===p.x&&sh.y===p.y){showShrine();return;}
   if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
- if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored floor tile.');return;}
+ if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored tile.');return;}
  const adj=Math.abs(tx-p.x)+Math.abs(ty-p.y)===1;
  if(merchantAt(tx,ty)){
   if(adj){showShop();return;}
@@ -107,9 +107,9 @@ function onTap(tx,ty){
   if(lp&&lp.length>1){lp.pop();startWalk(lp,{done:function(){if(G&&!G.over)tryMove(tx-G.p.x,ty-G.p.y);}});}else msg("Can't reach the locked door.");
   return;}
  {const tk=ix(tx,ty),rt=trapSet().has(tk);
-  if(rt&&trapConfirm!==tk){const t=G.traps.find(a=>a.x===tx&&a.y===ty&&!a.done);trapConfirm=tk;msg(TRAPS[t.k].n+'! Tap it again if you really want to step on it.');return;}
+  if(rt&&trapConfirm!==tk){const t=G.traps.find(a=>a.x===tx&&a.y===ty&&!a.done);trapConfirm=tk;msg(TRAPS[t.k].n+': tap again to step on it.');return;}
   if(!rt)trapConfirm=-1;
-  if(rt&&!adj){msg('Walk around the trap - Explore and auto-walk avoid it.');return;}}
+  if(rt&&!adj){msg('Walk around the trap.');return;}}
  const e=enemyAt(tx,ty);
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}

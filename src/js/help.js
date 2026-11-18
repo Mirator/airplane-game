@@ -1,57 +1,47 @@
-// help.js - the Controls / help screen text. Every number is generated from BAL and the tables.
+// help.js - the Controls / help screen text. Short hints; every number is generated from BAL and the tables.
 
 function showHelp(back){
- const r=(ic,n,d)=>'<div class="pl"><b>'+ic+' '+n+'</b><br><small>'+d+'</small></div>';
- const P=BAL.potion,A=BAL.ability;
- let h='<p><b>Bottom bar</b></p>'+
-  r('🧪','Potion','Heals about '+pct(P.healFrac)+' of your max HP (min '+P.minHeal+'). Takes a turn. The badge shows potions carried.')+
-  r('📜','Flames','A flame scroll: damages every enemy you can see. Takes a turn. Not used if no enemy is in sight.')+
-  r('🌀','Teleport','Moves you to a random spot far away. Takes a turn.')+
-  r('🧭','Explore','Auto-walks to unexplored areas (opening doors), then to the stairs. Keeps going past unnoticed enemies (avoiding stepping next to them); stops when one wakes up, a new one appears, or red danger tiles show up. It routes around known traps.')+
-  r('⏳','Wait','Skips a turn (also: tap yourself).')+
-  r('⬇️','Stairs','Goes down one floor when you stand on the ▼ tile.')+
-  '<p><b>Ability buttons (the row above the bar)</b></p>'+
-  r('🎯','Four abilities per class','Each button shows its icon, name and cost (or the turns until it recharges). A dim button cannot be used right now: tap it and the log says why. Self abilities fire at once. Targeted ones arm: valid tiles light up, tap one to use it, or tap the same button again (it turns into Cancel) or tap yourself to back out. Nothing covers the map while you aim. Every ability uses one turn.')+
-  r('⚔️','Weapons','Sword: balanced. Axe: hits the enemies next to you or the target too. Spear: reach '+WP.spear.reach+' - tap an enemy two tiles away in a straight line. Dagger: crit and sneak bonus. Staff: spell power and mana, weak melee.')+
-  r('🛡','Armor, off-hand, charm','Armor trades defense for resources (plate: strong but slows mana and rage; robe: spell power and mana but no defense; leather: dodge). Each class has its own off-hands that change one ability. A charm is one passive rule. Tap 🎒 to see everything you wear.')+
-  '<p><b>Tap controls</b></p>'+
-  r('👆','Tap a tile','Walk there (stops if danger appears).')+
-  r('⚔️','Tap an adjacent enemy','Attack it. Tap a distant enemy to see its info and walk toward it.')+
-  r('🗺','Tap the minimap','Opens the big map; tap again to close.')+
-  '<p><b>Combat tips</b></p>'+
-  r('🟥','Danger tiles','Heavy enemies (troll, dragon) wind up for one turn. Red hatched tiles show exactly what is hit next turn. Step off them and you take nothing; stay and it hurts about double. Auto-walk and Explore stop and never path through them.')+
-  r('🛡️','Shielded enemies','The Guard shows a bar on the side it faces. It takes '+pct(BAL.weapon.shieldFront)+' damage from the front and '+pct(BAL.weapon.shieldRanged)+' from ranged hits. Stunned or frozen guards drop their guard; hitting from behind is full damage.')+
-  r('💥','Knockback','Shield Bash and troll smashes push a target one tile. Into a wall, a closed door or another unit means bonus damage; into open floor it just moves. Bosses cannot be pushed.')+
-  r('🚪','Doors','Tap a door to open it (it uses your turn). Closed doors block sight; monsters open them too. Fight in a doorway or corridor so only one enemy can reach you, and archers need a clear line.')+
-  r('💤','Unaware enemies','Dim enemies with a z have not noticed you: the Rogue deals x'+BAL.combat.sneakMul+' damage to them, and anyone with a dagger gets a sneak bonus. An hourglass on an Ogre means it is resting this turn.')+
-  r('🐉','The Dragon','It calls whelps at '+BAL.enemyAi.summonAt.map(pct).join(' and ')+' health (area attacks shine), breathes fire in a line and, once enraged, sweeps all tiles around itself. It cannot be pushed, but a stun, freeze or blind cancels its wind-up.')+
-  '<p><b>Dungeon features</b></p>'+
-  r('🔺','Traps','Hidden until you are next to them, then drawn clearly. Spike (grey spikes) hurts, dart (green) poisons you, alarm (bell) wakes the whole floor. Auto-walk and Explore route around revealed traps; enemies can trigger them too. Pink dot on the minimap.')+
-  r('🗿','Shrines','Some floors have one. Step on it (or tap yourself on it) for a risky choice - heal, perk, or power for a price. You can always Leave. Purple dot on the minimap.')+
-  r('🔒','Locked room and key','A locked iron door hides a treasure room (gear with a trait plus gold). The key drops from the marked elite on that floor: a named, tougher enemy with a gold ring and a star (orange on the minimap). Tap the door with the key in hand to open it. Red-orange on the minimap.')+
-  r('🧔','Merchant','On floors '+BAL.merchant.floors.join(' and ')+'. He is not hostile and cannot be hit by accident: tap him to open the shop (potions, scrolls, gear, a perk) and spend run gold. Green dot on the minimap.')+
-  r('🤖','Auto','The 🤖 AUTO button (bottom right of the map) plays the run for you: it explores, fights with your four abilities, loots, picks gear, perks, routes and merchant wares, and takes the stairs, dragon included. The speed button cycles 1x / 2x / 4x (1x is about '+(1000/BAL.auto.tickMs)+' turns a second). Tap the map (or any button) to take over at once. It is a simple player: it does not kite or retreat to rest, and it switches itself off when it makes no progress for '+BAL.auto.stuckTurns+' turns, when you leave the page, and when the run ends. A run in which Auto played any turn banks '+autoGoldWord()+' gold; records, the Daily and achievements still count, and such runs carry an Auto tag. After a reload the run comes back paused.')+
-  r('🏰','Themes','Floors 1-3 are the Crypt, 4-6 the Caverns (irregular rooms), 7-8 the Embers. The name shows when you arrive.')+
-  r('🔊','Sound & vibration','Off by default (handy on a plane). Switch it on in the ☰ menu or on the title screen. Sounds are generated in the page; no downloads.')+
-  r('🛤','Two ways down','Taking the stairs from floor 1 to '+(MAXF-2)+' opens a choice of two routes. Each shows its theme and its floor modifier (or none) with the risk and the reward; the merchant floors have their merchant on both. The way into the dragon lair is single.')+
-  r('🌑','Floor modifiers','A modifier chip appears at the top left of the map; tap it for a reminder. '+MODS.map(m=>'<b>'+m.e+' '+m.n+'</b>: '+m.down+' '+m.up).join('<br>'))+
-  r('📅','Daily run','Everyone who plays on the same calendar date gets the same dungeon (floors, routes, modifiers, enemies, loot). Your best result per day is kept on this device. Dailies are never Hard.')+
-  r('💀','Hard mode','Unlocked by your first win; switch it on under the title screen. '+HARD_RULES.map(x=>'<b>'+x.n+'</b>: '+x.d).join(' '))+
-  r('🔓','Unlocks','Under Upgrades on the title screen, spend banked gold on unlocks: classes, extra perks for the level-up pool, a starting scroll and more. Some unlock by playing (reach floor 4, slay 50 enemies, slay an elite, defeat the dragon).')+
-  r('🗺','Minimap colours','Cyan you, yellow stairs, red enemies, orange elite, pink traps, purple shrine, green merchant, orange-red locked door.')+
-  '<p><b>Top bar</b></p>'+
-  r('❤️','HP and resource','The red bar is HP. Next to it: Rage (Warrior), Mana (Mage) or your Knife count (Rogue).')+
-  r('🏰','Floor','Current floor out of '+MAXF+'. Slay the dragon on the last one.')+
-  r('Lv','Level / XP','Level up to choose a perk.')+
-  r('⚔️','Attack','Your melee damage. 🛡 is defense, which cuts damage taken. 💰 is gold, banked when the run ends.')+
-  r('🎒','Equipment, ? and ☰','🎒 shows your gear and abilities, ? is this screen, ☰ is the menu.');
+ const r=(ic,n,d)=>'<div class="pl"><b>'+ic+' '+n+'</b> <small>'+d+'</small></div>';
+ const P=BAL.potion;
+ let h='<p><b>Tap</b></p>'+
+  r('👆','A tile','Walk there. Stops if danger appears.')+
+  r('⚔️','An enemy','Next to you: attack. Farther: inspect and approach.')+
+  r('🗺','The minimap','Big map. Tap again to close.')+
+  r('⏳','Yourself','Wait one turn.')+
+  '<p><b>Buttons</b></p>'+
+  r('🎯','Ability row','Four class abilities. Dim = not usable now (tap for why). Targeted ones light up tiles: tap one, or tap the button again to cancel.')+
+  r('🎒','Items','Potion (heals '+pct(P.healFrac)+' HP), Flames (burns all in sight), Teleport (random far spot). Badge = total carried.')+
+  r('🧭','Explore','Auto-walks to unexplored areas, then the stairs. Stops when an enemy appears or danger shows.')+
+  r('⬇️','Stairs','Lit up when you stand on ▼.')+
+  r('🎒☰','Top bar','🎒 gear, stats, abilities, perks. ☰ menu: Auto, Perks, Controls, Sound.')+
+  r('❤️','HP, resource','Red = HP. Next: Rage (Warrior), Mana (Mage) or Knives (Rogue). Thin bar = XP.')+
+  '<p><b>Tips</b></p>'+
+  r('🟥','Red tiles','Next big hit lands there. Step off and it misses.')+
+  r('🛡️','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them, or hit from behind.')+
+  r('💥','Knockback','Pushing a foe into a wall, door or unit adds damage.')+
+  r('🚪','Doors','Tap to open. Fight in doorways so one foe reaches you.')+
+  r('💤','Unaware foes','Dim with a z. Rogues and daggers get sneak bonuses.')+
+  r('🐉','Dragon','Floor '+MAXF+'. Breath along a line, whelps at '+BAL.enemyAi.summonAt.map(pct).join(' and ')+' HP.')+
+  '<p><b>Dungeon</b></p>'+
+  r('🔺','Traps','Shown when you are next to them. Explore avoids them.')+
+  r('🗿','Shrine','Step on it for a gamble. You can Leave.')+
+  r('🔒','Vault','Its key is on the marked elite. Tap the door holding the key.')+
+  r('🧔','Merchant','Floors '+BAL.merchant.floors.join(' and ')+'. Tap him to spend run gold.')+
+  r('🛤','Paths','Each exit offers two routes with a theme and modifier.')+
+  r('🌑','Modifiers','Icon at the top left of the map; tap for a reminder. '+MODS.map(m=>m.e+' '+m.n).join(', ')+'.')+
+  r('🗺','Minimap dots','You cyan, stairs yellow, foes red, elite orange, trap pink, shrine purple, merchant green.')+
+  '<p><b>Modes</b></p>'+
+  r('🤖','Auto','☰ → Auto play. Plays for you ('+(1000/BAL.auto.tickMs)+' turns/s at 1×). Top bar: speed and stop. Any tap takes over. Banks '+autoGoldWord()+' gold.')+
+  r('📅','Daily','Same dungeon for everyone today. Never Hard.')+
+  r('💀','Hard','Unlocked by a win; switch it on when picking a class. '+HARD_RULES.map(x=>x.n).join(', ')+'.')+
+  r('🛒','Upgrades','Spend banked gold on boosts and unlocks (title screen).')+
+  r('🔊','Sound','Off by default. ☰ menu or More on the title.');
  if(G&&!G.over){
-  const C=clsOf(G.p);h+='<p><b>Your abilities - '+C.e+' '+C.n+'</b></p>';
-  for(const k of C.kit){const a=ABIL[k];h+=r(a.e,a.n+' ('+abCost(k)+')',abilityDesc(k));}
+  const C=clsOf(G.p);h+='<p><b>'+C.e+' '+C.n+'</b></p>';
+  for(const k of C.kit){const a=ABIL[k];h+=r(a.e,a.n+' <small>('+abCost(k)+')</small>',abilityDesc(k));}
  }else{
-  h+='<p><b>The three classes</b></p>';
-  for(const c of Object.keys(CLS)){const C=CLS[c];h+=r(C.e,C.n,classBlurb(c));for(const k of C.kit)h+=r(ABIL[k].e,ABIL[k].n+' ('+abCost(k)+')',abilityDesc(k));}
+  h+='<p><b>Classes</b></p>';
+  for(const c of Object.keys(CLS)){const C=CLS[c];h+=r(C.e,C.n,classBlurb(c)+'<br>'+C.kit.map(k=>ABIL[k].e+' '+ABIL[k].n+': '+abilityDesc(k)).join('<br>'));}
  }
- h+='<p>Gold collected is banked when a run ends and buys permanent upgrades (title screen, Upgrades). Progress autosaves every turn. The game is strictly turn-based.</p>';
  showModal('Controls',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }

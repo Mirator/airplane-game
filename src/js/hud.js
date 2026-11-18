@@ -1,14 +1,33 @@
 // hud.js - bottom action bar and the four ability buttons, HUD (HP / resource / XP / stats) and message-log rendering.
 
+// bottom area: four ability buttons (#bar2), then Items / Explore / Wait / Stairs (#bar). Potion, Flames and Teleport live in the
+// Items tray (#tray, drawn over the log line area only - never over the map).
+const act=fn=>()=>{walkTok++;if(!G||G.over||modalOpen())return;fn();};
 const BTNS=[
- {id:'b_pot',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;drink();}},
- {id:'b_fire',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;fireball();}},
- {id:'b_tele',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;teleport();}},
+ {id:'b_items',fn:function(){
+  walkTok++;if(!G||G.over||modalOpen())return;
+  if(trayOpen()){setTray(false);return;}
+  const n=G.inv.pot+G.inv.fire+G.inv.tele;
+  if(n<=0){msg('No items.');render();return;}
+  armed=null;setTray(true);render();}},
  {id:'b_exp',fn:explore},
- {id:'b_wait',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;wait();}},
- {id:'b_down',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;descend();}}
+ {id:'b_wait',fn:act(wait)},
+ {id:'b_down',fn:act(descend)}
 ];
+const TRAYBTNS=[{id:'b_pot',fn:act(drink)},{id:'b_fire',fn:act(fireball)},{id:'b_tele',fn:act(teleport)}];
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
+for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
+function trayOpen(){return $('tray').style.display!=='none';}
+function setTray(on){
+ $('tray').style.display=on?'flex':'none';
+ $('b_items').classList.toggle('open',!!on);
+}
+// a tap anywhere else (map, another button) closes the tray; the Items button and the tray buttons handle themselves
+document.addEventListener('click',function(ev){
+ if(!trayOpen())return;const t=ev.target;
+ if(t&&t.closest&&(t.closest('#tray')||t.closest('#b_items')))return;
+ setTray(false);
+});
 const ab2=$('bar2');
 for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
 $('gearBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showEquip(closeModal);});
@@ -36,17 +55,20 @@ function updateBar(){
  for(let i=0;i<4;i++){
   const k=kt[i],A=ABIL[k],el=$('a_'+i),st=abStatus(k),isA=armed===k;
   el.classList.toggle('armed',isA);el.classList.toggle('dis',!isA&&!!st.dis);
-  const h='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small><small class="sub">'+(isA?'tap a target':st.sub)+'</small>';
+  const h='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small>'+(isA?'':'<small class="sub">'+st.sub+'</small>');
   if(el._h!==h){el._h=h;el.innerHTML=h;}
  }
  $('cv').classList.toggle('arming',!!armed); // nothing may cover map tiles while a target is being picked
- const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
+ if((armed||modalOpen())&&trayOpen())setTray(false);
+ const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2,n=inv.pot+inv.fire+inv.tele;
+ bset('b_items','🎒','Items',n>0?n:'',n<=0);
  bset('b_pot','🧪','Potion','×'+inv.pot,inv.pot<=0);
  bset('b_fire','📜','Flames','×'+inv.fire,inv.fire<=0);
  bset('b_tele','🌀','Teleport','×'+inv.tele,inv.tele<=0);
  bset('b_exp','🧭','Explore','',false);
  bset('b_wait','⏳','Wait','',false);
  bset('b_down','⬇️','Stairs','',!onS);
+ $('b_down').classList.toggle('here',onS);
 }
 function updateHud(){
  if(!G)return;const p=G.p;
@@ -57,7 +79,7 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';rt.textContent='Mana '+Math.floor(p.mana||0)+'/'+m;}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';rt.textContent='🔪 Knives '+(G.knives||0)+'/'+m;}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'')+(G.brace?'<span>🧱 '+G.brace.hits+'</span>':'');
+ $('stats').innerHTML='<span>🏰 '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">📅</span>':'')+(G.hard?'<span title="Hard">💀</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'')+(G.brace?'<span>🧱 '+G.brace.hits+'</span>':'');
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
  autoUi();
 }

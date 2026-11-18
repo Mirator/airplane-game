@@ -26,20 +26,31 @@ body{position:fixed;inset:0}
 #restxt{position:absolute;inset:0;text-align:center;font-size:12px;line-height:22px;font-weight:700;text-shadow:0 1px 2px #000;white-space:nowrap}
 #xpbar{height:5px;background:#1b2238;border-radius:3px;overflow:hidden}
 #xpfill{height:100%;background:#5aa0ff;width:0}
-#stats{font-size:13px;display:flex;gap:10px;flex-wrap:wrap;color:#cfcde0}
+#srow{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
+#stats{font-size:14px;display:flex;gap:12px;flex-wrap:nowrap;white-space:nowrap;color:#cfcde0;min-width:0}
 button{font:inherit;color:#fff;background:#2f3350;border:1px solid #4b5080;border-radius:10px;min-height:48px;min-width:48px;padding:6px 12px;cursor:pointer;touch-action:manipulation}
 button:active{background:#454a78}
 button:disabled{opacity:.4}
-#menuBtn,#helpBtn,#gearBtn{min-width:44px;width:44px;min-height:44px;font-size:19px;padding:0}
+#menuBtn,#gearBtn{min-width:44px;width:44px;min-height:44px;font-size:19px;padding:0}
 #hrow{gap:5px}
 #cv{flex:1;min-height:0;position:relative}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block;background:#000}
-#log{height:76px;padding:4px 10px;font-size:13px;line-height:16px;overflow:hidden;color:#bbb9cc;display:flex;flex-direction:column;justify-content:flex-end}
-#log div{flex:none}
-#log div:last-child{color:#fff}
+#logw{position:relative}
+#log{height:68px;padding:4px 10px;font-size:14px;line-height:18px;overflow:hidden;color:#bbb9cc;display:flex;flex-direction:column;justify-content:flex-end}
+#log div{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.5}
+#log div:nth-last-child(2){opacity:.75}
+#log div:last-child{opacity:1;color:#fff;font-weight:600}
+/* Items tray: drawn over the log lines only, so it can never cover a map tile */
+#tray{position:absolute;inset:0;z-index:3;display:flex;gap:6px;align-items:center;padding:4px 6px;background:#10121f;border-top:1px solid #4b5080}
+#tray button{flex:1;min-width:0;min-height:56px;font-size:20px;padding:2px 1px;line-height:1.05;position:relative}
+#tray button small{display:block;font-size:11px;white-space:nowrap}
+#tray button.dis{opacity:.4}
+#b_items.open{background:#454a78;border-color:#ffd24a}
+#b_down.here{border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a inset}
 #bar{display:flex;gap:6px;padding:4px 6px calc(6px + env(safe-area-inset-bottom))}
 #bar button,#bar2 button{position:relative}
-#bar button{flex:1;min-width:0;min-height:56px;font-size:20px;padding:2px 1px;line-height:1.05}
+#bar button{flex:1;min-width:0;min-height:60px;font-size:20px;padding:2px 1px;line-height:1.05}
+#bar button small{font-size:12px!important}
 #bar button small,#bar2 button small{display:block;font-size:10px;opacity:.95;white-space:nowrap;margin:0}
 #bar button.dis,#bar2 button.dis{opacity:.4}
 .bd{position:absolute;top:1px;right:2px;min-width:16px;padding:0 4px;border-radius:8px;background:#6a3fb5;font-size:10px;font-weight:700;line-height:16px;color:#fff;text-align:center}
@@ -47,7 +58,6 @@ button:disabled{opacity:.4}
 #bar2 button{flex:1;min-width:0;min-height:56px;padding:2px 1px;line-height:1.05}
 #bar2 .ai{font-size:19px;display:block;line-height:1.1}
 #bar2 small.sub{font-size:10px;opacity:.8;color:#ffe9a8}
-#cv.arming #autoBox{display:none!important}
 #cv.arming #chips{pointer-events:none;opacity:.35}
 button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a inset}
 .tag{display:inline-block;font-style:normal;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:#6a3fb5;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
@@ -70,28 +80,45 @@ button.armed{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24
 #chips{position:absolute;left:6px;top:6px;z-index:3;display:flex;gap:6px;align-items:flex-start}
 .chip{min-height:44px;min-width:44px;padding:0 10px;border-radius:22px;background:rgba(20,22,40,.82);border:1px solid #4b5080;font-size:14px;font-weight:700;color:#e8e6f0}
 .chip.mod{border-color:#ffb04a;background:rgba(58,42,22,.88)}.chip.hard{border-color:#ff6a5a;background:rgba(74,28,36,.88)}
-/* Auto: control bottom right of the map (the top right holds the minimap), amber frame + strip while it plays */
-#autoBox{position:absolute;right:6px;bottom:6px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-#autoRow{display:flex;gap:6px}
-#autoBtn,#autoSpd{min-height:44px;min-width:44px;padding:0 12px;border-radius:22px;background:rgba(20,22,40,.9);border:1px solid #6a70a8;font-size:14px;font-weight:700;color:#e8e6f0;line-height:1.05;white-space:nowrap;box-shadow:0 2px 8px #000a}
-#autoBtn small{font-size:11px;font-weight:800;margin-left:2px}
-#autoBtn.on{background:#b5731f;border-color:#ffd24a;color:#fff;box-shadow:0 0 0 2px rgba(255,210,74,.55),0 2px 8px #000a}
-#autoSpd{min-width:52px;padding:0 10px;border-color:#ffd24a;color:#ffe9a8}
-#cv.auto::after{content:'';position:absolute;inset:0;border:3px solid #ffb03a;pointer-events:none;z-index:2}
-#autoTag{max-width:100%;padding:4px 10px;border-radius:14px;background:rgba(181,115,31,.92);border:1px solid #ffd24a;color:#fff;font-size:12px;font-weight:800;letter-spacing:.3px;text-align:center;line-height:1.25;pointer-events:none;white-space:nowrap}
-@keyframes autop{0%,100%{opacity:1}50%{opacity:.72}}
-#cv.auto #autoTag{animation:autop 1.4s ease-in-out infinite}
-@media (prefers-reduced-motion: reduce){#cv.auto #autoTag{animation:none}}
+/* Auto: a strip in the top bar while it plays (indicator, speed, stop) and a thin amber frame round the map */
+#autoBox{display:flex;align-items:center;gap:6px;flex:none}
+#autoTag{font-size:13px;font-weight:800;color:#ffe9a8;letter-spacing:.3px;animation:autop 1.4s ease-in-out infinite}
+#autoBtn,#autoSpd{min-height:44px;min-width:44px;padding:0 12px;border-radius:22px;background:#b5731f;border:1px solid #ffd24a;font-size:15px;font-weight:700;color:#fff;line-height:1.05;white-space:nowrap}
+#autoSpd{background:rgba(20,22,40,.9);color:#ffe9a8}
+#cv.auto::after{content:'';position:absolute;inset:0;border:2px solid #ffb03a;pointer-events:none;z-index:2}
+@keyframes autop{0%,100%{opacity:1}50%{opacity:.6}}
+@media (prefers-reduced-motion: reduce){#autoTag{animation:none}}
 button.autopick{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 3px #ffb03a inset}
+/* menus, class cards, gear compare */
+.sub{font-size:13px!important;color:#aeacc4!important;text-align:center}
+.box p.tip{text-align:left}
+.recap{text-align:center;line-height:1.5!important}
+.cls{display:flex;gap:6px}
+.cls .clsmain{flex:1;min-width:0;min-height:96px}
+.cls .clsmain b{font-size:18px}
+.cls .clsmain .ab{display:grid;grid-template-columns:repeat(4,1fr);margin-top:6px;font-size:20px;line-height:1.1;text-align:center;opacity:1}
+.cls .clsmain .ab i{font-style:normal}
+.cls .clsmain .ab em{display:block;font-style:normal;font-size:10px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cls .clsinfo{width:64px;min-width:64px;padding:2px;font-size:20px;text-align:center;line-height:1.1}
+.cls .clsinfo small{display:block;font-size:11px}
+#hardBtn.hardon{border-color:#ff6a5a;background:#4a1c24}
+.stripe{display:flex;gap:16px;justify-content:center;font-size:16px;font-weight:700}
+.stripe small{font-weight:400;opacity:.7;font-size:12px}
+.found{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:17px}
+.found small{font-size:13px;opacity:.7}
+.dl{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.dlt{padding:4px 10px;border-radius:12px;font-size:15px;font-weight:800;background:#252a45}
+.dlt.up{color:#6fe08c;background:#183a26}.dlt.dn{color:#ff7a7a;background:#442026}.dlt.same{color:#bbb9cc}
+.rl{font-size:14px;text-align:center;color:#d4d2e4}
 </style></head><body>
 <div id="app">
  <div id="hud">
-  <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><div id="resbar" class="res"><div id="resfill"></div><div id="restxt"></div></div><button id="gearBtn" aria-label="Equipment">🎒</button><button id="helpBtn" aria-label="Controls">?</button><button id="menuBtn" aria-label="Menu">☰</button></div>
+  <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><div id="resbar" class="res"><div id="resfill"></div><div id="restxt"></div></div><button id="gearBtn" aria-label="Equipment">🎒</button><button id="menuBtn" aria-label="Menu">☰</button></div>
   <div id="xpbar"><div id="xpfill"></div></div>
-  <div id="stats"></div>
+  <div id="srow"><div id="stats"></div><div id="autoBox" style="display:none"><span id="autoTag">🤖 Auto</span><button id="autoSpd" aria-label="Auto speed">1×</button><button id="autoBtn" aria-label="Stop Auto" aria-pressed="true">⏹</button></div></div>
  </div>
- <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="autoBox" style="display:none"><div id="autoTag" style="display:none">🤖 AUTO · tap the map to take over</div><div id="autoRow"><button id="autoBtn" aria-label="Auto: play the run automatically" aria-pressed="false">🤖 AUTO</button><button id="autoSpd" aria-label="Auto speed" style="display:none">1×</button></div></div><div id="toast" aria-live="polite"></div></div>
- <div id="log"></div>
+ <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="toast" aria-live="polite"></div></div>
+ <div id="logw"><div id="log"></div><div id="tray" style="display:none"></div></div>
  <div id="bar2"></div>
  <div id="bar"></div>
 </div>
@@ -276,92 +303,92 @@ const BAL = {
 const SHOP=[
  {k:'hp',n:'Hardy',d:'+'+BAL.meta.hpPerLevel+' starting HP',base:30},
  {k:'atk',n:'Sharpened',d:'+'+BAL.meta.atkPerLevel+' starting attack',base:55},
- {k:'pot',n:'Supplies',d:'+'+BAL.meta.potPerLevel+' starting potion (and belt space), up to Lv '+BAL.meta.potMaxLevel,base:40,max:BAL.meta.potMaxLevel},
- {k:'goldp',n:'Greed',d:'+'+Math.round(BAL.meta.goldPerLevel*100)+'% gold found',base:50},
+ {k:'pot',n:'Supplies',d:'+'+BAL.meta.potPerLevel+' starting potion and belt space',base:40,max:BAL.meta.potMaxLevel},
+ {k:'goldp',n:'Greed',d:'+'+Math.round(BAL.meta.goldPerLevel*100)+'% gold',base:50},
  {k:'def',n:'Padded',d:'+'+BAL.meta.defPerLevel+' starting defense',base:70}
 ];
 const SHOPMAX=8;
 function shopMax(s){return s.max||SHOPMAX;}   // per-item level cap (Supplies is capped lower: potions are limited by belt space)
 const UNLOCKS=[
- {id:'rogue',n:'🗡 Rogue class',d:'Backstab, Vanish, Throwing Knife and Smoke Bomb. No resource bar: cooldowns, knives and positioning.',cost:150},
- {id:'mage',n:'🧙 Mage class',d:'Arcane Bolt, Frost Nova, Blink and Fireball, fuelled by a mana pool. Starts with an extra flame scroll.',cost:200},
- {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord to the level-up pool.',cost:180},
- {id:'elixir',n:'Merchant: Elixir',d:'Merchants also stock an Elixir of Vigor (+'+BAL.merchant.elixirHp+' max HP, full heal).',cost:110},
- {id:'scroll',n:'Starting scroll',d:'Begin every run with a random scroll (fireball or teleport).',cost:90},
- {id:'pick4',n:'Fourth choice',d:'Level-ups offer 4 perks to choose from instead of 3.',cost:220},
- {id:'shrine',n:'Shrine favour',d:'Shrines offer a safe Blessing and better odds when you pray.',cost:110},
- {id:'phoenix',n:'Perk: Phoenix Heart',d:'Adds Phoenix Heart (revive once per run) to the pool.',ach:'Defeat the dragon',chk:function(){return meta.wins>=1;},prog:function(){return meta.wins+'/1 wins';}},
- {id:'trapper',n:'Perk: Trapfinder',d:'Adds Trapfinder (see traps from 3 tiles, take half trap damage) to the pool.',ach:'Reach floor 4',chk:function(){return meta.best>=4;},prog:function(){return 'best floor '+meta.best+'/4';}},
- {id:'midas',n:'Perk: Midas Touch',d:'Adds Midas Touch (every kill drops gold) to the pool.',ach:'Slay 50 enemies in total',chk:function(){return meta.kills>=50;},prog:function(){return meta.kills+'/50 kills';}},
- {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist (potions heal 50% more) to the pool.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
+ {id:'rogue',n:'🗡 Rogue class',d:'Backstab, Vanish, Knife, Smoke. Cooldown based.',cost:150},
+ {id:'mage',n:'🧙 Mage class',d:'Bolt, Nova, Blink, Fireball. Runs on mana.',cost:200},
+ {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord to level-ups.',cost:180},
+ {id:'elixir',n:'Merchant: Elixir',d:'Merchants sell an Elixir (+'+BAL.merchant.elixirHp+' max HP, full heal).',cost:110},
+ {id:'scroll',n:'Starting scroll',d:'Start each run with a random scroll.',cost:90},
+ {id:'pick4',n:'Fourth choice',d:'Level-ups offer 4 perks, not 3.',cost:220},
+ {id:'shrine',n:'Shrine favour',d:'Shrines offer a safe Blessing; better prayer odds.',cost:110},
+ {id:'phoenix',n:'Perk: Phoenix Heart',d:'Adds Phoenix Heart to level-ups.',ach:'Defeat the dragon',chk:function(){return meta.wins>=1;},prog:function(){return meta.wins+'/1 wins';}},
+ {id:'trapper',n:'Perk: Trapfinder',d:'Adds Trapfinder to level-ups.',ach:'Reach floor 4',chk:function(){return meta.best>=4;},prog:function(){return 'best floor '+meta.best+'/4';}},
+ {id:'midas',n:'Perk: Midas Touch',d:'Adds Midas Touch to level-ups.',ach:'Slay 50 enemies in total',chk:function(){return meta.kills>=50;},prog:function(){return meta.kills+'/50 kills';}},
+ {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist to level-ups.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
 ];
 const EN={
- rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Swarm animal: arrives in packs, moves twice per turn and surrounds you. Weak alone; Cleave, Frost Nova and Fireball shred a pack.'},
- goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain melee brute. Lunges: takes an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing, so you cannot back away from it for long.'},
- archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from up to 6 tiles (needs a clear line). Keeps its distance and flees when you get close.'},
- hound:{n:'Hound',e:'🐺',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Fast closer: moves twice per turn, so it crosses the room before a stationary shooter can kill it. Fight it in melee or stun it.'},
- guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shielded: takes only '+Math.round(BAL.weapon.shieldFront*100)+'% damage from the front and '+Math.round(BAL.weapon.shieldRanged*100)+'% from ranged hits. Stun or freeze it, or strike it from behind (opposite the way it faces).'},
- skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter. Lunges like the goblin (an extra step every '+BAL.enemyAi.lungeEvery+' turns while chasing).'},
- ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts only every other turn, but hits very hard. The hourglass shows it is recovering.'},
- troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow, lots of HP. Winds up a club smash (red tiles) that hurts and knocks you back.'},
- cultist:{n:'Cultist',e:'🧛',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Caster that stays behind its friends. Heals a wounded ally instead of attacking, otherwise blasts from 6 tiles. Priority target: dive it.'},
- bat:{n:'Bat',e:'🦇',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Swarm: a flock of fragile, fast biters. Area attacks wipe them out.'},
- warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts blasts from 6 tiles (needs a clear line). Keeps its distance.'},
- whelp:{n:'Whelp',e:'🦎',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'A dragon whelp, called by the Dragon. Fast and fragile in numbers.'},
- dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: winds up a 3-wide fire breath (red tiles). Calls whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join(' and ')+' health. Too heavy to push; stun, freeze or blind it to cancel an attack. Enraged at half health: hits harder, breathes more often and sweeps the tiles around it.'}
+ rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
+ goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
+ archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
+ hound:{n:'Hound',e:'🐺',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
+ guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield: takes '+Math.round(BAL.weapon.shieldFront*100)+'% from the front, '+Math.round(BAL.weapon.shieldRanged*100)+'% ranged. Hit from behind.'},
+ skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
+ ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
+ troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},
+ cultist:{n:'Cultist',e:'🧛',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
+ bat:{n:'Bat',e:'🦇',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
+ warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
+ whelp:{n:'Whelp',e:'🦎',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
+ dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: fire breath (red tiles), calls whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join(' and ')+' HP. Stun or blind cancels a wind-up.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
  {id:'vit',n:'Vitality',d:'+12 max HP and heal 12',f:p=>{p.mhp+=12;p.hp=Math.min(p.mhp,p.hp+12);}},
  {id:'might',n:'Might',d:'+2 attack',f:p=>{p.atk+=2;}},
  {id:'bul',n:'Bulwark',d:'+1 defense',f:p=>{p.def+=1;}},
- {id:'vamp',n:'Vampirism',d:'Heal 10% of damage dealt (min 1)',f:p=>{p.life+=0.1;}},
- {id:'keen',n:'Keen Eye',d:'+12% critical chance (x2 damage)',f:p=>{p.crit+=0.12;}},
+ {id:'vamp',n:'Vampirism',d:'Heal 10% of damage dealt',f:p=>{p.life+=0.1;}},
+ {id:'keen',n:'Keen Eye',d:'+12% crit chance',f:p=>{p.crit+=0.12;}},
  {id:'renew',n:'Renewal',d:'Heal 30% HP on each new floor',f:p=>{p.renew+=0.3;}},
  {id:'thorns',n:'Thorns',d:'Melee attackers take 2 damage',f:p=>{p.thorns+=2;}},
  {id:'pockets',n:'Deep Pockets',d:'+2 potion capacity',f:p=>{p.potCap+=2;}},
- {id:'evade',n:'Evasion',d:'+8% chance to dodge attacks',f:p=>{p.dodge+=0.08;}},
- {id:'scholar',n:'Scholar',d:'+30% XP gained',f:p=>{p.xpMul+=0.3;}},
- {id:'pyro',n:'Pyromancer',d:'Flame scrolls and the Fireball spell deal +'+Math.round(BAL.perk.pyroFire*100)+'% damage; +1 flame scroll',f:p=>{p.fireMul+=BAL.perk.pyroFire;G.inv.fire++;}},
+ {id:'evade',n:'Evasion',d:'+8% dodge',f:p=>{p.dodge+=0.08;}},
+ {id:'scholar',n:'Scholar',d:'+30% XP',f:p=>{p.xpMul+=0.3;}},
+ {id:'pyro',n:'Pyromancer',d:'Flames and Fireball +'+Math.round(BAL.perk.pyroFire*100)+'% damage; +1 Flames',f:p=>{p.fireMul+=BAL.perk.pyroFire;G.inv.fire++;}},
  {id:'regen',n:'Regeneration',d:'+1 HP every 5 turns',f:p=>{p.regen+=1;}},
- {id:'treasure',n:'Treasure Hunter',d:'+25% gold found',f:p=>{p.goldMul+=0.25;}},
- {id:'tempo',n:'Tempo',d:'All ability cooldowns are '+BAL.perk.tempoCut+' turn shorter (min 1)',beh:1},
+ {id:'treasure',n:'Treasure Hunter',d:'+25% gold',f:p=>{p.goldMul+=0.25;}},
+ {id:'tempo',n:'Tempo',d:'Ability cooldowns '+BAL.perk.tempoCut+' turn shorter',beh:1},
  // behaviour perks
- {id:'venom',n:'Venom',beh:1,max:3,d:'Hits poison for 3 turns (+1 poison damage per level; halved on bosses)'},
- {id:'chain',n:'Chain Lightning',beh:1,d:'Kills zap the nearest visible enemy (once, no further chains)'},
- {id:'blood',n:'Bloodlust',beh:1,d:'After a kill, your next hit deals +75% damage'},
- {id:'riposte',n:'Riposte',beh:1,max:3,d:'20% chance per level to counterattack when hit in melee'},
- {id:'second',n:'Second Wind',beh:1,d:'Once per floor, a lethal hit leaves you at 1 HP instead'},
- {id:'glass',n:'Glass Cannon',beh:1,d:'+5 attack but -25% max HP',f:p=>{p.atk+=5;p.mhp=Math.max(8,Math.round(p.mhp*0.75));p.hp=Math.min(p.hp,p.mhp);}},
- {id:'scav',n:'Scavenger',beh:1,max:2,d:'Slain enemies drop an extra potion 20% of the time (per level)'},
- {id:'berserk',n:'Berserk',beh:1,d:'Up to +80% damage as your HP drops'},
- {id:'exec',n:'Executioner',beh:1,d:'Instantly slay non-boss enemies below 20% HP after a hit'},
+ {id:'venom',n:'Venom',beh:1,max:3,d:'Hits poison for 3 turns; +1 damage per level'},
+ {id:'chain',n:'Chain Lightning',beh:1,d:'Kills zap the nearest visible foe'},
+ {id:'blood',n:'Bloodlust',beh:1,d:'After a kill, your next hit deals +75%'},
+ {id:'riposte',n:'Riposte',beh:1,max:3,d:'20% per level to counter melee hits'},
+ {id:'second',n:'Second Wind',beh:1,d:'Once per floor, a lethal hit leaves 1 HP'},
+ {id:'glass',n:'Glass Cannon',beh:1,d:'+5 attack, -25% max HP',f:p=>{p.atk+=5;p.mhp=Math.max(8,Math.round(p.mhp*0.75));p.hp=Math.min(p.hp,p.mhp);}},
+ {id:'scav',n:'Scavenger',beh:1,max:2,d:'20% per level: kills drop a potion'},
+ {id:'berserk',n:'Berserk',beh:1,d:'Up to +80% damage as HP drops'},
+ {id:'exec',n:'Executioner',beh:1,d:'Slay non-boss foes below 20% HP'},
  // class perks: they modify the class kit
  {id:'fury',cls:'warrior',n:'Fury',beh:1,d:'Rage gain +'+Math.round(BAL.perk.furyMul*100)+'%'},
- {id:'retrib',cls:'warrior',n:'Retribution',beh:1,d:'Brace blocks '+BAL.perk.retribHits+' more hits and reflects '+Math.round(BAL.perk.retribReflect*100)+'% of the damage'},
- {id:'stampede',cls:'warrior',n:'Stampede',beh:1,d:'Charge costs '+BAL.perk.stampedeCost+' less rage and stuns every enemy next to where you land'},
+ {id:'retrib',cls:'warrior',n:'Retribution',beh:1,d:'Brace: +'+BAL.perk.retribHits+' blocks, reflects '+Math.round(BAL.perk.retribReflect*100)+'%'},
+ {id:'stampede',cls:'warrior',n:'Stampede',beh:1,d:'Charge costs '+BAL.perk.stampedeCost+' less, stuns neighbours'},
  {id:'arcana',cls:'mage',n:'Arcane Mastery',beh:1,d:'+'+Math.round(BAL.perk.arcanaSpell*100)+'% spell power'},
- {id:'well',cls:'mage',n:'Wellspring',beh:1,d:'+'+BAL.perk.wellMana+' max mana and +'+BAL.perk.wellKill+' mana per kill',f:p=>{p.mbase+=BAL.perk.wellMana;if(G)p.mana+=BAL.perk.wellMana;}},
- {id:'deepfreeze',cls:'mage',n:'Deep Freeze',beh:1,d:'Frost Nova freezes '+BAL.perk.freezeExtra+' turns longer'},
- {id:'phase',cls:'mage',n:'Phase Step',beh:1,d:'Blink costs '+BAL.perk.phaseCost+' less mana and has no cooldown'},
- {id:'assassin',cls:'rogue',n:'Assassin',beh:1,d:'Backstab deals +'+Math.round(BAL.perk.assassinMul*100)+'% damage and recharges '+BAL.perk.assassinCd+' turns sooner'},
- {id:'bando',cls:'rogue',n:'Bandolier',beh:1,d:'+'+BAL.perk.bandoMax+' throwing knives carried'},
- {id:'shadow',cls:'rogue',n:'Shadow Cloak',beh:1,d:'Vanish recharges '+BAL.perk.shadowCd+' turns sooner and lasts '+BAL.perk.shadowTurns+' turns longer'},
+ {id:'well',cls:'mage',n:'Wellspring',beh:1,d:'+'+BAL.perk.wellMana+' max mana, +'+BAL.perk.wellKill+' mana per kill',f:p=>{p.mbase+=BAL.perk.wellMana;if(G)p.mana+=BAL.perk.wellMana;}},
+ {id:'deepfreeze',cls:'mage',n:'Deep Freeze',beh:1,d:'Nova freezes '+BAL.perk.freezeExtra+' turns longer'},
+ {id:'phase',cls:'mage',n:'Phase Step',beh:1,d:'Blink: '+BAL.perk.phaseCost+' less mana, no cooldown'},
+ {id:'assassin',cls:'rogue',n:'Assassin',beh:1,d:'Backstab +'+Math.round(BAL.perk.assassinMul*100)+'% damage, '+BAL.perk.assassinCd+' turns sooner'},
+ {id:'bando',cls:'rogue',n:'Bandolier',beh:1,d:'+'+BAL.perk.bandoMax+' knives carried'},
+ {id:'shadow',cls:'rogue',n:'Shadow Cloak',beh:1,d:'Vanish: '+BAL.perk.shadowCd+' turns sooner, '+BAL.perk.shadowTurns+' longer'},
  // unlockable perks (only in the pool once unlocked in the title shop / by achievements)
  {id:'warlord',n:'Warlord',lock:'warlord',max:2,d:'+3 attack and +1 defense',f:p=>{p.atk+=3;p.def+=1;}},
  {id:'phoenix',n:'Phoenix Heart',lock:'phoenix',beh:1,d:'Once per run, a lethal hit revives you at half HP'},
- {id:'trapper',n:'Trapfinder',lock:'trapper',beh:1,d:'Spot traps from 3 tiles away; traps do half damage to you and poison is shorter'},
- {id:'midas',n:'Midas Touch',lock:'midas',beh:1,d:'Every slain enemy drops some gold'},
- {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more (per level)'}
+ {id:'trapper',n:'Trapfinder',lock:'trapper',beh:1,d:'See traps from 3 tiles; half trap damage'},
+ {id:'midas',n:'Midas Touch',lock:'midas',beh:1,d:'Every kill drops some gold'},
+ {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more per level'}
 ];
 PERKS.forEach(p=>{if(!p.max)p.max=p.beh?1:5;});
 const SYN=[
- {id:'bv',a:'berserk',b:'vamp',n:'Blood Frenzy',d:'Lifesteal is doubled below half HP'},
+ {id:'bv',a:'berserk',b:'vamp',n:'Blood Frenzy',d:'Lifesteal doubled below half HP'},
  {id:'be',a:'blood',b:'exec',n:'Bloody Verdict',d:'Executioner threshold rises to 30%'},
- {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons its target'},
- {id:'fb',a:'fury',b:'berserk',n:'Blood Rage',d:'Rage gain is x'+BAL.perk.bloodRageMul+' below half HP'},
+ {id:'cv',a:'chain',b:'venom',n:'Storm Toxin',d:'Chain Lightning also poisons'},
+ {id:'fb',a:'fury',b:'berserk',n:'Blood Rage',d:'Rage gain x'+BAL.perk.bloodRageMul+' below half HP'},
  {id:'ow',a:'arcana',b:'well',n:'Overflow',d:'Kills restore double mana'},
- {id:'sd',a:'assassin',b:'bando',n:'Silent Death',d:'A throwing knife that kills returns to your hand'}
+ {id:'sd',a:'assassin',b:'bando',n:'Silent Death',d:'A knife that kills returns to you'}
 ];
 // kit = the four ability keys (defs in content.js ABIL); start = starting weapon kind; mana = base mana pool (0 = none)
 const CLS={
@@ -418,27 +445,28 @@ const TR={
  leaden:{slot:'armor',n:'Leaden',dv:2,minF:3}
 };
 {const sg=n=>(n>=0?'+':'')+n,pc100=x=>Math.round(Math.abs(x)*100)+'%',B=BAL.trait;
- TR.cursed.d=sg(TR.cursed.dv)+' attack, but you lose '+B.cursedDrain+' HP per kill.';
- TR.vamp.d=sg(TR.vamp.dv)+' attack, but heal '+pc100(B.vampLife)+' of damage dealt.';
- TR.brutal.d=sg(TR.brutal.dv)+' attack, but '+sg(Math.round(B.brutalCrit*100))+'% crit chance.';
- TR.keen.d=sg(TR.keen.dv)+' attack, but +'+pc100(B.keenCrit)+' crit chance.';
- TR.heavy.d=sg(TR.heavy.dv)+' defense, but enemies get a free turn every '+B.heavyEvery+'th turn.';
- TR.spiked.d='Melee attackers take '+B.spikedThorns+' damage, but '+sg(B.spikedAtk)+' attack.';
- TR.leaden.d=sg(TR.leaden.dv)+' defense, but potions heal '+pc100(1-BAL.potion.leadenMul)+' less.';}
+ TR.cursed.d=sg(TR.cursed.dv)+' attack; lose '+B.cursedDrain+' HP per kill.';
+ TR.vamp.d=sg(TR.vamp.dv)+' attack; heal '+pc100(B.vampLife)+' of damage dealt.';
+ TR.brutal.d=sg(TR.brutal.dv)+' attack; '+sg(Math.round(B.brutalCrit*100))+'% crit.';
+ TR.keen.d=sg(TR.keen.dv)+' attack; +'+pc100(B.keenCrit)+' crit.';
+ TR.heavy.d=sg(TR.heavy.dv)+' defense; foes get a free turn every '+B.heavyEvery+'th turn.';
+ TR.spiked.d=sg(B.spikedAtk)+' attack; melee attackers take '+B.spikedThorns+'.';
+ TR.leaden.d=sg(TR.leaden.dv)+' defense; potions heal '+pc100(1-BAL.potion.leadenMul)+' less.';}
 const TRAPS={spike:{n:'Spike trap',c:'#ff5a5a'},dart:{n:'Dart trap',c:'#7be04b'},alarm:{n:'Alarm trap',c:'#ffd24a'}};
 
 // ===== Floor modifiers (rules: mods.js; numbers: BAL.mod). down = the price you pay, up = what you get. minF = first floor it can appear on. =====
 const MODS=(function(){
  const M=BAL.mod,p=x=>Math.round(x*100)+'%';
+ // tip = one line for the chip; r / g = a few words of risk and reward for the path choice
  return [
-  {id:'dark',tip:'Sight '+M.dark.sight+' tiles, more loot.',e:'🌑',n:'Dark',minF:2,down:'You only see '+M.dark.sight+' tiles around you.',up:'More loot: +'+M.dark.extraGold+' gold piles'+(M.dark.extraPotions?', +'+M.dark.extraPotions+' potion':'')+' and a '+p(M.dark.gearChance)+' chance of a gear drop.'},
-  {id:'flooded',tip:'Water slows you; enemies in it lose a move.',e:'🌊',n:'Flooded',minF:2,down:'Wading through water gives enemies an extra move.',up:'Enemies that enter water lose their next move; +'+M.flooded.extraGold+' gold piles.'},
-  {id:'cursed',tip:'No regen, weaker potions, a safe shrine.',e:'☠️',n:'Cursed ground',minF:2,down:'No natural regeneration and potions heal '+p(M.cursed.potionMul)+'.',up:'A shrine is guaranteed, and it offers the safe Blessing.'},
-  {id:'horde',tip:'Many weak foes, no treasure room.',e:'🐀',n:'Horde',minF:2,down:p(M.horde.countMul-1)+' more enemies, no locked treasure room, and each gives only '+p(M.horde.xpMul)+' XP.',up:'Foes have '+p(M.horde.hpMul)+' HP and '+p(1-M.horde.atkMul)+' less attack; they drop more gold.'},
-  {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'🎯',n:'Hunted',minF:M.hunted.minFloor,down:'A tough stalker hunts you from the start.',up:'Slay it for a trait item, gold, a potion and bonus XP.'},
-  {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'💰',n:'Rich vein',minF:2,down:'Enemies have +'+p(M.rich.hpMul-1)+' HP and +'+p(M.rich.atkMul-1)+' attack.',up:'Gold is doubled; +'+M.rich.extraGold+' gold piles.'},
-  {id:'silent',tip:'More traps, alarms and easy sneak attacks.',e:'🤫',n:'Silent',minF:2,down:'Twice the traps, and half of them are alarms.',up:'Enemies notice you only from '+M.silent.sight+' tiles; sneak attacks do x'+M.silent.sneakMul+' for everyone.'},
-  {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'🕳️',n:'Unstable',minF:2,down:'Tiles crack, then collapse after '+M.unstable.warn+' turns: standing on one hurts.',up:'Collapses hit enemies for x'+M.unstable.enemyMul+'; extra gear and gold.'}
+  {id:'dark',tip:'Sight '+M.dark.sight+' tiles, more loot.',e:'🌑',n:'Dark',minF:2,r:'See only '+M.dark.sight+' tiles',g:'More loot'},
+  {id:'flooded',tip:'Water slows you; foes in it lose a move.',e:'🌊',n:'Flooded',minF:2,r:'Water slows you',g:'Water slows foes; +gold'},
+  {id:'cursed',tip:'No regen, weaker potions, a safe shrine.',e:'☠️',n:'Cursed ground',minF:2,r:'No regen, potions '+p(M.cursed.potionMul),g:'Safe shrine'},
+  {id:'horde',tip:'Many weak foes, no treasure room.',e:'🐀',n:'Horde',minF:2,r:p(M.horde.countMul-1)+' more foes, no vault',g:'Weaker foes, more gold'},
+  {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'🎯',n:'Hunted',minF:M.hunted.minFloor,r:'A stalker hunts you',g:'Slay it for loot'},
+  {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'💰',n:'Rich vein',minF:2,r:'Foes +'+p(M.rich.hpMul-1)+' HP',g:'Gold x'+M.rich.goldMul},
+  {id:'silent',tip:'More traps and alarms; easy sneak attacks.',e:'🤫',n:'Silent',minF:2,r:'Twice the traps',g:'Easy sneak attacks'},
+  {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'🕳️',n:'Unstable',minF:2,r:'Floor collapses',g:'Extra gear and gold'}
  ];
 })();
 function modOf(id){return MODS.find(m=>m.id===id)||null;}
@@ -446,10 +474,10 @@ function modOf(id){return MODS.find(m=>m.id===id)||null;}
 const HARD_RULES=(function(){
  const H=BAL.hard,p=x=>Math.round(x*100)+'%';
  return [
-  {n:'Tougher foes',d:'Enemies have +'+p(H.hpMul-1)+' HP and +'+p(H.atkMul-1)+' attack; the dragon hits +'+p(H.bossAtkMul-1)+' harder.'},
-  {n:'Scarce potions',d:H.startPotions+' fewer starting potion'+(H.startPotions>1?'s':'')+', '+(H.bonusPotion?'the bonus floor potion is only '+p(H.bonusPotion)+' likely':'no bonus potion on floors')+', '+p(1-H.dropPotionMul)+' fewer potion drops.'},
-  {n:'Brood mother',d:'The dragon calls an extra brood of whelps at '+p(H.extraSummonAt)+' health and enrages at '+p(H.enrageFrac)+'.'},
-  {n:'Spoils',d:'Banked gold and score are x'+H.goldMul+'.'}
+  {n:'Tougher foes',d:'Foes +'+p(H.hpMul-1)+' HP, +'+p(H.atkMul-1)+' attack; dragon +'+p(H.bossAtkMul-1)+'.'},
+  {n:'Scarce potions',d:H.startPotions+' fewer starting potion'+(H.startPotions>1?'s':'')+', '+p(1-H.dropPotionMul)+' fewer drops.'},
+  {n:'Brood mother',d:'Extra whelps at '+p(H.extraSummonAt)+' dragon HP; enrages at '+p(H.enrageFrac)+'.'},
+  {n:'Spoils',d:'Banked gold and score x'+H.goldMul+'.'}
  ];
 })();
 // ===== Achievements. chk = state-derived check (run at kills, floor changes, run end); no chk = granted directly by the event in code.
@@ -461,8 +489,8 @@ const ACH=[
  {id:'winM',n:'Archmage',d:'Win a run as the Mage.',chk:()=>recWins('mage')>=1},
  {id:'all3',n:'Triple Crown',d:'Win with all three classes.',gold:60,chk:()=>['warrior','rogue','mage'].every(c=>recWins(c)>=1),prog:()=>['warrior','rogue','mage'].filter(c=>recWins(c)>=1).length+'/3'},
  {id:'dry',n:'Teetotaler',d:'Win without drinking a potion.',gold:50,chk:()=>statWin()&&!G.stats.pots},
- {id:'dance',n:'Dragon Dancer',d:'Win without ever being hit by the dragon\'s telegraphed attacks.',gold:60,chk:()=>statWin()&&!G.stats.dragonHit},
- {id:'bare',n:'Bare Essentials',d:'Reach floor '+BAL.ach.noArmorFloor+' without wearing any armor.',gold:40},
+ {id:'dance',n:'Dragon Dancer',d:'Win without a dragon wind-up hitting you.',gold:60,chk:()=>statWin()&&!G.stats.dragonHit},
+ {id:'bare',n:'Bare Essentials',d:'Reach floor '+BAL.ach.noArmorFloor+' with no armor.',gold:40},
  {id:'horde',n:'Hordebreaker',d:'Clear every enemy on a Horde floor.',gold:30},
  {id:'hunt',n:'Stalker Stalked',d:'Slay the stalker on a Hunted floor.',gold:30},
  {id:'daily',n:'Daily Champion',d:'Win a Daily run.',gold:40},
@@ -472,7 +500,7 @@ const ACH=[
  {id:'slayer',n:'Slayer',d:'Slay '+BAL.ach.kills+' enemies in total.',chk:()=>meta.kills>=BAL.ach.kills,prog:()=>Math.min(meta.kills,BAL.ach.kills)+'/'+BAL.ach.kills},
  {id:'elite',n:'Elite Hunter',d:'Slay '+BAL.ach.elites+' elite enemies in total.',chk:()=>meta.elites>=BAL.ach.elites,prog:()=>Math.min(meta.elites,BAL.ach.elites)+'/'+BAL.ach.elites},
  {id:'roll',n:'On a Roll',d:'Win '+BAL.ach.streak+' runs in a row.',gold:60,chk:()=>meta.bstreak>=BAL.ach.streak,prog:()=>Math.min(meta.bstreak,BAL.ach.streak)+'/'+BAL.ach.streak},
- {id:'terrain',n:'Terrain Master',d:'Leave a floor of each of the '+MODS.length+' modifiers alive.',gold:80,chk:()=>modsDone()>=MODS.length,prog:()=>modsDone()+'/'+MODS.length},
+ {id:'terrain',n:'Terrain Master',d:'Survive a floor of every modifier.',gold:80,chk:()=>modsDone()>=MODS.length,prog:()=>modsDone()+'/'+MODS.length},
  {id:'hoard',n:'Dragon\'s Hoard',d:'Carry '+BAL.ach.hoard+' gold at once.',chk:()=>!!G&&!!G.p&&G.p.gold>=BAL.ach.hoard},
  {id:'swift',n:'Swift Death',d:'Win a run in '+BAL.ach.fastTurns+' turns or fewer.',gold:50,chk:()=>statWin()&&G.turn<=BAL.ach.fastTurns}
 ];
@@ -528,80 +556,81 @@ const ABIL={
 // ---- descriptive text: every number below is read from BAL / the tables, never hand-copied ----
 const pct=x=>Math.round(x*100)+'%',sgn=n=>(n>=0?'+':'')+n;
 function abCost(k){const a=BAL.ability[k];return a.rage?a.rage+' rage':a.mana?a.mana+' mana':k==='knife'?'1 knife':a.cd?'cooldown '+a.cd:'free';}
-function abCdTxt(k){const c=BAL.ability[k].cd;return c?' Recharges in '+c+' turns.':'';}
+// short player-facing hints (budget: <= 60 characters each; the cost / cooldown is shown next to the name)
 function abilityDesc(k){
- const a=BAL.ability[k],O=BAL.offhand;
+ const a=BAL.ability[k];
  switch(k){
-  case 'bash':return 'Hit an adjacent enemy, stun it '+a.stun+' turns ('+a.stunBoss+' on bosses) and knock it back a tile. Free.'+abCdTxt(k);
-  case 'cleave':return 'Hit EVERY adjacent enemy for '+pct(a.mul)+' damage. Costs '+a.rage+' rage.';
-  case 'charge':return 'Rush '+a.minDist+'-'+a.maxDist+' tiles in a straight line to an enemy, hit it for '+pct(a.mul)+' and stun it '+a.stun+' turns. Costs '+a.rage+' rage.'+abCdTxt(k);
-  case 'brace':return 'Halve the next '+a.hits+' hits you take (for up to '+a.turns+' turns) and reflect '+pct(a.reflect)+' of melee damage back. Costs '+a.rage+' rage.';
-  case 'bolt':return 'Ranged blast at a visible enemy up to '+a.range+' tiles away. Cheap filler: '+a.mana+' mana.';
-  case 'nova':return 'Freeze every adjacent enemy for '+a.freeze+' turns ('+a.freezeBoss+' on bosses) and deal '+pct(a.mul)+' damage. Costs '+a.mana+' mana.'+abCdTxt(k);
-  case 'blink':return 'Teleport up to '+a.range+' tiles to a visible tile you choose. Costs '+a.mana+' mana.'+abCdTxt(k);
-  case 'fire':return 'Explode a tile within '+a.range+': every enemy within '+a.radius+' tile'+(a.radius>1?'s':'')+' takes '+Math.round(a.base+a.perFloor)+' damage on floor 1, more deeper. Costs '+a.mana+' mana.';
-  case 'backstab':return 'Strike an adjacent enemy for x'+a.mul+' damage if it is unaware, stunned, frozen, blinded, or you are behind it. Otherwise only '+pct(a.weakMul)+'.'+abCdTxt(k);
-  case 'vanish':return 'Enemies lose track of you for '+a.turns+' turns. Attacking breaks it.'+abCdTxt(k);
-  case 'knife':return 'Throw a knife (range '+a.range+', '+pct(a.mul)+' damage). It drops on the target tile: walk over it to pick it up. You carry up to '+a.max+'.';
-  case 'smoke':return 'Blind enemies in a '+(a.radius*2+1)+'x'+(a.radius*2+1)+' cloud (range '+a.range+'): they lose track, and for '+a.turns+' turns the cloud makes enemies miss '+pct(a.miss)+' of attacks.'+abCdTxt(k);
+  case 'bash':return 'Stun an adjacent foe '+a.stun+' turns and push it back.';
+  case 'cleave':return 'Hit every adjacent foe for '+pct(a.mul)+'.';
+  case 'charge':return 'Dash '+a.minDist+'-'+a.maxDist+' tiles, hit for '+pct(a.mul)+', stun '+a.stun+' turns.';
+  case 'brace':return 'Halve the next '+a.hits+' hits; reflect '+pct(a.reflect)+' of melee.';
+  case 'bolt':return 'Ranged hit on a visible foe, up to '+a.range+' tiles.';
+  case 'nova':return 'Freeze adjacent foes '+a.freeze+' turns and hit for '+pct(a.mul)+'.';
+  case 'blink':return 'Teleport up to '+a.range+' tiles.';
+  case 'fire':return 'Blast radius '+a.radius+': '+Math.round(a.base+a.perFloor)+' damage, more deeper.';
+  case 'backstab':return 'x'+a.mul+' on unaware, stunned or flanked foes; else '+pct(a.weakMul)+'.';
+  case 'vanish':return 'Foes lose you for '+a.turns+' turns. Attacking breaks it.';
+  case 'knife':return 'Throw it ('+a.range+' tiles, '+pct(a.mul)+'); walk over it to reuse.';
+  case 'smoke':return 'Blind foes in a '+(a.radius*2+1)+'x'+(a.radius*2+1)+' cloud; '+pct(a.miss)+' miss for '+a.turns+' turns.';
  }
  return '';
 }
-function classBlurb(k){
+// class card line (budget: <= 45 characters). The numbers live in classDetail.
+const CLASS_TAG={warrior:'Tough brawler. Wades into packs.',mage:'Fragile caster. Blasts from afar.',rogue:'Sneaky striker. Ambush, then vanish.'};
+function classBlurb(k){return CLASS_TAG[k]||'';}
+function classDetail(k){
  const C=CLS[k],R=BAL.rage,M=BAL.mana;
- if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds when you hit or get hit and fades out of combat. Wants to stand in the middle of a pack.';
- if(k==='mage')return C.hp+' HP. Mana pool of '+C.mana+', +'+M.regen+' per turn and +'+M.perKill+' per kill. Wants distance and careful mana management. Starts with '+C.fire+' flame scrolls.';
- return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' damage on enemies that have not noticed you. No resource bar: cooldowns, '+BAL.ability.knife.max+' throwing knives and positioning. Never takes a fair fight.';
+ if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds when you hit or are hit, and fades out of combat.';
+ if(k==='mage')return C.hp+' HP. '+C.mana+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
+ return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' damage on unaware foes. Cooldowns and '+BAL.ability.knife.max+' knives, no resource bar.';
 }
-function classKitHtml(k,full){
- return CLS[k].kit.map(a=>{const A=ABIL[a];return '<div class="pl"><b>'+A.e+' '+A.n+'</b> <small>('+abCost(a)+')'+(full?'<br>'+abilityDesc(a):'')+'</small></div>';}).join('');
-}
-function wpRule(k){
+// gear rule lines (budget: <= 60 characters). noStat drops the +attack part (the comparison shows it as a number).
+function wpRule(k,noStat){
  const w=WP[k],t=[];
- if(w.atk)t.push(sgn(w.atk)+' melee attack');
- if(w.sweep)t.push('melee hits also strike other enemies next to you or the target for '+pct(w.sweep));
- if(w.reach)t.push('reach '+w.reach+': attacks an enemy two tiles away in a straight line');
+ if(w.atk&&!noStat)t.push(sgn(w.atk)+' attack');
+ if(w.sweep)t.push('hits neighbours for '+pct(w.sweep));
+ if(w.reach)t.push('reach '+w.reach);
  if(w.crit)t.push(sgn(Math.round(w.crit*100))+'% crit');
- if(w.sneak)t.push('sneak attacks and Backstab get +'+w.sneak+' to their multiplier');
+ if(w.sneak)t.push('sneak +'+w.sneak);
  if(w.spell)t.push(sgn(Math.round(w.spell*100))+'% spell power');
- if(w.mana)t.push(sgn(w.mana)+' max mana');
- return t.length?t.join('; ')+'.':'Balanced: no modifiers.';
+ if(w.mana)t.push(sgn(w.mana)+' mana');
+ return t.length?t.join(', '):'Balanced.';
 }
 function armRule(k){
  const a=ARM[k],t=[];
  if(a.noDef)t.push('no defense');else if(a.def)t.push(sgn(a.def)+' defense');
  if(a.dodge)t.push(sgn(Math.round(a.dodge*100))+'% dodge');
  if(a.spell)t.push(sgn(Math.round(a.spell*100))+'% spell power');
- if(a.manaBase)t.push('+'+a.manaBase+' max mana, more with tier');
- if(a.mana)t.push(sgn(a.mana)+' max mana');
- if(a.manaRegenMul)t.push('mana regenerates at '+pct(a.manaRegenMul));
- if(a.rageMul)t.push('rage gain at '+pct(a.rageMul));
- return t.length?t.join('; ')+'.':'Balanced: no modifiers.';
+ if(a.manaBase)t.push('+'+a.manaBase+' mana');
+ if(a.mana)t.push(sgn(a.mana)+' mana');
+ if(a.manaRegenMul)t.push('mana regen '+pct(a.manaRegenMul));
+ if(a.rageMul)t.push('rage gain '+pct(a.rageMul));
+ return t.length?t.join(', '):'Balanced.';
 }
 function offRule(k){
- const O=BAL.offhand,A=BAL.ability;
+ const O=BAL.offhand;
  return {
-  tower:'Bash hits the target and the enemies behind it in a line of '+O.towerLine+' tiles.',
-  bulwark:'Brace blocks '+O.bulwarkHits+' more hits and reflects '+pct(O.bulwarkReflect)+' of the damage.',
-  totem:'Cleave refunds '+O.totemRage+' rage per enemy hit.',
-  tome:'Frost Nova also burns every enemy it freezes ('+O.tomeBurnTurns+' turns).',
-  prism:'Fireball radius +'+O.prismRadius+', but '+pct(1-O.prismMul)+' less damage.',
-  lens:'Bolt pierces: also hits up to '+O.lensPierce+' more enemies behind the target in a line.',
-  dagger2:'Backstab strikes twice (the second hit at '+pct(O.dagger2Frac)+').',
-  satchel:'Smoke Bomb radius +'+O.satchelRadius+' and lasts '+O.satchelTurns+' turns longer.',
+  tower:'Bash hits a line of '+O.towerLine+' tiles.',
+  bulwark:'Brace: +'+O.bulwarkHits+' blocks, reflects '+pct(O.bulwarkReflect)+'.',
+  totem:'Cleave refunds '+O.totemRage+' rage per foe.',
+  tome:'Nova also burns frozen foes '+O.tomeBurnTurns+' turns.',
+  prism:'Fireball radius +'+O.prismRadius+', '+pct(1-O.prismMul)+' less damage.',
+  lens:'Bolt pierces '+O.lensPierce+' more foes in line.',
+  dagger2:'Backstab strikes twice (2nd at '+pct(O.dagger2Frac)+').',
+  satchel:'Smoke: radius +'+O.satchelRadius+', '+O.satchelTurns+' turns longer.',
   quiver:'+'+O.quiverKnives+' knives carried.'
  }[k]||'';
 }
 function charmRule(k){
  const C=BAL.charm;
  return {
-  fang:'Heal '+C.fangHeal+' HP (more on deeper floors) whenever you kill an enemy.',
-  ward:'The first hit you take on each floor is free.',
-  eye:'Every trap on the floor is revealed when you arrive.',
-  hourglass:'Ability cooldowns recharge faster: one extra turn every '+C.hourglassEvery+' turns.',
-  veil:'Enemies notice you from '+C.veilSight+' tiles closer.',
-  flask:'The first potion you drink on each floor takes no turn.',
-  soul:'Each kill refunds: '+C.soulRage+' rage (Warrior), '+C.soulMana+' mana (Mage), 1 turn off every cooldown (Rogue).'
+  fang:'Heal '+C.fangHeal+'+ HP on each kill.',
+  ward:'The first hit each floor is free.',
+  eye:'Reveals every trap on arrival.',
+  hourglass:'Cooldowns tick +1 every '+C.hourglassEvery+' turns.',
+  veil:'Foes notice you '+C.veilSight+' tiles later.',
+  flask:'First potion each floor takes no turn.',
+  soul:'Kills refund '+C.soulRage+' rage / '+C.soulMana+' mana / 1 cooldown.'
  }[k]||'';
 }
 
@@ -848,7 +877,7 @@ function sfx(k){
  }catch(e){}
 }
 function buzz(ms){try{if(meta.sound&&navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
-function soundLabel(){return meta.sound?'🔊 Sound & vibration: ON':'🔇 Sound & vibration: OFF (tap to enable)';}
+function soundLabel(){return meta.sound?'🔊 Sound: ON':'🔇 Sound: OFF';}
 function toggleSound(){
  meta.sound=meta.sound?0:1;saveMeta();
  if(meta.sound){ac();sfx('pickup');buzz(25);}
@@ -909,15 +938,26 @@ function manaRegen(){const a=armK();return BAL.mana.regen*(a&&a.manaRegenMul||1)
 function maxKnives(){return BAL.ability.knife.max+(eqKind('off')==='quiver'?BAL.offhand.quiverKnives:0)+(pc('bando')?BAL.perk.bandoMax:0);}
 // stat vector used by the equip comparison: what changes if `it` replaces the current item in its slot
 function statVec(){return {attack:meleeAtk(),defense:defTotal(),crit:Math.round(critChance()*100),dodge:Math.round(dodgeChance()*100),spell:Math.round((spellMul()-1)*100),mana:mmax()};}
-function gearDelta(it){
+// what changes if `it` replaces the current item in its slot: [[stat, change], ...]
+function gearDeltaRaw(it){
  const p=G.p,old=p.eq[it.t],a=statVec();p.eq[it.t]={t:it.t,k:it.k,v:it.v,tr:it.tr||null};const b=statVec();p.eq[it.t]=old;
- const o=[];for(const k in a){const d=b[k]-a[k];if(d)o.push(k+' '+sgn(d)+((k==='crit'||k==='dodge'||k==='spell')?'%':''));}
+ const o=[];for(const k in a){const d=b[k]-a[k];if(d)o.push([k,d]);}
  return o;
 }
-function itemDesc(it){
- let t=it.t==='weapon'?'+'+it.v+' attack. ':it.t==='armor'?'Defense '+armorDef(it)+'. ':'';
- t+=itemRule(it);if(it.tr)t+=' '+traitLine(it.tr);return t;
+function gearDelta(it){return gearDeltaRaw(it).map(x=>x[0]+' '+sgn(x[1])+((x[0]==='crit'||x[0]==='dodge'||x[0]==='spell')?'%':''));}
+// the same as green / red chips (more is always better for these stats)
+function gearDeltaHtml(it){
+ const L={attack:'Attack',defense:'Defense',crit:'Crit',dodge:'Dodge',spell:'Spell',mana:'Mana'};
+ const d=gearDeltaRaw(it);
+ if(!d.length)return '<span class="dlt same">Same stats</span>';
+ return d.map(x=>'<span class="dlt '+(x[1]>0?'up':'dn')+'">'+L[x[0]]+' '+(x[1]>0?'+':'\u2212')+Math.abs(x[1])+((x[0]==='crit'||x[0]==='dodge'||x[0]==='spell')?'%':'')+'</span>').join('');
 }
+function itemDesc(it){
+ const st=it.t==='weapon'?'+'+it.v+' attack':it.t==='armor'?'Defense '+armorDef(it):'';
+ return [st,itemRule(it)].filter(Boolean).join(' · ')+(it.tr?'<br>'+traitLine(it.tr):'');
+}
+// the rule line only (no stat numbers): weapon rules without the attack offset
+function itemRuleShort(it){return it.t==='weapon'?wpRule(it.k,true):it.t==='armor'?armRule(it.k):itemRule(it);}
 function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'';}
 function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
 function rollTrait(slot,f){
@@ -966,13 +1006,13 @@ function sellGear(it,why){const g=Math.round((BAL.item.weakSaleBase+G.floor)*G.p
 function pickOne(it){
  const p=G.p;
  let take=true;
- if(it.t==='gold'){const g=Math.round(it.v*p.goldMul*goldMod());p.gold+=g;msg('You pick up '+g+' gold.');checkAch();}
+ if(it.t==='gold'){const g=Math.round(it.v*p.goldMul*goldMod());p.gold+=g;msg('+'+g+' gold.');checkAch();}
  else if(it.t==='potion'){
-  if(G.inv.pot<p.potCap){G.inv.pot++;msg('You pick up a health potion.');}
+  if(G.inv.pot<p.potCap){G.inv.pot++;msg('+1 Potion.');}
   else{msg('Potion belt is full.');take=false;}
  }
  else if(it.t==='knife'){
-  if(G.knives<maxKnives()){G.knives++;msg('You pick up a throwing knife.');}
+  if(G.knives<maxKnives()){G.knives++;msg('+1 knife.');}
   else take=false;
  }
  else if(SLOTS.indexOf(it.t)>=0){
@@ -983,37 +1023,37 @@ function pickOne(it){
    else sellGear(it,'Weak');
   }else{gearQ=it;take=false;}
  }
- else if(it.t==='fire'){G.inv.fire++;msg('Found a flame scroll.');}
- else if(it.t==='tele'){G.inv.tele++;msg('Found a Teleport scroll.');}
- else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('You pick up a brass key!');}
+ else if(it.t==='fire'){G.inv.fire++;msg('+1 Flames.');}
+ else if(it.t==='tele'){G.inv.tele++;msg('+1 Teleport.');}
+ else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('Got a brass key.');}
  if(take){G.items=G.items.filter(o=>o!==it);sfx('pickup');}
  G.stopWalk=true;
 }
 function drink(){
  const p=G.p;
- if(G.inv.pot<=0){msg('No potions. Find them in the dungeon.');return;}
- if(p.hp>=p.mhp){msg('Already at full health.');return;}
+ if(G.inv.pot<=0){msg('No potions.');return;}
+ if(p.hp>=p.mhp){msg('HP is full.');return;}
  G.ppois=null;G.inv.pot--;G.stats.pots++;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(modIs('cursed'))h=Math.max(1,Math.round(h*BAL.mod.cursed.potionMul));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
- floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');
- if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('The flask refills itself: no turn used.');save();render();return;}
+ floatFx(p.x,p.y,'+'+h,'#6f6');msg('Potion: +'+h+' HP.');
+ if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('Flask refills: no turn used.');save();render();return;}
  endTurn();
 }
 function fireball(){
- if(G.inv.fire<=0){msg('No flame scrolls. Find them in the dungeon.');return;}
+ if(G.inv.fire<=0){msg('No Flames.');return;}
  const t=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
- if(!t.length){msg('No visible enemies - scroll kept.');return;}
+ if(!t.length){msg('No enemy in sight.');return;}
  G.inv.fire--;const dmg=Math.round((BAL.fireball.base+G.floor*BAL.fireball.perFloor)*G.p.fireMul);
- msg('Flames! '+dmg+' damage to all in sight.');
+ msg('Flames: '+dmg+' to all in sight.');
  for(const e of t){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
  endTurn();
 }
 function teleport(){
- if(G.inv.tele<=0){msg('No teleport scrolls. Find them in the dungeon.');return;}
+ if(G.inv.tele<=0){msg('No Teleport.');return;}
  const p=G.p,c=[],reach=bfsDist(p.x,p.y);
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)
   if(G.map[ix(x,y)]===1&&reach[ix(x,y)]<9999&&!enemyAt(x,y)&&!itemAt(x,y)&&!trapAt(x,y)&&!merchantAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=BAL.teleport.minDist)c.push([x,y]);
  if(!c.length){msg('The scroll fizzles.');return;}
- G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('You teleport away!');walkTok++;endTurn();
+ G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('Teleported.');walkTok++;endTurn();
 }
 
 // perks.js - perk lookup, granting, synergies.
@@ -1256,30 +1296,24 @@ function rollOpts(nf){
 }
 function optHtml(nf,o){
  const m=o.mod?modOf(o.mod):null,th=themeOf(nf,o.v);
- return '<b>'+th.n+' &middot; '+(m?m.e+' '+m.n:'No modifier')+'</b><span>'+
-  (m?'<i style="color:#ff9a8a;font-style:normal">Risk:</i> '+m.down+'<br><i style="color:#8fe39a;font-style:normal">Reward:</i> '+m.up:'A plain floor: no surprises, no extra loot.')+
-  (BAL.merchant.floors.includes(nf)?'<br>🧔 A merchant waits on this floor.':'')+'</span>';
+ return '<b>'+th.n+' &middot; '+(m?m.e+' '+m.n:'Plain floor')+'</b><span>'+
+  (m?'<i style="color:#ff9a8a;font-style:normal">Risk:</i> '+m.r+'<br><i style="color:#8fe39a;font-style:normal">Gain:</i> '+m.g:'No surprises, no extra loot.')+
+  (BAL.merchant.floors.includes(nf)?'<br>🧔 Merchant':'')+'</span>';
 }
 function showBranch(){
  if(!G||G.over)return;walkTok++;
  const nf=G.floor+1;if(!G.opts)G.opts=rollOpts(nf);
  const btns=G.opts.map(function(o,i){return {k:'opt'+i,html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
- btns.push({k:'stay',label:'Stay on this floor',c:1,fn:closeModal});
- showModal('Choose your path','<p>Two ways lead down to floor '+nf+'. Pick one:</p>',btns,'path');
+ btns.push({k:'stay',label:'Stay here',c:1,fn:closeModal});
+ showModal('Floor '+nf+': pick a path','',btns,'path');
 }
-// the HUD chip: tap it for a one-line explanation
+// the one map chip: the floor modifier as a small icon; tap it for a one-line reminder (Daily / Hard show in the top bar)
 function modChipHtml(){
- let h='';
- if(G.daily)h+='<button class="chip" data-chip="daily" aria-label="Daily run">📅</button>';
- if(G.hard)h+='<button class="chip hard" data-chip="hard" aria-label="Hard mode">💀</button>';
  const m=G.mod?modOf(G.mod):null;
- if(m)h+='<button class="chip mod" data-chip="mod">'+m.e+' '+m.n+'</button>';
- return h;
+ return m?'<button class="chip mod" data-chip="mod" aria-label="'+m.n+'">'+m.e+'</button>':'';
 }
 function chipText(k){
  if(k==='mod'){const m=modOf(G.mod);return m?m.e+' '+m.n+': '+m.tip:'';}
- if(k==='hard')return '💀 Hard mode: '+HARD_RULES.map(r=>r.n).join(', ')+'.';
- if(k==='daily')return '📅 Daily run for '+G.daily+': the same dungeon for everyone today.';
  return '';
 }
 $('chips').addEventListener('click',function(ev){
@@ -1627,15 +1661,15 @@ function endTurn(){
 
 function buildStock(f){
  const s=[],pr=(a,b)=>Math.round(a+b*f);
- s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(...BAL.merchant.price.potion)});
- s.push({k:'pot',n:'🧪 Health potion',d:'Heals about 40% of max HP.',price:pr(...BAL.merchant.price.potion)});
- s.push({k:'fire',n:'📜 Flame scroll',d:'Damages every enemy in sight.',price:pr(...BAL.merchant.price.fire)});
- s.push({k:'tele',n:'🌀 Teleport scroll',d:'Jump to a random far spot.',price:pr(...BAL.merchant.price.tele)});
+ s.push({k:'pot',n:'🧪 Potion',d:'Heals '+pct(BAL.potion.healFrac)+' of max HP.',price:pr(...BAL.merchant.price.potion)});
+ s.push({k:'pot',n:'🧪 Potion',d:'Heals '+pct(BAL.potion.healFrac)+' of max HP.',price:pr(...BAL.merchant.price.potion)});
+ s.push({k:'fire',n:'📜 Flames',d:'Burns every foe in sight.',price:pr(...BAL.merchant.price.fire)});
+ s.push({k:'tele',n:'🌀 Teleport',d:'Jump to a random far spot.',price:pr(...BAL.merchant.price.tele)});
  const slot=pick(BAL.merchant.gearSlots),g=forcedGear(f,slot);
- s.push({k:'gear',item:g,n:itemIcon(g)+' '+gearName(g),d:itemDesc(g)+' Replaces your current '+SLOT_LABEL[slot].toLowerCase()+'.',price:pr(...BAL.merchant.price.gear)});
+ s.push({k:'gear',item:g,n:itemIcon(g)+' '+gearName(g),d:itemDesc(g),price:pr(...BAL.merchant.price.gear)});
  const pool=perkPool();
  if(pool.length){const pk=pick(pool);s.push({k:'perk',id:pk.id,n:'✨ Perk: '+pk.n,d:pk.d,price:pr(...BAL.merchant.price.perk)});}
- if(meta.unl.elixir)s.push({k:'elixir',n:'🧿 Elixir of Vigor',d:'+'+BAL.merchant.elixirHp+' max HP and a full heal.',price:pr(...BAL.merchant.price.elixir)});
+ if(meta.unl.elixir)s.push({k:'elixir',n:'🧿 Elixir',d:'+'+BAL.merchant.elixirHp+' max HP and a full heal.',price:pr(...BAL.merchant.price.elixir)});
  return s;
 }
 function wakeAll(){for(const e of G.enemies){e.awake=true;e.alarm=1;}}
@@ -1650,11 +1684,11 @@ function springPlayer(t){
  if(t.k==='spike'){
   let d=BAL.trap.spikeBase+G.floor;if(pc('trapper'))d=Math.max(1,Math.ceil(d/2));
   p.hp-=d;G.killer='a spike trap';playerHurtFx(d);floatFx(p.x,p.y,'-'+d,'#ff5a5a');
-  msg('You step on a spike trap! -'+d+' HP.');secondWind();
+  msg('Spike trap! -'+d+' HP.');secondWind();
  }else if(t.k==='dart'){
   G.ppois={t:pc('trapper')?BAL.trap.dartTurnsTrapfinder:BAL.trap.dartTurns,d:BAL.trap.dartDmgBase+Math.floor(G.floor/BAL.trap.dartDmgFloorDiv)};G.killer='dart poison';floatFx(p.x,p.y,'poison','#7be04b');
-  msg('A dart hits you - poisoned for '+G.ppois.t+' turns!');
- }else{wakeAll();t.done=1;floatFx(p.x,p.y,'ALARM','#ffd24a');msg('An alarm shrieks! Every enemy on the floor is awake.');}
+  msg('Dart! Poisoned '+G.ppois.t+' turns.');
+ }else{wakeAll();t.done=1;floatFx(p.x,p.y,'ALARM','#ffd24a');msg('Alarm! Every foe is awake.');}
 }
 function stepEffects(){
  const p=G.p,t=trapAt(p.x,p.y);
@@ -1666,26 +1700,26 @@ function showShrine(){
  const p=G.p,better=!!meta.unl.shrine||modIs('cursed'),heal=better?BAL.shrine.healBetter:BAL.shrine.healBase,loss=better?BAL.shrine.lossBetter:BAL.shrine.lossBase,pct=n=>Math.round(n*100);
  const done=function(t){s.used=1;closeModal();msg(t);save();render();afterModals();};
  const opts=[
-  {k:'pray',html:'<b>🙏 Pray</b><span>'+pct(heal)+'% chance of a full heal, '+pct(1-heal)+'% chance you lose '+pct(loss)+'% of max HP.</span>',fn:function(){
+  {k:'pray',html:'<b>🙏 Pray</b><span>'+pct(heal)+'% full heal, else lose '+pct(loss)+'% max HP.</span>',fn:function(){
    if(rf()<heal){const h=p.mhp-p.hp;p.hp=p.mhp;floatFx(p.x,p.y,'+'+h,'#6f6');done('The shrine glows. You are fully healed.');}
    else{const l=Math.max(1,Math.round(p.mhp*loss));p.hp=Math.max(1,p.hp-l);G.killer='a cursed shrine';floatFx(p.x,p.y,'-'+l,'#ff5a5a');playerHurtFx(l);done('The shrine rejects you: -'+l+' HP.');}}},
-  {k:'sac',html:'<b>🪙 Sacrifice '+BAL.shrine.sacrificeGold+' gold</b><span>Gain a random perk. You have '+p.gold+' gold.</span>',off:p.gold<BAL.shrine.sacrificeGold,fn:function(){
+  {k:'sac',html:'<b>🪙 Sacrifice '+BAL.shrine.sacrificeGold+' gold</b><span>Random perk. You have '+p.gold+'.</span>',off:p.gold<BAL.shrine.sacrificeGold,fn:function(){
    const id=randomPerkId();if(!id){msg('No perks left to offer.');return;}
    p.gold-=BAL.shrine.sacrificeGold;addPerk(id);done('The shrine accepts your gold.');}},
-  {k:'pact',html:'<b>🩸 Blood pact</b><span>-'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack for the rest of the run. Only once per run.</span>',off:p.mhp<=BAL.shrine.pactMinHp||!!G.pact,fn:function(){
+  {k:'pact',html:'<b>🩸 Blood pact</b><span>'+BAL.shrine.pactHp+' max HP for +'+BAL.shrine.pactAtk+' attack. Once per run.</span>',off:p.mhp<=BAL.shrine.pactMinHp||!!G.pact,fn:function(){
    G.pact=1;p.mhp=Math.max(BAL.shrine.pactMinHp,p.mhp-BAL.shrine.pactHp);p.hp=Math.min(p.hp,p.mhp);p.atk+=BAL.shrine.pactAtk;done('You sign in blood: -'+BAL.shrine.pactHp+' max HP, +'+BAL.shrine.pactAtk+' attack.');}}
  ];
- if(better)opts.splice(1,0,{k:'bless',html:'<b>✨ Blessing</b><span>Safe: heal 30% of max HP and gain +1 defense.</span>',fn:function(){
+ if(better)opts.splice(1,0,{k:'bless',html:'<b>✨ Blessing</b><span>Safe: heal '+pct(BAL.shrine.blessHeal)+' HP, +1 defense.</span>',fn:function(){
   const h=Math.round(p.mhp*BAL.shrine.blessHeal);p.hp=Math.min(p.mhp,p.hp+h);p.def++;floatFx(p.x,p.y,'+'+h,'#6f6');done('A warm light blesses you: +1 defense.');}});
  opts.push({k:'leave',label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
- showModal('🗿 Ancient shrine','<p>A strange altar hums with power. Choose carefully - it works only once.</p>',opts,'shrine');
+ showModal('🗿 Shrine','',opts,'shrine');
 }
 function showShop(){
  if(!G||G.over||!G.merchant)return;walkTok++;
  const m=G.merchant,p=G.p;
  const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' 💰</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
  btns.push({k:'leave',label:'Leave',c:1,fn:closeModal});
- showModal('🧔 Merchant','<p>"Fine wares for fine coin." You have <span class="gold">'+p.gold+' 💰</span>.</p>',btns,'shop');
+ showModal('🧔 Merchant','<p class="sub">You have <span class="gold">'+p.gold+' 💰</span></p>',btns,'shop');
 }
 function buy(i){
  const m=G&&G.merchant,it=m&&m.stock[i],p=G&&G.p;if(!it||it.sold||p.gold<it.price)return;
@@ -1778,14 +1812,14 @@ function targetTiles(k){
 // reason an ability cannot be used right now ('' = usable)
 function whyNot(k){
  const A=ABIL[k],c=costOf(k),p=G.p;
- if(G.cd[k]>0)return A.n+' is recharging ('+G.cd[k]+' turn'+(G.cd[k]>1?'s':'')+').';
- if(c.rage&&(p.rage||0)<c.rage)return 'Not enough rage for '+A.n+' (need '+c.rage+', have '+Math.floor(p.rage||0)+').';
- if(c.mana&&(p.mana||0)<c.mana)return 'Not enough mana for '+A.n+' (need '+c.mana+', have '+Math.floor(p.mana||0)+').';
- if(k==='knife'&&(G.knives||0)<1)return 'No knives left. Walk over a thrown knife to pick it up.';
- if((k==='cleave'||k==='nova')&&!chebEnemies().length)return A.n+' needs an enemy next to you.';
+ if(G.cd[k]>0)return A.n+': '+G.cd[k]+' turn'+(G.cd[k]>1?'s':'')+' to recharge.';
+ if(c.rage&&(p.rage||0)<c.rage)return A.n+' needs '+c.rage+' rage (have '+Math.floor(p.rage||0)+').';
+ if(c.mana&&(p.mana||0)<c.mana)return A.n+' needs '+c.mana+' mana (have '+Math.floor(p.mana||0)+').';
+ if(k==='knife'&&(G.knives||0)<1)return 'No knives. Walk over one to pick it up.';
+ if((k==='cleave'||k==='nova')&&!chebEnemies().length)return A.n+': no enemy next to you.';
  if(A.tg!=='self'&&!targetTiles(k).length){
-  return k==='charge'?'Charge needs an enemy in a straight line, '+BAL.ability.charge.minDist+'-'+BAL.ability.charge.maxDist+' tiles away.':
-   (k==='bash'||k==='backstab')?A.n+' needs an enemy right next to you.':A.n+': no valid target in sight.';
+  return k==='charge'?'Charge: need a foe in line, '+BAL.ability.charge.minDist+'-'+BAL.ability.charge.maxDist+' tiles.':
+   (k==='bash'||k==='backstab')?A.n+': no enemy next to you.':A.n+': no target.';
  }
  return '';
 }
@@ -1811,7 +1845,7 @@ const DO={
   spend('bash');breakVanish();
   for(const v of victims){
    const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
-   hurtEnemy(v,dmg,'#ffb04a',false,'melee');msg('Shield Bash hits the '+nm(v)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
+   hurtEnemy(v,dmg,'#ffb04a',false,'melee');msg('Bash hits the '+nm(v)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
    if(!v.dead&&v.hp>0){stunEnemy(v,a.stun,a.stunBoss);msg('The '+nm(v)+' is stunned.');if(v===e&&v.hp>0)knock(v,dx,dy);}
    settle(v);
   }
@@ -1819,7 +1853,7 @@ const DO={
  },
  cleave:function(){
   const a=BAL.ability.cleave,tg=chebEnemies();spend('cleave');breakVanish();
-  msg('You cleave in a wide arc!');
+  msg('Cleave!');
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
    hurtEnemy(e,dmg,'#ffb04a',false,'melee');lifeSteal(dmg);poison(e);
@@ -1844,7 +1878,7 @@ const DO={
   const bulwark=eqKind('off')==='bulwark',retrib=pc('retrib');
   spend('brace');
   G.brace={hits:a.hits+(bulwark?O.bulwarkHits:0)+(retrib?BAL.perk.retribHits:0),t:a.turns,reflect:Math.max(a.reflect,bulwark?O.bulwarkReflect:0,retrib?BAL.perk.retribReflect:0)};
-  floatFx(G.p.x,G.p.y,'BRACE','#9cf');msg('You brace: the next '+G.brace.hits+' hits are halved and '+Math.round(G.brace.reflect*100)+'% is reflected.');
+  floatFx(G.p.x,G.p.y,'BRACE','#9cf');msg('Braced: next '+G.brace.hits+' hits halved.');
   endTurn();
  },
  bolt:function(tx,ty){
@@ -1860,14 +1894,14 @@ const DO={
   }
   for(const v of hit){
    const dmg=Math.max(1,Math.round((playerDmg(true)*a.mul+a.add)*spellMul()));
-   hurtEnemy(v,dmg,'#b48cff',false,'ranged');msg('Arcane Bolt hits the '+nm(v)+' for '+dmg+'.');
+   hurtEnemy(v,dmg,'#b48cff',false,'ranged');msg('Bolt hits the '+nm(v)+' for '+dmg+'.');
    poison(v);settle(v);
   }
   endTurn();
  },
  nova:function(){
   const a=BAL.ability.nova,tg=chebEnemies();spend('nova');breakVanish();
-  floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('A frost nova bursts around you!');
+  floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('Nova!');
   const burn=BAL.offhand.tomeBurnBase+Math.floor(G.floor/BAL.offhand.tomeBurnFloorDiv);
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg(true)*a.mul*spellMul()));
@@ -1883,7 +1917,7 @@ const DO={
  blink:function(tx,ty){
   const p=G.p;spend('blink');walkTok++;
   floatFx(p.x,p.y,'blink','#d9c6ff');p.x=tx;p.y=ty;msg('You blink away.');
-  pickup();if(G.map[ix(tx,ty)]===2)msg('Stairs! Tap yourself to descend.');
+  pickup();if(G.map[ix(tx,ty)]===2)msg('On the stairs.');
   endTurn();
  },
  fire:function(tx,ty){
@@ -1891,7 +1925,7 @@ const DO={
   spend('fire');breakVanish();
   const R=a.radius+(prism?O.prismRadius:0);
   const dmg=Math.max(1,Math.round((a.base+a.perFloor*G.floor)*G.p.fireMul*spellMul()*(prism?O.prismMul:1)));
-  floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball! '+dmg+' damage in a '+(R*2+1)+'x'+(R*2+1)+' blast.');
+  floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball: '+dmg+' damage.');
   if(!rmo())puffs.push({x:tx,y:ty,t:performance.now(),s:Math.random()*6});
   for(const e of G.enemies.slice())if(!e.dead&&Math.max(Math.abs(e.x-tx),Math.abs(e.y-ty))<=R){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
   endTurn();
@@ -1914,7 +1948,7 @@ const DO={
  vanish:function(){
   spend('vanish');walkTok++;G.vanish=BAL.ability.vanish.turns+(pc('shadow')?BAL.perk.shadowTurns:0);
   for(const e of G.enemies)e.awake=false;
-  floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish. Enemies lose track of you.');endTurn();
+  floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish.');endTurn();
  },
  knife:function(tx,ty){
   const e=enemyAt(tx,ty),a=BAL.ability.knife,p=G.p;spend('knife');breakVanish();
@@ -1936,7 +1970,7 @@ const DO={
   spend('smoke');breakVanish();
   for(let y=ty-R;y<=ty+R;y++)for(let x=tx-R;x<=tx+R;x++)if(inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==5)cells.push(ix(x,y));
   (G.smoke=G.smoke||[]).push({cells:cells,t:a.turns+(sat?O.satchelTurns:0)});
-  floatFx(tx,ty,'SMOKE','#ccd',true);msg('A smoke cloud blooms. Enemies inside are blinded.');
+  floatFx(tx,ty,'SMOKE','#ccd',true);msg('Smoke: foes inside are blinded.');
   for(const e of G.enemies){
    if(cells.indexOf(ix(e.x,e.y))<0)continue;
    e.blind=a.blindTurns;e.wind=null;if(!EN[e.t].boss)e.awake=false;
@@ -1951,7 +1985,7 @@ function useAbility(k,tx,ty){
  if(why){msg(why);render();return false;}
  const A=ABIL[k];
  if(A.tg!=='self'){
-  if(tx==null||!targetTiles(k).some(t=>t[0]===tx&&t[1]===ty)){msg(A.n+': tap a highlighted target.');render();return false;}
+  if(tx==null||!targetTiles(k).some(t=>t[0]===tx&&t[1]===ty)){msg(A.n+': tap a lit tile.');render();return false;}
  }
  armed=null;
  DO[k](tx,ty);
@@ -1963,7 +1997,7 @@ function toggleAbility(k){
  const why=whyNot(k);
  if(why){msg(why);if(armed){armed=null;}render();return;}
  if(ABIL[k].tg==='self'){useAbility(k);return;}
- armed=k;msg(ABIL[k].n+' armed: tap a highlighted target (tap the button again or yourself to back out).');render();
+ armed=k;msg(ABIL[k].n+': tap a target.');render();
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- weapon reach (spear) ----
@@ -2126,27 +2160,27 @@ function startRun(cls,opts){
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
  if(daily){const d=meta.dly[daily]||(meta.dly[daily]={att:0});if(!d.att)meta.dlyN++;d.att++;saveMeta();checkAch();}
  noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg('You descend into the Emberfall depths as a '+C.n+(daily?' (Daily '+daily+')':hard?' (Hard)':'')+'.');if(meta.unl.scroll)msg('Your starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
+ msg(C.e+' '+C.n+' descends'+(daily?' · Daily '+daily:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
 function deathTip(){
  const k=(G.killer||'').toLowerCase();
- if(/spike|trap|dart/.test(k))return 'Traps are drawn once you stand next to them. Walk around drawn traps (Explore does it for you), and never rush through unexplored rooms at low HP.';
- if(/poison/.test(k))return 'Poison ticks every turn. A potion cures it - drink one before it stacks with enemy hits.';
- if(/archer|warlock/.test(k))return 'Archers and warlocks need a clear line of sight. Break the line around a corner or a door, then close in.';
- if(/troll|dragon/.test(k))return 'Red hatched tiles mark the next big hit. Step off them (one tile is enough) and it deals nothing.';
- if(/guard/.test(k))return 'Guards shrug off '+pct(1-BAL.weapon.shieldFront)+' of frontal damage and '+pct(1-BAL.weapon.shieldRanged)+' of ranged hits. Stun or freeze one (Bash, Charge, Nova) or hit it from behind.';
- if(/hound/.test(k))return 'Hounds move two tiles per turn: you cannot kite them. Meet them in melee, or stun them as they arrive.';
- if(/cultist/.test(k))return 'Cultists heal their friends. Dive them first: Charge, Blink or throw a knife.';
- if(/\b(rat|bat|whelp)\b/.test(k))return 'Packs wear you down. Hold a corridor, or use Cleave, Frost Nova, Fireball or a Smoke Bomb.';
- if(/ogre/.test(k))return 'Ogres act every other turn. Hit while the hourglass shows, then step back before it swings.';
- if(/wall|impact/.test(k))return 'Knockback into a wall or door adds damage. Fight with open floor behind you.';
- if(/shrine|curse/.test(k))return 'Gambles and cursed gear cost HP. Check your HP before praying at a shrine.';
- if(/elite/.test(k))return 'Elite enemies are tougher than they look. Lure them into a corridor, use flame scrolls, or skip the treasure room.';
- if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP - it costs a turn but saves the run.';
- if(G.p.hp<=0&&G.inv.fire>0)return 'You died with a flame scroll unused. It hits everything in sight - use it when a crowd closes in.';
- return 'Fight in corridors and doorways so only one enemy can reach you, and rest behind a closed door when you can.';
+ if(/spike|trap|dart/.test(k))return 'Walk around drawn traps; Explore does it for you.';
+ if(/poison/.test(k))return 'A potion cures poison. Drink before it stacks with hits.';
+ if(/archer|warlock/.test(k))return 'Break the line of sight around a corner, then close in.';
+ if(/troll|dragon/.test(k))return 'Red tiles mark the next big hit. One step off and it misses.';
+ if(/guard/.test(k))return 'Guards block '+pct(1-BAL.weapon.shieldFront)+' from the front. Stun them (Bash, Charge, Nova) or hit from behind.';
+ if(/hound/.test(k))return 'Hounds move twice per turn. Fight them in melee or stun them.';
+ if(/cultist/.test(k))return 'Cultists heal allies. Dive them first: Charge, Blink or a knife.';
+ if(/\b(rat|bat|whelp)\b/.test(k))return 'Hold a corridor, or use Cleave, Nova, Fireball or Smoke.';
+ if(/ogre/.test(k))return 'Hit while the hourglass shows, then step back.';
+ if(/wall|impact/.test(k))return 'Knockback into walls adds damage. Keep open floor behind you.';
+ if(/shrine|curse/.test(k))return 'Shrine gambles and cursed gear cost HP. Check your HP first.';
+ if(/elite/.test(k))return 'Elites are tough. Lure them into a corridor or use Flames.';
+ if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP.';
+ if(G.p.hp<=0&&G.inv.fire>0)return 'You died holding Flames. Use them when a crowd closes in.';
+ return 'Fight in corridors and doorways so only one foe reaches you.';
 }
 function finish(kind){
  autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
@@ -2161,16 +2195,15 @@ function finish(kind){
  computeVis();render();
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
- const perks=PERKS.filter(pk=>pc(pk.id)>0).map(pk=>pk.n+(pk.max>1?' x'+pc(pk.id):'')).join(', ')||'none';
- const tags=(G.daily?' &middot; 📅 Daily '+G.daily:'')+(hard?' &middot; 💀 Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const tags=(G.daily?' &middot; 📅 Daily':'')+(hard?' &middot; 💀 Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
-  (won?'<p>The dragon falls. You conquer the Emberfall depths!</p>':dead?'<p>Killed by <b>'+killTxt+'</b> on floor '+G.floor+'.</p>':'<p>You left the dungeon.</p>')+
-  '<p>Class: <b>'+clsOf(p).e+' '+clsOf(p).n+'</b> (level '+p.lvl+')'+tags+'<br>Floor reached: <b>'+G.floor+'</b><br>Turns: <b>'+G.turn+'</b><br>Enemies slain: <b>'+G.kills+'</b><br>Gear: <b>'+SLOTS.map(sl=>gearName(p.eq[sl])).filter(n=>n!=='Nothing').join('</b>, <b>')+'</b><br>Perks: <b>'+perks+'</b><br>Gold banked: <span class="gold">'+banked+(bonus?' (incl. '+BAL.run.winBonus+' win bonus)':'')+(hard?' (Hard x'+BAL.hard.goldMul+')':'')+(aut?' (Auto x'+BAL.auto.goldMul+')':'')+'</span></p>'+(aut?'<p id="autoRecap" class="pl" style="border:1px solid #b5731f;border-radius:10px;padding:8px"><b>Auto run &mdash; '+autoGoldWord()+' gold</b><br><small>Auto played this run, so only '+autoGoldWord()+' of its gold went to your bank. Records, the Daily and achievements still count.</small></p>':'')+
-  '<p>Score: <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?' <b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'!</b>':'')+'</p>'+
-  (G.newUnl&&G.newUnl.length?'<p>New unlock'+(G.newUnl.length>1?'s':'')+': <b>'+G.newUnl.join(', ')+'</b></p>':'')+
-  (G.newAch&&G.newAch.length?'<p>🏆 Achievement'+(G.newAch.length>1?'s':'')+': <b>'+G.newAch.join(', ')+'</b></p>':'')+
-  (dead?'<p class="pl" style="border:1px solid #4b5080;border-radius:10px;padding:8px"><b>Tip:</b> '+deathTip()+'</p>':''),
-  [{label:'Back to title',c:1,fn:function(){closeModal();G=null;rngS=null;showTitle();}}]);
+  '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
+  '<p class="recap">'+clsOf(p).e+' <b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'<br>Floor <b>'+G.floor+'</b> &middot; <b>'+G.turn+'</b> turns &middot; <b>'+G.kills+'</b> kills</p>'+
+  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
+  (G.newAch&&G.newAch.length?'<p class="recap">🏆 <b>'+G.newAch.join(', ')+'</b></p>':'')+
+  (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),
+  [{label:'Back to title',c:1,big:1,fn:function(){closeModal();G=null;rngS=null;showTitle();}}]);
 }
 
 // Tapping the stairs: below floor 1..MAXF-2 you choose between two floors; into the dragon lair there is only one way.
@@ -2201,19 +2234,19 @@ function goDown(opt){
 function tryMove(dx,dy){
  const p=G.p,nx=p.x+dx,ny=p.y+dy;
  if(inb(nx,ny)&&G.map[ix(nx,ny)]===5){
-  if(G.keys>0){G.keys--;G.map[ix(nx,ny)]=4;msg('The key turns - the treasure room is open!');endTurn();return true;}
-  msg('Locked. The key is carried by the marked elite (gold ring and star) on this floor.');render();return false;}
+  if(G.keys>0){G.keys--;G.map[ix(nx,ny)]=4;msg('Vault opened.');endTurn();return true;}
+  msg('Locked. The marked elite has the key.');render();return false;}
  if(merchantAt(nx,ny)){showShop();return false;}
  if(!walkable(nx,ny))return false;
  const e=enemyAt(nx,ny);
  if(e){playerAttack(e);endTurn();return true;}
- if(G.map[ix(nx,ny)]===3){G.map[ix(nx,ny)]=4;msg('You open the door.');endTurn();return true;}
+ if(G.map[ix(nx,ny)]===3){G.map[ix(nx,ny)]=4;msg('Door opened.');endTurn();return true;}
  p.x=nx;p.y=ny;pickup();
  if(waterSet().has(ix(nx,ny)))G.wade=1;
- if(G.map[ix(nx,ny)]===2){msg('Stairs! Tap yourself to descend.');G.stopWalk=true;}
+ if(G.map[ix(nx,ny)]===2){msg('On the stairs.');G.stopWalk=true;}
  endTurn();return true;
 }
-function wait(){msg('You wait.');endTurn();}
+function wait(){msg('Wait.');endTurn();}
 function startWalk(path,opts){
  opts=opts||{};
  const tok=++walkTok;
@@ -2224,13 +2257,13 @@ function startWalk(path,opts){
   if(tz.has(ix(path[0][0],path[0][1]))){
    const l=path[path.length-1],np=bfsPath(p.x,p.y,l[0],l[1]);
    if(np&&np.length&&!np.some(t=>tz.has(ix(t[0],t[1])))){path.length=0;for(const t of np)path.push(t);}
-   else{msg('A trap blocks the way - walk around it.');stop();return;}
+   else{msg('Trap ahead: go around.');stop();return;}
   }
   const nx=path[0][0],ny=path[0][1];
   if(enemyAt(nx,ny)){stop();return;}
   const dz=dangerSet();
-  if(dz.size&&(dangerNear(dz)||dz.has(ix(nx,ny)))){msg('Danger tiles! Auto-walk stopped.');stop();return;}
-  if(G.cracks.length&&crackSet().has(ix(nx,ny))){msg('The floor ahead is cracking - wait or go around.');stop();return;}
+  if(dz.size&&(dangerNear(dz)||dz.has(ix(nx,ny)))){msg('Danger ahead. Stopped.');stop();return;}
+  if(G.cracks.length&&crackSet().has(ix(nx,ny))){msg('Floor ahead is cracking.');stop();return;}
   if(G.map[ix(nx,ny)]!==3&&G.map[ix(nx,ny)]!==5)path.shift();
   const hp0=p.hp,v0=visIds(),f0=G.floor;G.stopWalk=false;
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
@@ -2245,9 +2278,9 @@ function startWalk(path,opts){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight - tap it to attack, or tap a tile to move.');render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');render();return;}
  const dz=dangerSet();
- if(dz.size&&dangerNear(dz)){msg('Danger tiles nearby - step away first.');render();return;}
+ if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
 const tz=trapSet(),cz=crackSet();
  const sleepers=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]);
@@ -2266,7 +2299,7 @@ const tz=trapSet(),cz=crackSet();
  const prev=res.prev;let goal=res.goal;
  if(goal<0){
   // go to stairs if seen
-  for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. Heading to the stairs.');startWalk(pa);return;}}
+  for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. To the stairs.');startWalk(pa);return;}}
   msg('Nothing left to explore.');render();return;
  }
  const path=[];let k=goal;while(k!==ix(p.x,p.y)){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
@@ -2292,7 +2325,7 @@ function onTap(tx,ty){
   const sh=G.shrine;
   if(sh&&!sh.used&&sh.x===p.x&&sh.y===p.y){showShrine();return;}
   if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
- if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored floor tile.');return;}
+ if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored tile.');return;}
  const adj=Math.abs(tx-p.x)+Math.abs(ty-p.y)===1;
  if(merchantAt(tx,ty)){
   if(adj){showShop();return;}
@@ -2305,9 +2338,9 @@ function onTap(tx,ty){
   if(lp&&lp.length>1){lp.pop();startWalk(lp,{done:function(){if(G&&!G.over)tryMove(tx-G.p.x,ty-G.p.y);}});}else msg("Can't reach the locked door.");
   return;}
  {const tk=ix(tx,ty),rt=trapSet().has(tk);
-  if(rt&&trapConfirm!==tk){const t=G.traps.find(a=>a.x===tx&&a.y===ty&&!a.done);trapConfirm=tk;msg(TRAPS[t.k].n+'! Tap it again if you really want to step on it.');return;}
+  if(rt&&trapConfirm!==tk){const t=G.traps.find(a=>a.x===tx&&a.y===ty&&!a.done);trapConfirm=tk;msg(TRAPS[t.k].n+': tap again to step on it.');return;}
   if(!rt)trapConfirm=-1;
-  if(rt&&!adj){msg('Walk around the trap - Explore and auto-walk avoid it.');return;}}
+  if(rt&&!adj){msg('Walk around the trap.');return;}}
  const e=enemyAt(tx,ty);
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
@@ -2345,7 +2378,7 @@ function showModal(title,html,buttons,kind){
 function closeModal(){$('modal').style.display='none';}
 function perkTags(pk){
  let t='';
- if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';else if(pk.beh)t+='<em class="tag">BEHAVIOUR</em>';
+ if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';
  if(SYN.some(s=>(s.a===pk.id&&pc(s.b))||(s.b===pk.id&&pc(s.a))))t+='<em class="tag syn">SYNERGY</em>';
  return t;
 }
@@ -2355,65 +2388,76 @@ function showPerk(){
  const pool=perkPool();
  if(!pool.length){G.pending=0;save();return;}
  const opts=pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3);
- showModal('Level '+G.p.lvl+'!','<p>Choose a perk:</p>',opts.map(pk=>{
+ showModal('Level '+G.p.lvl+': pick a perk','',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {k:pk.id,html:'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>',fn:function(){
    addPerk(pk.id);G.pending--;closeModal();save();render();
    if(G.pending>0)showPerk();else afterModals();
   }};}),'perk');
 }
-// the equipment cards: one per slot, with what it does. full = also list the class abilities.
+// equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
  const it=G.p.eq[sl];
  if(!it)return '<small>Empty</small>';
- const st=sl==='weapon'?'+'+it.v+' attack':sl==='armor'?'defense '+armorDef(it):sl==='off'?'modifies '+ABIL[OFF[it.k].ab].n:'passive charm';
- return '<small>'+st+'. '+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
+ const st=sl==='weapon'?'+'+it.v+' attack · ':sl==='armor'?'Defense '+armorDef(it)+' · ':'';
+ return '<small>'+st+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
 }
-function gearHtml(full){
- const p=G.p,C=clsOf(p);
- let h='<div class="pl"><b>'+C.e+' '+C.n+'</b> <small>('+C.res+')</small>'+(full?classKitHtml(p.cls,true):'<br><small>'+C.kit.map(k=>ABIL[k].n).join(' / ')+'</small>')+'</div>';
- for(const sl of SLOTS){const it=p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small><br><b>'+(it?itemIcon(it)+' ':'')+(it?gearName(it):'None')+'</b><br>'+slotLines(sl)+'</div>';}
+function statStrip(){
+ const p=G.p;
+ return '<div class="stripe"><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>Lv '+p.lvl+' <small>'+p.xp+'/'+needXp(p.lvl)+' XP</small></span></div>';
+}
+function gearHtml(){
+ let h=statStrip();
+ for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?itemIcon(it)+' '+gearName(it):'None')+'</b><br>'+slotLines(sl)+'</div>';}
  return h;
 }
 function showEquip(back){
  if(!G)return;
- showModal('Equipment',gearHtml(true),[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+ const again=function(){showEquip(back);};
+ showModal('Equipment',gearHtml(),[
+  {k:'abil',label:'Abilities',c:1,fn:function(){showAbilities(again);}},
+  {k:'perks',label:'Perks',c:1,fn:function(){showPerks(again);}},
+  {label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+}
+function showAbilities(back){
+ const C=clsOf(G.p);
+ let h='';for(const k of C.kit){const a=ABIL[k];h+='<div class="pl"><b>'+a.e+' '+a.n+'</b> <small>('+abCost(k)+')<br>'+abilityDesc(k)+'</small></div>';}
+ showModal(C.e+' '+C.n,h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showPerks(back){
- let h=gearHtml(true);const own=PERKS.filter(pk=>pc(pk.id)>0);
- h+='<p><b>Perks</b></p>';
- if(!own.length)h+='<p>No perks yet. Level up to pick some.</p>';
+ let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
+ if(!own.length)h+='<p class="sub">No perks yet. Level up to pick one.</p>';
  for(const pk of own)h+='<div class="pl"><b>'+pk.n+(pk.max>1?' ×'+pc(pk.id):'')+'</b>'+perkTags(pk)+'<br><small>'+pk.d+'</small></div>';
  h+='<p><b>Synergies</b></p>';
  for(const s of SYN){
   const on=pc(s.a)&&pc(s.b);
-  h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')'+(on?' ACTIVE':'')+'<br>'+s.d+'</small></div>';
+  h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')<br>'+s.d+'</small></div>';
  }
- showModal('Equipment, perks & synergies',h,[{label:'Back',c:1,fn:function(){if(back)back();else closeModal();}}]);
+ showModal('Perks',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false};
- showModal('Menu',gearHtml(false),[
-  {label:'Resume',c:1,fn:closeModal},
-  {label:'Equipment, perks & synergies',c:1,fn:function(){showPerks(showMenu);}},
+ showModal('Menu','',[
+  {label:'Resume',c:1,big:1,fn:closeModal},
+  {k:'auto',label:'🤖 Auto play',c:1,fn:function(){closeModal();autoStart();}},
+  {label:'Perks',c:1,fn:function(){showPerks(showMenu);}},
   {label:'Controls',c:1,fn:function(){showHelp(showMenu);}},
   {label:soundLabel(),c:1,fn:function(el){toggleSound();el.textContent=soundLabel();}},
   {label:'Abandon run',c:1,fn:function(el){
-   if(!arm.v){arm.v=true;el.textContent='Tap again to confirm (gold is banked)';return;}
+   if(!arm.v){arm.v=true;el.textContent='Tap again to abandon';return;}
    closeModal();finish('abandon');}}
- ]);
+ ],'menu');
 }
 function showGear(){
  const it=gearQ;gearQ=null;
  if(!G||G.over||!it||G.items.indexOf(it)<0||it.x!==G.p.x||it.y!==G.p.y)return;
  walkTok++;
  const p=G.p,sl=it.t,cur=p.eq[sl],nn=gearName(it);
- const stat=x=>!x?'':sl==='weapon'?'+'+x.v+' attack':sl==='armor'?'defense '+armorDef(x):sl==='off'?'modifies '+ABIL[OFF[x.k].ab].n:'passive';
- const card=(lab,x,hl)=>'<div class="pl" style="border:2px solid '+(hl?'#ffd24a':'#4b5080')+';border-radius:10px;padding:8px"><small>'+lab+'</small><br><b>'+(x?itemIcon(x)+' '+gearName(x):'Nothing')+'</b><br><small>'+(x?stat(x)+'.<br>'+itemRule(x)+(x.tr?'<br><b>'+TR[x.tr].n+'</b>: '+TR[x.tr].d:''):'Empty slot.')+'</small></div>';
- const dl=gearDelta(it);
- const html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+card('EQUIPPED',cur,false)+card('FOUND',it,true)+'</div>'+
-  '<p style="text-align:center">If you equip it: <b>'+(dl.length?dl.join(', '):'no stat change (rules differ)')+'</b></p>';
+ // found item, what it replaces, green / red stat changes, then at most two short rule lines
+ const rule=itemRuleShort(it),rules=(rule&&rule!=='Balanced.'?'<div class="rl">'+rule+'</div>':'')+(it.tr?'<div class="rl"><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d+'</div>':'');
+ const html='<div class="found"><b>'+itemIcon(it)+' '+nn+'</b><small>replaces '+(cur?itemIcon(cur)+' '+gearName(cur):'nothing')+'</small></div>'+
+  '<div class="dl">'+gearDeltaHtml(it)+'</div>'+rules;
  showModal(SLOT_LABEL[sl]+' found',html,[
   {k:'equip',label:'Equip',c:1,big:1,fn:function(){
    if(G.items.indexOf(it)<0){closeModal();return;}
@@ -2422,93 +2466,108 @@ function showGear(){
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
    closeModal();save();render();
    if(G.pending>0)showPerk();}},
-  {k:'leave',label:'Leave',c:1,big:1,fn:function(){msg('You leave the '+nn+' on the floor.');closeModal();render();}}
+  {k:'leave',label:'Leave',c:1,big:1,fn:function(){msg('Left the '+nn+'.');closeModal();render();}}
  ],'gear');
 }
 
-// help.js - the Controls / help screen text. Every number is generated from BAL and the tables.
+// help.js - the Controls / help screen text. Short hints; every number is generated from BAL and the tables.
 
 function showHelp(back){
- const r=(ic,n,d)=>'<div class="pl"><b>'+ic+' '+n+'</b><br><small>'+d+'</small></div>';
- const P=BAL.potion,A=BAL.ability;
- let h='<p><b>Bottom bar</b></p>'+
-  r('🧪','Potion','Heals about '+pct(P.healFrac)+' of your max HP (min '+P.minHeal+'). Takes a turn. The badge shows potions carried.')+
-  r('📜','Flames','A flame scroll: damages every enemy you can see. Takes a turn. Not used if no enemy is in sight.')+
-  r('🌀','Teleport','Moves you to a random spot far away. Takes a turn.')+
-  r('🧭','Explore','Auto-walks to unexplored areas (opening doors), then to the stairs. Keeps going past unnoticed enemies (avoiding stepping next to them); stops when one wakes up, a new one appears, or red danger tiles show up. It routes around known traps.')+
-  r('⏳','Wait','Skips a turn (also: tap yourself).')+
-  r('⬇️','Stairs','Goes down one floor when you stand on the ▼ tile.')+
-  '<p><b>Ability buttons (the row above the bar)</b></p>'+
-  r('🎯','Four abilities per class','Each button shows its icon, name and cost (or the turns until it recharges). A dim button cannot be used right now: tap it and the log says why. Self abilities fire at once. Targeted ones arm: valid tiles light up, tap one to use it, or tap the same button again (it turns into Cancel) or tap yourself to back out. Nothing covers the map while you aim. Every ability uses one turn.')+
-  r('⚔️','Weapons','Sword: balanced. Axe: hits the enemies next to you or the target too. Spear: reach '+WP.spear.reach+' - tap an enemy two tiles away in a straight line. Dagger: crit and sneak bonus. Staff: spell power and mana, weak melee.')+
-  r('🛡','Armor, off-hand, charm','Armor trades defense for resources (plate: strong but slows mana and rage; robe: spell power and mana but no defense; leather: dodge). Each class has its own off-hands that change one ability. A charm is one passive rule. Tap 🎒 to see everything you wear.')+
-  '<p><b>Tap controls</b></p>'+
-  r('👆','Tap a tile','Walk there (stops if danger appears).')+
-  r('⚔️','Tap an adjacent enemy','Attack it. Tap a distant enemy to see its info and walk toward it.')+
-  r('🗺','Tap the minimap','Opens the big map; tap again to close.')+
-  '<p><b>Combat tips</b></p>'+
-  r('🟥','Danger tiles','Heavy enemies (troll, dragon) wind up for one turn. Red hatched tiles show exactly what is hit next turn. Step off them and you take nothing; stay and it hurts about double. Auto-walk and Explore stop and never path through them.')+
-  r('🛡️','Shielded enemies','The Guard shows a bar on the side it faces. It takes '+pct(BAL.weapon.shieldFront)+' damage from the front and '+pct(BAL.weapon.shieldRanged)+' from ranged hits. Stunned or frozen guards drop their guard; hitting from behind is full damage.')+
-  r('💥','Knockback','Shield Bash and troll smashes push a target one tile. Into a wall, a closed door or another unit means bonus damage; into open floor it just moves. Bosses cannot be pushed.')+
-  r('🚪','Doors','Tap a door to open it (it uses your turn). Closed doors block sight; monsters open them too. Fight in a doorway or corridor so only one enemy can reach you, and archers need a clear line.')+
-  r('💤','Unaware enemies','Dim enemies with a z have not noticed you: the Rogue deals x'+BAL.combat.sneakMul+' damage to them, and anyone with a dagger gets a sneak bonus. An hourglass on an Ogre means it is resting this turn.')+
-  r('🐉','The Dragon','It calls whelps at '+BAL.enemyAi.summonAt.map(pct).join(' and ')+' health (area attacks shine), breathes fire in a line and, once enraged, sweeps all tiles around itself. It cannot be pushed, but a stun, freeze or blind cancels its wind-up.')+
-  '<p><b>Dungeon features</b></p>'+
-  r('🔺','Traps','Hidden until you are next to them, then drawn clearly. Spike (grey spikes) hurts, dart (green) poisons you, alarm (bell) wakes the whole floor. Auto-walk and Explore route around revealed traps; enemies can trigger them too. Pink dot on the minimap.')+
-  r('🗿','Shrines','Some floors have one. Step on it (or tap yourself on it) for a risky choice - heal, perk, or power for a price. You can always Leave. Purple dot on the minimap.')+
-  r('🔒','Locked room and key','A locked iron door hides a treasure room (gear with a trait plus gold). The key drops from the marked elite on that floor: a named, tougher enemy with a gold ring and a star (orange on the minimap). Tap the door with the key in hand to open it. Red-orange on the minimap.')+
-  r('🧔','Merchant','On floors '+BAL.merchant.floors.join(' and ')+'. He is not hostile and cannot be hit by accident: tap him to open the shop (potions, scrolls, gear, a perk) and spend run gold. Green dot on the minimap.')+
-  r('🤖','Auto','The 🤖 AUTO button (bottom right of the map) plays the run for you: it explores, fights with your four abilities, loots, picks gear, perks, routes and merchant wares, and takes the stairs, dragon included. The speed button cycles 1x / 2x / 4x (1x is about '+(1000/BAL.auto.tickMs)+' turns a second). Tap the map (or any button) to take over at once. It is a simple player: it does not kite or retreat to rest, and it switches itself off when it makes no progress for '+BAL.auto.stuckTurns+' turns, when you leave the page, and when the run ends. A run in which Auto played any turn banks '+autoGoldWord()+' gold; records, the Daily and achievements still count, and such runs carry an Auto tag. After a reload the run comes back paused.')+
-  r('🏰','Themes','Floors 1-3 are the Crypt, 4-6 the Caverns (irregular rooms), 7-8 the Embers. The name shows when you arrive.')+
-  r('🔊','Sound & vibration','Off by default (handy on a plane). Switch it on in the ☰ menu or on the title screen. Sounds are generated in the page; no downloads.')+
-  r('🛤','Two ways down','Taking the stairs from floor 1 to '+(MAXF-2)+' opens a choice of two routes. Each shows its theme and its floor modifier (or none) with the risk and the reward; the merchant floors have their merchant on both. The way into the dragon lair is single.')+
-  r('🌑','Floor modifiers','A modifier chip appears at the top left of the map; tap it for a reminder. '+MODS.map(m=>'<b>'+m.e+' '+m.n+'</b>: '+m.down+' '+m.up).join('<br>'))+
-  r('📅','Daily run','Everyone who plays on the same calendar date gets the same dungeon (floors, routes, modifiers, enemies, loot). Your best result per day is kept on this device. Dailies are never Hard.')+
-  r('💀','Hard mode','Unlocked by your first win; switch it on under the title screen. '+HARD_RULES.map(x=>'<b>'+x.n+'</b>: '+x.d).join(' '))+
-  r('🔓','Unlocks','Under Upgrades on the title screen, spend banked gold on unlocks: classes, extra perks for the level-up pool, a starting scroll and more. Some unlock by playing (reach floor 4, slay 50 enemies, slay an elite, defeat the dragon).')+
-  r('🗺','Minimap colours','Cyan you, yellow stairs, red enemies, orange elite, pink traps, purple shrine, green merchant, orange-red locked door.')+
-  '<p><b>Top bar</b></p>'+
-  r('❤️','HP and resource','The red bar is HP. Next to it: Rage (Warrior), Mana (Mage) or your Knife count (Rogue).')+
-  r('🏰','Floor','Current floor out of '+MAXF+'. Slay the dragon on the last one.')+
-  r('Lv','Level / XP','Level up to choose a perk.')+
-  r('⚔️','Attack','Your melee damage. 🛡 is defense, which cuts damage taken. 💰 is gold, banked when the run ends.')+
-  r('🎒','Equipment, ? and ☰','🎒 shows your gear and abilities, ? is this screen, ☰ is the menu.');
+ const r=(ic,n,d)=>'<div class="pl"><b>'+ic+' '+n+'</b> <small>'+d+'</small></div>';
+ const P=BAL.potion;
+ let h='<p><b>Tap</b></p>'+
+  r('👆','A tile','Walk there. Stops if danger appears.')+
+  r('⚔️','An enemy','Next to you: attack. Farther: inspect and approach.')+
+  r('🗺','The minimap','Big map. Tap again to close.')+
+  r('⏳','Yourself','Wait one turn.')+
+  '<p><b>Buttons</b></p>'+
+  r('🎯','Ability row','Four class abilities. Dim = not usable now (tap for why). Targeted ones light up tiles: tap one, or tap the button again to cancel.')+
+  r('🎒','Items','Potion (heals '+pct(P.healFrac)+' HP), Flames (burns all in sight), Teleport (random far spot). Badge = total carried.')+
+  r('🧭','Explore','Auto-walks to unexplored areas, then the stairs. Stops when an enemy appears or danger shows.')+
+  r('⬇️','Stairs','Lit up when you stand on ▼.')+
+  r('🎒☰','Top bar','🎒 gear, stats, abilities, perks. ☰ menu: Auto, Perks, Controls, Sound.')+
+  r('❤️','HP, resource','Red = HP. Next: Rage (Warrior), Mana (Mage) or Knives (Rogue). Thin bar = XP.')+
+  '<p><b>Tips</b></p>'+
+  r('🟥','Red tiles','Next big hit lands there. Step off and it misses.')+
+  r('🛡️','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them, or hit from behind.')+
+  r('💥','Knockback','Pushing a foe into a wall, door or unit adds damage.')+
+  r('🚪','Doors','Tap to open. Fight in doorways so one foe reaches you.')+
+  r('💤','Unaware foes','Dim with a z. Rogues and daggers get sneak bonuses.')+
+  r('🐉','Dragon','Floor '+MAXF+'. Breath along a line, whelps at '+BAL.enemyAi.summonAt.map(pct).join(' and ')+' HP.')+
+  '<p><b>Dungeon</b></p>'+
+  r('🔺','Traps','Shown when you are next to them. Explore avoids them.')+
+  r('🗿','Shrine','Step on it for a gamble. You can Leave.')+
+  r('🔒','Vault','Its key is on the marked elite. Tap the door holding the key.')+
+  r('🧔','Merchant','Floors '+BAL.merchant.floors.join(' and ')+'. Tap him to spend run gold.')+
+  r('🛤','Paths','Each exit offers two routes with a theme and modifier.')+
+  r('🌑','Modifiers','Icon at the top left of the map; tap for a reminder. '+MODS.map(m=>m.e+' '+m.n).join(', ')+'.')+
+  r('🗺','Minimap dots','You cyan, stairs yellow, foes red, elite orange, trap pink, shrine purple, merchant green.')+
+  '<p><b>Modes</b></p>'+
+  r('🤖','Auto','☰ → Auto play. Plays for you ('+(1000/BAL.auto.tickMs)+' turns/s at 1×). Top bar: speed and stop. Any tap takes over. Banks '+autoGoldWord()+' gold.')+
+  r('📅','Daily','Same dungeon for everyone today. Never Hard.')+
+  r('💀','Hard','Unlocked by a win; switch it on when picking a class. '+HARD_RULES.map(x=>x.n).join(', ')+'.')+
+  r('🛒','Upgrades','Spend banked gold on boosts and unlocks (title screen).')+
+  r('🔊','Sound','Off by default. ☰ menu or More on the title.');
  if(G&&!G.over){
-  const C=clsOf(G.p);h+='<p><b>Your abilities - '+C.e+' '+C.n+'</b></p>';
-  for(const k of C.kit){const a=ABIL[k];h+=r(a.e,a.n+' ('+abCost(k)+')',abilityDesc(k));}
+  const C=clsOf(G.p);h+='<p><b>'+C.e+' '+C.n+'</b></p>';
+  for(const k of C.kit){const a=ABIL[k];h+=r(a.e,a.n+' <small>('+abCost(k)+')</small>',abilityDesc(k));}
  }else{
-  h+='<p><b>The three classes</b></p>';
-  for(const c of Object.keys(CLS)){const C=CLS[c];h+=r(C.e,C.n,classBlurb(c));for(const k of C.kit)h+=r(ABIL[k].e,ABIL[k].n+' ('+abCost(k)+')',abilityDesc(k));}
+  h+='<p><b>Classes</b></p>';
+  for(const c of Object.keys(CLS)){const C=CLS[c];h+=r(C.e,C.n,classBlurb(c)+'<br>'+C.kit.map(k=>ABIL[k].e+' '+ABIL[k].n+': '+abilityDesc(k)).join('<br>'));}
  }
- h+='<p>Gold collected is banked when a run ends and buys permanent upgrades (title screen, Upgrades). Progress autosaves every turn. The game is strictly turn-based.</p>';
  showModal('Controls',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 
 // title.js - title screen, class picker, permanent-upgrade shop and unlock list.
 
+// class card: icon, name, one short line, the four ability icons. "Details" opens the numbers.
+function showClassDetails(k,mode){
+ const C=CLS[k];
+ let h='<p class="sub">'+classDetail(k)+'</p>';
+ for(const a of C.kit)h+='<div class="pl"><b>'+ABIL[a].e+' '+ABIL[a].n+'</b> <small>('+abCost(a)+')<br>'+abilityDesc(a)+'</small></div>';
+ showModal(C.e+' '+C.n,h,[
+  {k:'pick',label:'Play '+C.n,c:1,big:1,fn:function(){closeModal();startRun(k,mode);}},
+  {label:'Back',c:1,fn:closeModal}
+ ],'classinfo');
+}
 function showClassPicker(mode){
  mode=mode||{};
  const t=$('titleBox');t.innerHTML='';
- const h=document.createElement('h1');h.textContent=mode.daily?'📅 Daily: choose your class':'Choose your class';t.appendChild(h);
- if(mode.daily){const p=document.createElement('p');p.style.cssText='text-align:center;font-size:13px';p.textContent='Everyone who plays on '+todayKey()+' gets the same dungeon. Today: '+dailyNote()+'. Daily runs are always normal difficulty.';t.appendChild(p);}
- else if(hardOn()){const p=document.createElement('p');p.style.cssText='font-size:12px;color:#ffb0a4;line-height:1.35';p.innerHTML='<b>💀 Hard mode is on:</b><br>'+HARD_RULES.map(r=>'<b>'+r.n+'</b>: '+r.d).join('<br>');t.appendChild(p);}
+ const h=document.createElement('h1');h.textContent=mode.daily?'📅 Daily: pick a class':'Pick a class';t.appendChild(h);
+ if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
+ else if(hardUnlocked()){
+  // Hard mode lives here, next to the choice it changes
+  const on=hardOn(),hb=document.createElement('button');hb.id='hardBtn';hb.className='c'+(on?' hardon':'');
+  hb.style.minHeight='44px';hb.innerHTML='💀 Hard mode: <b style="display:inline">'+(on?'ON':'OFF')+'</b>';
+  hb.addEventListener('click',function(){meta.hardOn=on?0:1;saveMeta();showClassPicker(mode);});
+  t.appendChild(hb);
+  if(on){const p=document.createElement('p');p.className='sub';p.textContent=HARD_RULES.map(r=>r.n).join(' · ');t.appendChild(p);}
+ }
  for(const k of Object.keys(CLS)){
-  const C=CLS[k],b=document.createElement('button'),open=k==='warrior'||!!meta.unl[k];b.style.minHeight='120px';
-  if(open){b.innerHTML='<b style="font-size:18px">'+C.e+' '+C.n+'</b><span>'+classBlurb(k)+'</span><span><br><i>'+C.kit.map(a=>ABIL[a].e+' '+ABIL[a].n+' ('+abCost(a)+')').join(' · ')+'</i></span>';b.addEventListener('click',function(){startRun(k,mode);});}
-  else{const u=UNLOCKS.find(x=>x.id===k);b.disabled=true;b.innerHTML='<b style="font-size:18px">🔒 '+C.e+' '+C.n+'</b><span>Locked. Buy it under Upgrades on the title screen for <span class="gold">'+(u?u.cost:'?')+' 💰</span> (you have '+meta.gold+').</span>';}
-  t.appendChild(b);
+  const C=CLS[k],open=k==='warrior'||!!meta.unl[k],row=document.createElement('div');row.className='cls';
+  const b=document.createElement('button');b.className='clsmain';
+  if(open){
+   b.innerHTML='<b>'+C.e+' '+C.n+'</b><span>'+classBlurb(k)+'</span><span class="ab">'+C.kit.map(a=>'<i>'+ABIL[a].e+'<em>'+ABIL[a].n+'</em></i>').join('')+'</span>';
+   b.addEventListener('click',function(){startRun(k,mode);});
+   row.appendChild(b);
+   const d=document.createElement('button');d.className='clsinfo c';d.innerHTML='ⓘ<small>Details</small>';d.setAttribute('aria-label',C.n+' details');
+   d.addEventListener('click',function(){showClassDetails(k,mode);});row.appendChild(d);
+  }else{
+   const u=UNLOCKS.find(x=>x.id===k);b.disabled=true;
+   b.innerHTML='<b>🔒 '+C.e+' '+C.n+'</b><span>Unlock in Upgrades: <span class="gold">'+(u?u.cost:'?')+' 💰</span> (you have '+meta.gold+')</span>';row.appendChild(b);
+  }
+  t.appendChild(row);
  }
  const bk=document.createElement('button');bk.className='c';bk.textContent='Back';bk.addEventListener('click',showTitle);t.appendChild(bk);
 }
 function hideTitle(){$('title').style.display='none';}
-// Title screen: Continue / New run are the big primary buttons; everything else is a 2x2 grid of secondary screens.
+// Title screen: Continue / New run dominate; Daily and Upgrades beside "More" (Records, Achievements, Sound, Controls).
 function showTitle(keep){
  const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','🗡 Depths of Emberfall');
- add('p','Descend '+MAXF+' floors. Slay the dragon. Die often, grow stronger.').style.textAlign='center';
- add('p','Banked gold: <span class="gold">'+meta.gold+' 💰</span> &nbsp; Best floor: '+meta.best+' &nbsp; Wins: '+meta.wins).style.textAlign='center';
- if(noticeOld)add('p','A run saved by an older version of the game could not be loaded and was discarded. Your gold, upgrades and unlocks are untouched.').style.cssText='font-size:13px;text-align:center;color:#ffd24a';
+ add('p','Descend '+MAXF+' floors. Slay the dragon.','sub');
+ if(noticeOld)add('p','An old run save could not be loaded. Gold and upgrades are safe.','sub').style.color='#ffd24a';
  const big=b=>{b.style.minHeight='60px';b.style.fontSize='18px';return b;};
  // starting a run over a saved one needs a second tap
  const guard=(b,label,fn)=>{b.addEventListener('click',function(){
@@ -2516,49 +2575,47 @@ function showTitle(keep){
   fn();});};
  if(hasSave()){const b=big(add('button','Continue run','c'));b.id='btnContinue';b.addEventListener('click',continueRun);}
  const nb=big(add('button','New run','c'));nb.id='btnNew';guard(nb,'New run',function(){showClassPicker();});
- // Hard mode toggle (locked until the first win)
- const hb=add('button','');hb.id='hardBtn';
- if(!hardUnlocked()){hb.disabled=true;hb.className='c';hb.innerHTML='🔒 Hard mode &mdash; win a run to unlock';}
- else{
-  const on=hardOn();hb.className='c';hb.innerHTML='💀 Hard mode: <b style="display:inline">'+(on?'ON':'OFF')+'</b><span style="display:block;font-size:12px">'+HARD_RULES.map(r=>r.n).join(' · ')+'</span>';
-  if(on){hb.style.borderColor='#ff6a5a';hb.style.background='#4a1c24';}
-  hb.addEventListener('click',function(){meta.hardOn=on?0:1;saveMeta();showTitle(1);});
- }
- const g=add('div','');g.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px';
- const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.innerHTML=html;b.style.minHeight='64px';b.style.padding='6px 8px';b.addEventListener('click',fn);g.appendChild(b);return b;};
- const dnote=dailyNote();
- const db=cell('btnDaily','<b>📅 Daily</b><span style="font-size:12px">Today: '+dnote+'</span>',null);
+ const g=add('div','');g.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px';
+ const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.className='c';b.innerHTML=html;b.style.minHeight='56px';b.style.padding='6px 4px';b.style.whiteSpace='nowrap';b.addEventListener('click',fn);g.appendChild(b);return b;};
+ const db=cell('btnDaily','📅 Daily'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
  guard(db,'Daily',function(){showClassPicker({daily:true});});
- cell('btnRecords','<b>🏅 Records</b><span style="font-size:12px">'+meta.runs+' runs, '+meta.wins+' wins</span>',function(){showRecords();});
- cell('btnAch','<b>🏆 Achievements</b><span style="font-size:12px">'+ACH.filter(a=>meta.ach[a.id]).length+'/'+ACH.length+' earned</span>',function(){showAchievements();});
- cell('btnUpg','<b>🛒 Upgrades</b><span style="font-size:12px">Shop and unlocks</span>',function(){showUpgrades();});
- const g2=add('div','');g2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px';
- const sb=document.createElement('button');sb.className='c';sb.textContent=soundLabel();sb.addEventListener('click',function(){toggleSound();sb.textContent=soundLabel();});g2.appendChild(sb);
- const cb=document.createElement('button');cb.className='c';cb.textContent='Controls';cb.addEventListener('click',function(){showHelp(closeModal);});g2.appendChild(cb);
+ cell('btnUpg','🛒 Upgrades<small style="display:block;font-size:11px" class="gold">'+meta.gold+' 💰</small>',function(){showUpgrades();});
+ cell('btnMore','More',function(){showMore();});
  $('title').style.display='flex';
  if(keep)t.scrollTop=st;
 }
-// permanent upgrades and unlocks (the shop)
+// the rarely used screens
+function showMore(){
+ const t=$('titleBox');t.innerHTML='';
+ const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
+ add('h1','More');
+ const row=(id,html,fn)=>{const b=add('button',html,'c');b.id=id;b.addEventListener('click',fn);return b;};
+ row('btnRecords','🏅 Records',function(){showRecords();});
+ row('btnAch','🏆 Achievements <small>'+ACH.filter(a=>meta.ach[a.id]).length+'/'+ACH.length+'</small>',function(){showAchievements();});
+ row('btnControls','Controls',function(){showHelp(closeModal);});
+ const sb=row('btnSound',soundLabel(),function(){toggleSound();sb.textContent=soundLabel();});
+ const bk=add('button','Back','c');bk.addEventListener('click',function(){showTitle();});
+}
+// permanent upgrades and unlocks (bought with banked gold)
 function showUpgrades(){
  const t=$('titleBox'),st=t.scrollTop;t.innerHTML='';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','🛒 Upgrades');
- add('div','Banked gold: <span class="gold">'+meta.gold+' 💰</span>','row').style.justifyContent='center';
- add('h2','Permanent upgrades').style.fontSize='16px';
+ add('div','You have <span class="gold">'+meta.gold+' 💰</span>','row').style.justifyContent='center';
+ add('h2','Boosts').style.fontSize='16px';
  for(const s of SHOP){
   const c=cost(s),lv=meta[s.k],maxed=lv>=shopMax(s);
-  const b=add('button','<b>'+s.n+' (Lv '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+')</b><span>'+s.d+' - '+(maxed?'MAXED':'<span class="gold">'+c+' 💰</span>')+'</span>');
+  const b=add('button','<b>'+s.n+' '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+'</b><span>'+s.d+' · '+(maxed?'MAX':'<span class="gold">'+c+' 💰</span>')+'</span>');
   b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(meta[s.k]>=shopMax(s)||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showUpgrades();});
  }
  add('h2','Unlocks').style.fontSize='16px';
- add('p','Buy these with banked gold. Locked perks only appear in the level-up pool once unlocked; the last four unlock by playing.').style.fontSize='13px';
  for(const u of UNLOCKS){
   const have=!!meta.unl[u.id];let sub,dis=true;
   if(have)sub='<span style="color:#6fd08c">✓ Unlocked</span>';
-  else if(u.ach)sub='🔒 Locked - '+u.ach+' ('+u.prog()+')';
-  else{sub='🔒 <span class="gold">'+u.cost+' 💰</span>';dis=meta.gold<u.cost;}
-  const b=add('button','<b>'+u.n+'</b><span>'+u.d+'<br>'+sub+'</span>');b.disabled=dis;
+  else if(u.ach)sub='🔒 '+u.ach+' ('+u.prog()+')';
+  else{sub='<span class="gold">'+u.cost+' 💰</span>';dis=meta.gold<u.cost;}
+  const b=add('button','<b>'+u.n+'</b><span>'+u.d+' · '+sub+'</span>');b.disabled=dis;
   if(have){b.style.opacity='.85';b.style.borderColor='#2a8a5a';}
   if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showUpgrades();});
  }
@@ -2573,31 +2630,31 @@ function screenFrame(title){
  const h=document.createElement('h1');h.textContent=title;t.appendChild(h);
  return t;
 }
-function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.addEventListener('click',function(){showTitle();});t.appendChild(b);}
+function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.addEventListener('click',function(){showMore();});t.appendChild(b);}
 function recLine(r){
- return 'Deepest floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest win <b>'+(r.fast?r.fast+' turns':'-')+'</b> &middot; Best score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> <b>'+r.awins+'</b>/'+r.aruns+' won':'');
+ return 'Floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest <b>'+(r.fast?r.fast+'t':'-')+'</b> &middot; Score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> '+r.awins+'/'+r.aruns:'');
 }
 function showRecords(){
  const t=screenFrame('🏅 Records'),add=(html,style)=>{const d=document.createElement('div');d.className='pl';d.innerHTML=html;if(style)d.style.cssText=style;t.appendChild(d);return d;};
  const wr=meta.runs?Math.round(100*(meta.wins/Math.max(1,meta.runs))):0;
- add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Hard wins <b>'+meta.hwins+'</b><br>Win streak <b>'+meta.streak+'</b> &middot; Best streak <b>'+meta.bstreak+'</b>'+(meta.aruns?'<br><em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b> (half gold)':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
+ add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Hard <b>'+meta.hwins+'</b><br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
  for(const k of Object.keys(CLS)){
   const C=CLS[k],n=recGet(k,0),h=recGet(k,1);
   add('<b>'+C.e+' '+C.n+'</b><br><small>'+recLine(n)+'</small>'+(h.runs?'<br><small>💀 Hard: '+recLine(h)+'</small>':''),'border:1px solid #3a3f64;border-radius:10px;padding:8px');
  }
  const days=Object.keys(meta.dly).sort().reverse().slice(0,7);
  let dh='<b>📅 Recent dailies</b>';
- if(!days.length)dh+='<br><small>No Daily played yet. Today: '+dailyNote()+'.</small>';
+ if(!days.length)dh+='<br><small>None played yet.</small>';
  for(const d of days){const r=meta.dly[d];dh+='<br><small>'+d+': '+(r.score?(CLS[r.cls]?CLS[r.cls].e+' ':'')+(r.won?'<b style="color:#8fe39a">WON</b>':'floor '+r.floor)+' &middot; '+r.score+' pts':'started, no result')+(r.auto?' <em class="tag act">Auto</em>':'')+(r.att>1?' &middot; '+r.att+' tries':'')+'</small>';}
  add(dh,'border:1px solid #3a3f64;border-radius:10px;padding:8px');
- add('<small>Score = '+BAL.score.floor+' per floor, '+BAL.score.kill+' per kill, '+BAL.score.level+' per level; a win adds '+BAL.score.win+' plus '+BAL.score.perTurn+' for each turn under '+BAL.score.par+'. Hard x'+BAL.hard.scoreMul+'. Records are kept on this device only.</small>');
+ add('<small>Score: floors, kills, levels, plus a bonus for fast wins. Hard x'+BAL.hard.scoreMul+'. Saved on this device.</small>');
  backBtn(t);
  $('title').style.display='flex';
 }
 function showAchievements(){
  const done=ACH.filter(a=>meta.ach[a.id]).length;
  const t=screenFrame('🏆 Achievements');
- const s=document.createElement('p');s.style.textAlign='center';s.textContent=done+' of '+ACH.length+' earned';t.appendChild(s);
+ const s=document.createElement('p');s.className='sub';s.textContent=done+' of '+ACH.length;t.appendChild(s);
  for(const a of ACH){
   const have=!!meta.ach[a.id],d=document.createElement('div');d.className='pl';d.dataset.ach=a.id;d.dataset.have=have?'1':'0';
   d.style.cssText='border:1px solid '+(have?'#2a8a5a':'#3a3f64')+';border-radius:10px;padding:8px;'+(have?'':'opacity:.75');
@@ -2611,15 +2668,34 @@ function showAchievements(){
 
 // hud.js - bottom action bar and the four ability buttons, HUD (HP / resource / XP / stats) and message-log rendering.
 
+// bottom area: four ability buttons (#bar2), then Items / Explore / Wait / Stairs (#bar). Potion, Flames and Teleport live in the
+// Items tray (#tray, drawn over the log line area only - never over the map).
+const act=fn=>()=>{walkTok++;if(!G||G.over||modalOpen())return;fn();};
 const BTNS=[
- {id:'b_pot',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;drink();}},
- {id:'b_fire',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;fireball();}},
- {id:'b_tele',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;teleport();}},
+ {id:'b_items',fn:function(){
+  walkTok++;if(!G||G.over||modalOpen())return;
+  if(trayOpen()){setTray(false);return;}
+  const n=G.inv.pot+G.inv.fire+G.inv.tele;
+  if(n<=0){msg('No items.');render();return;}
+  armed=null;setTray(true);render();}},
  {id:'b_exp',fn:explore},
- {id:'b_wait',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;wait();}},
- {id:'b_down',fn:()=>{walkTok++;if(!G||G.over||modalOpen())return;descend();}}
+ {id:'b_wait',fn:act(wait)},
+ {id:'b_down',fn:act(descend)}
 ];
+const TRAYBTNS=[{id:'b_pot',fn:act(drink)},{id:'b_fire',fn:act(fireball)},{id:'b_tele',fn:act(teleport)}];
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',b.fn);$('bar').appendChild(el);}
+for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
+function trayOpen(){return $('tray').style.display!=='none';}
+function setTray(on){
+ $('tray').style.display=on?'flex':'none';
+ $('b_items').classList.toggle('open',!!on);
+}
+// a tap anywhere else (map, another button) closes the tray; the Items button and the tray buttons handle themselves
+document.addEventListener('click',function(ev){
+ if(!trayOpen())return;const t=ev.target;
+ if(t&&t.closest&&(t.closest('#tray')||t.closest('#b_items')))return;
+ setTray(false);
+});
 const ab2=$('bar2');
 for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
 $('gearBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showEquip(closeModal);});
@@ -2647,17 +2723,20 @@ function updateBar(){
  for(let i=0;i<4;i++){
   const k=kt[i],A=ABIL[k],el=$('a_'+i),st=abStatus(k),isA=armed===k;
   el.classList.toggle('armed',isA);el.classList.toggle('dis',!isA&&!!st.dis);
-  const h='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small><small class="sub">'+(isA?'tap a target':st.sub)+'</small>';
+  const h='<span class="ai">'+(isA?'✖':A.e)+'</span><small>'+(isA?'Cancel':A.n)+'</small>'+(isA?'':'<small class="sub">'+st.sub+'</small>');
   if(el._h!==h){el._h=h;el.innerHTML=h;}
  }
  $('cv').classList.toggle('arming',!!armed); // nothing may cover map tiles while a target is being picked
- const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2;
+ if((armed||modalOpen())&&trayOpen())setTray(false);
+ const inv=G.inv,onS=G.map[ix(G.p.x,G.p.y)]===2,n=inv.pot+inv.fire+inv.tele;
+ bset('b_items','🎒','Items',n>0?n:'',n<=0);
  bset('b_pot','🧪','Potion','×'+inv.pot,inv.pot<=0);
  bset('b_fire','📜','Flames','×'+inv.fire,inv.fire<=0);
  bset('b_tele','🌀','Teleport','×'+inv.tele,inv.tele<=0);
  bset('b_exp','🧭','Explore','',false);
  bset('b_wait','⏳','Wait','',false);
  bset('b_down','⬇️','Stairs','',!onS);
+ $('b_down').classList.toggle('here',onS);
 }
 function updateHud(){
  if(!G)return;const p=G.p;
@@ -2668,7 +2747,7 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';rt.textContent='Mana '+Math.floor(p.mana||0)+'/'+m;}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';rt.textContent='🔪 Knives '+(G.knives||0)+'/'+m;}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- $('stats').innerHTML='<span>🏰 F'+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+' ('+p.xp+'/'+needXp(p.lvl)+')</span><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸 primed</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'')+(G.brace?'<span>🧱 '+G.brace.hits+'</span>':'');
+ $('stats').innerHTML='<span>🏰 '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>💰 '+p.gold+'</span>'+(G.keys>0?'<span>🔑 '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">📅</span>':'')+(G.hard?'<span title="Hard">💀</span>':'')+(G.ppois?'<span style="color:#7be04b">☠ '+G.ppois.t+'</span>':'')+(G.bl?'<span>🩸</span>':'')+(G.vanish>0?'<span>👻 '+G.vanish+'</span>':'')+(G.brace?'<span>🧱 '+G.brace.hits+'</span>':'');
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
  autoUi();
 }
@@ -2701,7 +2780,6 @@ document.addEventListener('keydown',function(ev){
  if(d){ev.preventDefault();walkTok++;tryMove(d[0],d[1]);}
 });
 $('menuBtn').addEventListener('click',showMenu);
-$('helpBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showHelp(closeModal);});
 
 // auto.js - Auto (autopilot): plays the run by calling the same action functions a tap would (tryMove, useAbility, drink, descend, the dialog buttons).
 // One decision per timer tick (one turn, or one dialog choice). It is deliberately a simple player: no kiting, no retreating to regenerate.
@@ -2722,7 +2800,7 @@ function autoStart(sync){
  walkTok++;armed=null;
  G.auto.on=1;AUTO.on=true;AUTO.pick=null;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=G.kills;AUTO.pf=G.floor;AUTO.pexp=-1;AUTO.lastProg=G.turn;AUTO.lastStop='';AUTO.err=null;
  if(!G.auto.noticed){G.auto.noticed=1;const t='Auto runs bank '+autoGoldWord()+' gold.';msg(t);toast('🤖 '+t,4200);}
- msg('Auto on. Tap the map to take over.');
+ msg('Auto on.');
  save();render();
  if(!sync)autoSchedule(autoDelay(false));
  return true;
@@ -2739,22 +2817,21 @@ function autoStop(why,quiet){
  if(why)msg(why);
  save();render();
 }
-function autoToggle(){if(!G||G.over)return;if(AUTO.on)autoStop('Auto off. You are in control.');else autoStart();}
+function autoToggle(){if(!G||G.over)return;if(AUTO.on)autoStop('Auto off.');else autoStart();}
 function autoSpeedCycle(){
  const sp=BAL.auto.speeds;AUTO.speed=sp[(sp.indexOf(AUTO.speed)+1)%sp.length];
  try{localStorage.setItem(AUTO_SPEED_KEY,String(AUTO.speed));}catch(e){}
  if(AUTO.on&&AUTO.tm)autoSchedule(autoDelay(!!AUTO.pick));
  AUTO.uiKey='';autoUi();
 }
-// the button, speed button, amber frame and the "AUTO" strip (called from updateHud, so it follows every render)
+// the top-bar strip (indicator, speed, stop; shown only while Auto runs) and the thin amber frame (called from updateHud, so it follows every render)
 function autoUi(){
- const show=!!G&&!G.over,on=show&&!!(G.auto&&G.auto.on),key=(show?1:0)+'|'+(on?1:0)+'|'+AUTO.speed;
+ const on=!!G&&!G.over&&!!(G.auto&&G.auto.on),key=(on?1:0)+'|'+AUTO.speed;
  if(key===AUTO.uiKey)return;AUTO.uiKey=key;
- $('autoBox').style.display=show?'flex':'none';
- const b=$('autoBtn');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');
- b.innerHTML=on?'⏸ AUTO <small>ON</small>':'🤖 AUTO';
- const sp=$('autoSpd');sp.style.display=on?'block':'none';sp.textContent=AUTO.speed+'×';
- $('cv').classList.toggle('auto',on);$('autoTag').style.display=on?'block':'none';
+ $('autoBox').style.display=on?'flex':'none';
+ $('autoBtn').setAttribute('aria-pressed',on?'true':'false');
+ $('autoSpd').textContent=AUTO.speed+'×';
+ $('cv').classList.toggle('auto',on);
 }
 $('autoBtn').addEventListener('click',function(){autoToggle();});
 $('autoSpd').addEventListener('click',function(){autoSpeedCycle();});
@@ -2763,12 +2840,12 @@ $('autoSpd').addEventListener('click',function(){autoSpeedCycle();});
 document.addEventListener('click',function(ev){
  if(!AUTO.on||AUTO.self||!G||!G.auto||!G.auto.on)return;
  const t=ev.target;if(t&&t.closest&&t.closest('#autoBox'))return;
- autoStop('You took over: Auto is off.');
+ autoStop('Auto off.');
  if(t===cv)ev.stopPropagation();
 },true);
 document.addEventListener('keydown',function(ev){
  if(!AUTO.on||AUTO.self||!G||!G.auto||!G.auto.on||ev.ctrlKey||ev.metaKey||ev.altKey||ev.key==='Shift')return;
- autoStop('You took over: Auto is off.');ev.stopPropagation();ev.preventDefault();
+ autoStop('Auto off.');ev.stopPropagation();ev.preventDefault();
 },true);
 document.addEventListener('visibilitychange',function(){if(document.hidden&&AUTO.on)autoStop('Page hidden: Auto paused.');});
 

@@ -21,4 +21,3 @@ document.addEventListener('keydown',function(ev){
  if(d){ev.preventDefault();walkTok++;tryMove(d[0],d[1]);}
 });
 $('menuBtn').addEventListener('click',showMenu);
-$('helpBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showHelp(closeModal);});

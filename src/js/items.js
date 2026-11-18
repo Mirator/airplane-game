@@ -42,15 +42,26 @@ function manaRegen(){const a=armK();return BAL.mana.regen*(a&&a.manaRegenMul||1)
 function maxKnives(){return BAL.ability.knife.max+(eqKind('off')==='quiver'?BAL.offhand.quiverKnives:0)+(pc('bando')?BAL.perk.bandoMax:0);}
 // stat vector used by the equip comparison: what changes if `it` replaces the current item in its slot
 function statVec(){return {attack:meleeAtk(),defense:defTotal(),crit:Math.round(critChance()*100),dodge:Math.round(dodgeChance()*100),spell:Math.round((spellMul()-1)*100),mana:mmax()};}
-function gearDelta(it){
+// what changes if `it` replaces the current item in its slot: [[stat, change], ...]
+function gearDeltaRaw(it){
  const p=G.p,old=p.eq[it.t],a=statVec();p.eq[it.t]={t:it.t,k:it.k,v:it.v,tr:it.tr||null};const b=statVec();p.eq[it.t]=old;
- const o=[];for(const k in a){const d=b[k]-a[k];if(d)o.push(k+' '+sgn(d)+((k==='crit'||k==='dodge'||k==='spell')?'%':''));}
+ const o=[];for(const k in a){const d=b[k]-a[k];if(d)o.push([k,d]);}
  return o;
 }
-function itemDesc(it){
- let t=it.t==='weapon'?'+'+it.v+' attack. ':it.t==='armor'?'Defense '+armorDef(it)+'. ':'';
- t+=itemRule(it);if(it.tr)t+=' '+traitLine(it.tr);return t;
+function gearDelta(it){return gearDeltaRaw(it).map(x=>x[0]+' '+sgn(x[1])+((x[0]==='crit'||x[0]==='dodge'||x[0]==='spell')?'%':''));}
+// the same as green / red chips (more is always better for these stats)
+function gearDeltaHtml(it){
+ const L={attack:'Attack',defense:'Defense',crit:'Crit',dodge:'Dodge',spell:'Spell',mana:'Mana'};
+ const d=gearDeltaRaw(it);
+ if(!d.length)return '<span class="dlt same">Same stats</span>';
+ return d.map(x=>'<span class="dlt '+(x[1]>0?'up':'dn')+'">'+L[x[0]]+' '+(x[1]>0?'+':'\u2212')+Math.abs(x[1])+((x[0]==='crit'||x[0]==='dodge'||x[0]==='spell')?'%':'')+'</span>').join('');
 }
+function itemDesc(it){
+ const st=it.t==='weapon'?'+'+it.v+' attack':it.t==='armor'?'Defense '+armorDef(it):'';
+ return [st,itemRule(it)].filter(Boolean).join(' · ')+(it.tr?'<br>'+traitLine(it.tr):'');
+}
+// the rule line only (no stat numbers): weapon rules without the attack offset
+function itemRuleShort(it){return it.t==='weapon'?wpRule(it.k,true):it.t==='armor'?armRule(it.k):itemRule(it);}
 function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'';}
 function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
 function rollTrait(slot,f){
@@ -99,13 +110,13 @@ function sellGear(it,why){const g=Math.round((BAL.item.weakSaleBase+G.floor)*G.p
 function pickOne(it){
  const p=G.p;
  let take=true;
- if(it.t==='gold'){const g=Math.round(it.v*p.goldMul*goldMod());p.gold+=g;msg('You pick up '+g+' gold.');checkAch();}
+ if(it.t==='gold'){const g=Math.round(it.v*p.goldMul*goldMod());p.gold+=g;msg('+'+g+' gold.');checkAch();}
  else if(it.t==='potion'){
-  if(G.inv.pot<p.potCap){G.inv.pot++;msg('You pick up a health potion.');}
+  if(G.inv.pot<p.potCap){G.inv.pot++;msg('+1 Potion.');}
   else{msg('Potion belt is full.');take=false;}
  }
  else if(it.t==='knife'){
-  if(G.knives<maxKnives()){G.knives++;msg('You pick up a throwing knife.');}
+  if(G.knives<maxKnives()){G.knives++;msg('+1 knife.');}
   else take=false;
  }
  else if(SLOTS.indexOf(it.t)>=0){
@@ -116,35 +127,35 @@ function pickOne(it){
    else sellGear(it,'Weak');
   }else{gearQ=it;take=false;}
  }
- else if(it.t==='fire'){G.inv.fire++;msg('Found a flame scroll.');}
- else if(it.t==='tele'){G.inv.tele++;msg('Found a Teleport scroll.');}
- else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('You pick up a brass key!');}
+ else if(it.t==='fire'){G.inv.fire++;msg('+1 Flames.');}
+ else if(it.t==='tele'){G.inv.tele++;msg('+1 Teleport.');}
+ else if(it.t==='key'){G.keys=(G.keys||0)+1;msg('Got a brass key.');}
  if(take){G.items=G.items.filter(o=>o!==it);sfx('pickup');}
  G.stopWalk=true;
 }
 function drink(){
  const p=G.p;
- if(G.inv.pot<=0){msg('No potions. Find them in the dungeon.');return;}
- if(p.hp>=p.mhp){msg('Already at full health.');return;}
+ if(G.inv.pot<=0){msg('No potions.');return;}
+ if(p.hp>=p.mhp){msg('HP is full.');return;}
  G.ppois=null;G.inv.pot--;G.stats.pots++;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(modIs('cursed'))h=Math.max(1,Math.round(h*BAL.mod.cursed.potionMul));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
- floatFx(p.x,p.y,'+'+h,'#6f6');msg('You drink a potion (+'+h+' HP).');
- if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('The flask refills itself: no turn used.');save();render();return;}
+ floatFx(p.x,p.y,'+'+h,'#6f6');msg('Potion: +'+h+' HP.');
+ if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('Flask refills: no turn used.');save();render();return;}
  endTurn();
 }
 function fireball(){
- if(G.inv.fire<=0){msg('No flame scrolls. Find them in the dungeon.');return;}
+ if(G.inv.fire<=0){msg('No Flames.');return;}
  const t=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
- if(!t.length){msg('No visible enemies - scroll kept.');return;}
+ if(!t.length){msg('No enemy in sight.');return;}
  G.inv.fire--;const dmg=Math.round((BAL.fireball.base+G.floor*BAL.fireball.perFloor)*G.p.fireMul);
- msg('Flames! '+dmg+' damage to all in sight.');
+ msg('Flames: '+dmg+' to all in sight.');
  for(const e of t){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
  endTurn();
 }
 function teleport(){
- if(G.inv.tele<=0){msg('No teleport scrolls. Find them in the dungeon.');return;}
+ if(G.inv.tele<=0){msg('No Teleport.');return;}
  const p=G.p,c=[],reach=bfsDist(p.x,p.y);
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)
   if(G.map[ix(x,y)]===1&&reach[ix(x,y)]<9999&&!enemyAt(x,y)&&!itemAt(x,y)&&!trapAt(x,y)&&!merchantAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=BAL.teleport.minDist)c.push([x,y]);
  if(!c.length){msg('The scroll fizzles.');return;}
- G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('You teleport away!');walkTok++;endTurn();
+ G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('Teleported.');walkTok++;endTurn();
 }
