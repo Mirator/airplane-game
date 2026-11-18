@@ -60,7 +60,7 @@ describe('kits', { concurrency: CONC }, () => {
         G.p.crit = 5; h0 = cr.hp; F.playerAttack(cr); out.hitCrit = h0 - cr.hp;
         return out;
       });
-      const B = { dealt: 8, taken: 12, decay: 4 };
+      const B = { dealt: 10, taken: 12, decay: 4 };
       assert.match(r.noRage, /enemy next to you|rage/i);
       assert.match(r.noTarget, /next to you/i);
       assert.ok(r.bash && r.stunned);

@@ -75,9 +75,22 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 - **Blueprints** (`BPS`, 20 items marked `bp: 'c' | 'r' | 'b'` in `WP` / `OFF` / `CH` / `PERKS`): not in the loot pool until found AND bought (`meta.bp[id]` 1 = found, 2 = bought; `bpTable`, `classOffs`, `perkPool` filter). Tier c drops from expeditions, r from manual runs reaching floor 5+, b from killing the dragon or Heat 1+ runs reaching floor 5+. Auto runs find none.
 - **Expeditions** (`BAL.exp`, `idle.js`): up to two heroes (second slot `BAL.exp.secondSlot` gold) for 30 min / 2 h / 8 h. `expResult(rec, now)` is a pure function of the record `{cls, dur, t0, seed, pw}` (stored at the start: power is snapshotted), the clock and the found blueprints, so a reload cannot reroll it; elapsed time is clamped to 0..8 h and to the trip length, an early Recall pays the part done. One delve per `delveMin` minutes: each draws the floor it ended on from the class row of `EXP_TABLE` (blended between the calibrated upgrade powers), and pays that floor's mean gold / kills scaled so the trip averages `rate x manual gold per hour` (30 min 0.33, 2 h 0.30, 8 h 0.25 of it: best rate short, best total long). It is an outcome model, not the real engine: the real engine renders and is built around DOM events, it was not run headless.
 - **Calibrating the model:** `node tests/calibrate.js [--runs 60] [--seed 1] [--levels ...]` plays bot runs (`tests/sim.js`, Heat 0) at fresh / 800 / 3000 / 9000 / maxed gold, records per class and level the share of runs ending on each floor (or winning), mean gold and kills there, mean turns and manual gold per hour (mean gold per run / (turns x 1.2 s)), and rewrites the block between `// BEGIN EXP_TABLE` and `// END EXP_TABLE` in `balance.js`. Then `node build.js`. Re-run it after any balance change that moves win rates or gold.
+- **Expedition economy (gated by the player).** A hero never delves deeper than the deepest floor the player reached in MANUAL play (`meta.bestM`, min 1; Auto stairs do not count; an older save starts with its `best`). 8 h gold = `BAL.exp.gph[bestFloor-1] x (1 + boost(upgrade power))`; 30 min pays x1.25 per hour, 2 h x1.12 (best rate short, best total long). `EXP_TABLE` only gives the shape of a delve now. Gold per 8 h trip (upgrade power fresh 0 / mid 800 / heavy 3000 / maxed 16554):
+
+| best floor | fresh | mid | heavy | maxed |
+|---|---|---|---|---|
+| 1 | 64 | 88 | 107 | 156 |
+| 2 | 84 | 116 | 140 | 205 |
+| 4 | 320 | 442 | 534 | 781 |
+| 8 | 630 | 872 | 1055 | 1541 |
+
+  A 30 min trip pays about 0.63x and a 2 h trip 0.28x of the 8 h figure. A rough pacing model puts buying everything (upgrades, unlocks, second slot, blueprints, ~22 400 gold) at 2 to 3 weeks of twice-daily 8 h trips plus normal play (model only, not measured with players).
+- **Auto pay:** by turns Auto played (same at 1x / 2x / 4x), at the 30 min rate for the best manual floor and upgrade power (`autoPerTurn`). `runBank()` gives the number banked; the HUD gold shows it once Auto has played in a run, and the recap says the same.
 - **Saves:** `meta.mv` = 2. An old (mv 1) save is migrated once at boot: gold, unlocks and records are kept, old levels become the same-named new levels (capped at the new maximum), the difference to what the old level gave becomes a permanent veteran bonus `meta.leg` (no stat ever drops), a win means Heat 1 is unlocked, a Hard toggle that was on selects Heat 1, the flat fields are removed. Every idle field is re-validated on every boot (`cleanMeta`); a damaged one is replaced, never an exception.
 
 ## Build and test
+
+**`npm run release-check` for every release** (build + whole suite + a balance smoke: 3 classes x 30 runs at heavy, seed 1; the smoke prints win rates and fails only on crashes, not on bands; under 5 minutes). `npm run mutate`, full balance tables (`tests/sim.js` with 100 runs x 2 seeds) and `tests/calibrate.js` run only on special occasions: a balance rework, changes to the test suite, before a milestone.
 
 ```
 node build.js          # regenerate index.html

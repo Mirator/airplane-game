@@ -3,6 +3,7 @@
     "build": "node build.js",
     "test": "node tests/run.js",
     "sim": "node tests/sim.js",
-    "mutate": "node tests/mutate.js"
+    "mutate": "node tests/mutate.js",
+    "release-check": "node build.js && node tests/run.js && node tests/sim.js --runs 30 --seed 1 --levels heavy=3000"
   }
 }
