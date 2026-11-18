@@ -70,18 +70,21 @@ function floatFx(x,y,text,color,big){
  const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={x:x,y:y,text:text,color:col,big:!!big,t:t,t0:t0,k:k,sz:sz,d:k==='n'&&live>4?550:LBL_MS[k],off:base,dxo:dxo,n:1};
  const w=lblW(text,sz,k),h=sz*(k==='n'?1.15:1.5),step=Math.max(0.3,h);
  let row=-1;
- for(let i=0;i<3&&row<0;i++){
-  f.off=base-i*step;
-  let hit=false;const pa=lblPos(f,t);
-  for(const g of fx){if(g.c||t>g.t+g.d||g.t>t+f.d)continue;if(k==='n'&&g.k!=='n')continue;
-   const Tc=Math.max(t,g.t),A=lblPos(f,Tc),B=lblPos(g,Tc),gw=lblBox(g),gh=g.sz*(g.k==='n'?1.15:1.5);
-   if(Math.abs(A[0]-B[0])<(w+gw)/2&&Math.abs(A[1]-B[1])<(h+gh)/2){hit=true;break;}}
-  if(!hit)row=i;
- }
- if(row<0){   // no room within the cap: the oldest label on this tile makes way
-  let old=null;for(const g of fx)if(!g.c&&g.x===x&&g.y===y&&g.k===k&&(!old||g.t<old.t))old=g;
-  if(old)fx.splice(fx.indexOf(old),1);
-  f.off=base;
+ for(let tries=0;tries<12&&row<0;tries++){
+  const own=fx.some(g=>!g.c&&g.x===x&&g.y===y&&g!==f&&t<g.t+g.d);   // the 1.2-tile cap is about a crowded tile; a clash with a neighbour's label just stacks higher
+  for(let i=0;i<(own?3:6)&&row<0;i++){
+   f.off=base-i*step;
+   let hit=false;
+   for(const g of fx){if(g.c||t>g.t+g.d||g.t>t+f.d)continue;if(k==='n'&&g.k==='a'&&g.big)continue;
+    const Tc=Math.max(t,g.t),A=lblPos(f,Tc),B=lblPos(g,Tc),gw=lblBox(g),gh=g.sz*(g.k==='n'?1.15:1.5);
+    if(Math.abs(A[0]-B[0])<(w+gw)/2&&Math.abs(A[1]-B[1])<(h+gh)/2){hit=true;break;}}
+    if(!hit)row=i;
+  }
+  if(row<0){   // no room within the cap: the oldest label on this tile makes way
+   let old=null;for(const g of fx)if(!g.c&&g.x===x&&g.y===y&&(!old||g.t<old.t))old=g;
+   if(!old){f.off=base;break;}
+   fx.splice(fx.indexOf(old),1);
+  }
  }
  fx.push(f);
 }

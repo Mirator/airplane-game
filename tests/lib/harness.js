@@ -111,7 +111,7 @@ const fastAuto = (page, ms = 20) => page.evaluate((m) => { window.__dbg.tables.B
 // render() runs every frame and re-creates the buttons' contents; a real mouse press that straddles such a rewrite is not delivered
 // as a click, which is what made "click an ability button right after the floor started" fail under CPU load. Call this before a
 // real (non-DOM) click on a bar button.
-const quiet = (page, ms = 400) => page.evaluate((ms) => new Promise((res) => {
+const quiet = (page, ms = 250) => page.evaluate((ms) => new Promise((res) => {
   const bar = document.getElementById('bar2'); let t;
   const done = () => { mo.disconnect(); res(); };
   const mo = new MutationObserver(() => { clearTimeout(t); t = setTimeout(done, ms); });

@@ -217,7 +217,7 @@ describe('ability button reasons', { concurrency: CONC }, () => {
       let s = await subs(page);                                 // mage kit: bolt, nova, blink, fire
       assert.equal(s[0].sub, 'no target', 'bolt, nothing in sight'); assert.match(s[0].cls, /dis/); assert.equal(s[1].sub, 'no target', 'nova');
       // a foe in sight but out of bolt range
-      await page.evaluate(() => { window.__dbg.tables.BAL.ability.bolt.range = 2; window.T.foe('goblin', 4, 0, false); window.__dbg.fn.endTurn(); });
+      await page.evaluate(() => { window.__dbg.tables.BAL.ability.bolt.range = 2; window.T.foe('goblin', 4, 0, false).stun = 9; window.__dbg.fn.endTurn(); });   // stunned: it stays where it is (a lunging goblin could step into range)
       s = await subs(page);
       assert.equal(s[0].sub, 'too far', 'bolt: visible but out of range'); assert.equal(s[1].sub, 'too far', 'nova: foe not adjacent');
       // in range, but the line is blocked by another foe
@@ -295,7 +295,7 @@ describe('danger guard', { concurrency: CONC }, () => {
       // the mark times out
       await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 1, y: G.p.y, k: 'spike', rev: 1 }]; });
       const s2 = await st(page), t2 = await pt(page, s2.x + 1, s2.y);
-      await page.mouse.click(t2.x, t2.y); await page.waitForTimeout(4400);   // the default confirm window is 4 s
+      await page.mouse.click(t2.x, t2.y); await page.waitForTimeout(4400);   // the default confirm window is 4 s (the real value: the mutation check changes it)
       assert.equal((await st(page)).guard, false, 'expired');
       await page.mouse.click(t2.x, t2.y);
       assert.equal((await st(page)).x, s2.x, 'after the timeout the next tap warns again instead of walking');
@@ -413,6 +413,7 @@ describe('callouts', { concurrency: CONC }, () => {
   it('HP below 30% calls out once per crossing and re-arms above 40%; elite sighting, level up, enrage, key, unlocked; never more than two; <= 3 words', async () => {
     const { page, ctx, errors } = await fresh('warrior', 47);
     try {
+      await page.evaluate(() => { window.__dbg.tables.BAL.ui.calloutMs = 500; });   // callouts live calloutMs; shortened from 1 s so the waits below stay short
       const seen = new Set();
       const note = async () => { for (const t of await co(page)) seen.add(t); };
       await page.evaluate(() => { window.T.setup(7); const G = window.__dbg(); G.p.mhp = 100; G.p.hp = 100; window.__dbg.fn.endTurn(); });
@@ -420,7 +421,7 @@ describe('callouts', { concurrency: CONC }, () => {
       assert.deepEqual(await co(page), [], '35% is not low');
       await page.evaluate(() => { const G = window.__dbg(); G.p.hp = 25; window.__dbg.fn.endTurn(); });
       assert.deepEqual(await co(page), ['LOW HP']); await note();
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(580);
       await page.evaluate(() => { const G = window.__dbg(); G.p.hp = 20; window.__dbg.fn.endTurn(); });
       assert.deepEqual(await co(page), [], 'once per crossing: still low, no repeat');
       await page.evaluate(() => { const G = window.__dbg(); G.p.hp = 35; window.__dbg.fn.endTurn(); });
@@ -428,35 +429,35 @@ describe('callouts', { concurrency: CONC }, () => {
       assert.deepEqual(await co(page), [], '35% is inside the dead band: no re-arm yet');
       await page.evaluate(() => { const G = window.__dbg(); G.p.hp = 60; window.__dbg.fn.endTurn(); G.p.hp = 20; window.__dbg.fn.endTurn(); });
       assert.deepEqual(await co(page), ['LOW HP'], 're-armed after healing above 40%');
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(580);
       // elite comes into view: once
       await page.evaluate(() => { window.T.setup(7); const e = window.T.foe('goblin', 3, 0, false); e.elite = 1; e.name = 'Grim Test'; });
       await page.evaluate(() => { window.__dbg.fn.endTurn(); });
       assert.deepEqual(await co(page), ['ELITE']); await note();
       await page.evaluate(() => { window.__dbg.fn.computeVis(); window.__dbg.fn.computeVis(); });
       assert.deepEqual(await co(page), ['ELITE'], 'not repeated while it stays in view');
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(580);
       // killing the elite drops the key; picking it up and opening the vault
       await page.evaluate(() => { const G = window.__dbg(); window.__dbg.api.killEnemy(G.enemies[0]); });
       assert.ok((await co(page)).includes('KEY')); await note();
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(580);
       await page.evaluate(() => { const G = window.__dbg(); G.items.push({ x: G.p.x + 1, y: G.p.y, t: 'key', v: 0 }); window.__dbg.fn.tryMove(1, 0); });
-      assert.ok((await co(page)).includes('KEY'), 'picking the key up calls out'); await page.waitForTimeout(1200);
+      assert.ok((await co(page)).includes('KEY'), 'picking the key up calls out'); await page.waitForTimeout(580);
       await page.evaluate(() => { const G = window.__dbg(); G.keys = 1; G.map[G.p.y * 30 + G.p.x + 1] = 5; G.seen[G.p.y * 30 + G.p.x + 1] = true; window.__dbg.fn.tryMove(1, 0); });
       assert.deepEqual(await co(page), ['UNLOCKED']); await note();
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(580);
       // level up
       await page.evaluate(() => { window.T.setup(7); const G = window.__dbg(); G.p.xp = 1e6; window.T.foe('rat', 1, 0, true); window.__dbg.api.killEnemy(G.enemies[0]); });
       assert.ok((await co(page)).includes('LEVEL UP')); await note();
       await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; });
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(580);
       // boss enrage
       await page.evaluate(() => { window.T.setup(7); const G = window.__dbg(), d = window.__dbg.fn.makeEnemy('dragon', G.p.x + 3, G.p.y, 8); d.awake = true; d.hp = Math.round(d.mhp * 0.1); d.sm = 9; d.cd = 99; window.__dbg.fn.computeVis(); window.__dbg.fn.endTurn(); });
       assert.ok((await co(page)).includes('ENRAGED')); await note();
       for (const t of seen) assert.ok(t.split(' ').length <= 3, t);
       assert.deepEqual([...seen].sort(), ['ELITE', 'ENRAGED', 'KEY', 'LEVEL UP', 'LOW HP', 'UNLOCKED'].sort());
       // never more than two at once
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(580);
       await page.evaluate(() => { const G = window.__dbg(); for (let i = 0; i < 5; i++) window.__dbg.callout(G.p.x, G.p.y, 'TEST ' + i, '#fff'); });
       assert.equal((await co(page)).length, 2, 'two at most');
       assert.deepEqual(errors, []);

@@ -12,7 +12,7 @@ function curseDrain(){
 }
 function killEnemy(e,src){
  if(e.dead)return;
- e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
+ e.dead=true;markGone(e.x,e.y);G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
  const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');puffAdd(e.x,e.y);ghostAdd(e);
  calloutDelay=d.boss?900:0;gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));calloutDelay=0;
  if(d.boss){G.won=true;return;}
@@ -151,6 +151,7 @@ function knock(u,dx,dy){
   if(other&&!other.dead)hitU(other,Math.max(1,Math.floor(d/2)));
   return false;
  }
+ if(!isP)markGone(u.x,u.y);
  u.x=nx;u.y=ny;
  if(isP){pickup();}else{u.wind=null;}
  return true;
@@ -179,6 +180,6 @@ function endTurn(){
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
- staleTrack();lowHpWatch();computeVis();save();render();
+ lowHpWatch();computeVis();save();render();
  afterModals();
 }

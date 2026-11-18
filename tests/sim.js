@@ -109,6 +109,8 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
     const parts = Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / all).toFixed(0)}% (${(v / rows.length).toFixed(1)})`);
     console.log(cls.padEnd(9) + (parts.join('  ') || 'none'));
   }
+  console.log('\n== Wait taps per run (all / with an awake foe in sight)');
+  for (const cls of CLASSES) { const rows = results.filter((r) => r.cls === cls && r.waits != null); if (rows.length) console.log(cls.padEnd(9) + (rows.reduce((a, r) => a + r.waits, 0) / rows.length).toFixed(1) + ' / ' + (rows.reduce((a, r) => a + r.waitsC, 0) / rows.length).toFixed(1) + ' / mana-rest ' + (rows.reduce((a, r) => a + (r.waitsM || 0), 0) / rows.length).toFixed(1)); }
   console.log('\n== ability uses per run ON FLOOR 8 (the dragon fight), runs that reached it');
   for (const cls of CLASSES) {
     const rows = results.filter((r) => r.cls === cls && r.floor === 8 && r.uses8);

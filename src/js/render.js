@@ -125,7 +125,7 @@ function frameSight(){if(G)frameT={g:G,t:G.turn,f:G.floor};}
 function seenAwake(){return G.enemies.filter(e=>e.awake&&!e.dead&&G.vis[ix(e.x,e.y)]);}
 function camPlan(ts0){
  const p=G.p,cw=view.cw,ch=view.ch;let pts=null;
- if(armed)pts=targetTiles(armed);
+ if(armed)pts=view.tg;
  else if(frameOn())pts=seenAwake().map(e=>[e.x,e.y]);
  if(!pts||!pts.length)return null;
  const top=$('chips').children.length?52:0;   // the modifier chip sits over the top-left corner
@@ -156,7 +156,7 @@ function drawEdgeMarks(ox,oy,ts){
 }
 // targeting: enemy targets get a bracket reticle; ground abilities get their reachable area as one shape with a single outline
 function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
- const col={bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=targetTiles(armed),ground=ABIL[armed].tg==='tile';
+ const col={bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile';
  if(ground){
   const set=new Set(tg.map(t=>ix(t[0],t[1])));
   ctx.globalAlpha=0.14;ctx.fillStyle=col;for(const t of tg)ctx.fillRect(ox+t[0]*ts,oy+t[1]*ts,ts,ts);ctx.globalAlpha=1;
@@ -189,6 +189,7 @@ function render(){
  const now=performance.now(),p=G.p,th=themeOf(G.floor,G.variant),rm=rmo();
  let shk=false;
  if(now<shakeUntil&&!rm){const sa=shakeAmt*(shakeUntil-now)/220;ctx.translate((Math.random()*2-1)*sa,(Math.random()*2-1)*sa);ctx.fillStyle='#07070d';ctx.fillRect(-12,-12,view.cw+24,view.ch+24);shk=true;}
+ view.tg=armed?targetTiles(armed):null;   // the aimed ability's tiles, computed once per frame (camera and reticles both use them)
  const ts0=Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5)),cam=camPlan(ts0);
  const ts=cam?cam.ts:ts0;
  const fox=cam?cam.ox:Math.round(view.cw/2-(p.x+0.5)*ts),foy=cam?cam.oy:Math.round(view.ch/2-(p.y+0.5)*ts);
@@ -418,7 +419,7 @@ function render(){
  if(drawVfx(ox,oy,ts,now))more0=true;
  // soft light around the player: the far edge of the screen fades into the dark
  {const fb=fogBmp(ts);ctx.drawImage(fb,Math.round(ox+(vx+0.5)*ts-view.cw/2-ts),Math.round(oy+(vy+0.5)*ts-view.ch/2-ts),view.cw+2*ts,view.ch+2*ts);}
- if(cam){view.mm=null;}else{drawEdgeMarks(ox,oy,ts);drawMini(ts);}   // framing a fight: nothing (not even the minimap) covers a tile
+ if(cam||armed){view.mm=null;}else{drawEdgeMarks(ox,oy,ts);drawMini(ts);}   // aiming or framing a fight: nothing (not even the minimap) covers a tile
  // the boss bar lives in a fixed strip at the top of the map, never under a neighbour
  if(boss){
   const e=boss.e,fr=Math.max(0,Math.min(1,e.hp/e.mhp)),col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,nm0=EN[e.t].n,chipsW=($('chips').children.length?52:0);

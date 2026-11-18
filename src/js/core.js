@@ -7,4 +7,4 @@ let noticeOld=false,G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,
 let AC=null,flashes={},shakeUntil=0,shakeAmt=0,puffs=[],pulseUntil=0,stepAnim=null,lastPos=null,visX=0,visY=0;
 let shrineQ=false,trapConfirm=-1,bannerText='',bannerUntil=0,wsc={arr:null,set:new Set()},toastQ=[],toastBusy=false,chipHtml='';
 let gearQ=null,insp=null,lp=null,lpAt=-1e9,lpDone=false,guard=null,hpLow=false,hpLowG=null,eliteSeen=new Set(),eliteG=null;
-let claimed=new Set(),staleT=new Map(),enemyTilesPrev=new Set(),staleG=null,staleF=0,frameT=null,modalAt=0,lastDown=0,modalGrace=0;
+let claimed=new Set(),goneT=new Map(),lastAtk=null,frameT=null,modalAt=0,lastDown=0,modalGrace=0;

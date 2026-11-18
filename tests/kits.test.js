@@ -87,8 +87,8 @@ describe('kits', { concurrency: CONC }, () => {
       const r = await page.evaluate(() => {
         const G = window.__dbg(), F = window.__dbg.fn, T = window.T, B = window.__dbg.tables.BAL, out = {};
         T.setup(7); G.p.mana = G.p.mbase;
-        let e = T.foe('goblin', 3, 0); e.hp = e.mhp = 200; const m0 = G.p.mana;
-        out.bolt = F.use('bolt', e.x, e.y); out.boltHit = e.hp < 200; out.boltMana = m0 - G.p.mana; out.boltWant = B.ability.bolt.mana - B.mana.regen;   // regen of the turn it took
+        let e = T.foe('goblin', 3, 0); e.hp = e.mhp = 200; const m0 = G.p.mana, mf0 = G.p.mf || 0;
+        out.bolt = F.use('bolt', e.x, e.y); out.boltHit = e.hp < 200; out.boltMana = m0 - G.p.mana; out.boltWant = B.ability.bolt.mana - Math.floor(mf0 + B.mana.regen);   // the whole mana points regenerated in the turn it took (the fraction carries over)
         T.setup(7); G.p.mana = G.p.mbase;
         e = T.foe('goblin', 1, 0); e.hp = e.mhp = 200;
         out.nova = F.use('nova'); out.frozen = e.frz > 0;
@@ -99,8 +99,8 @@ describe('kits', { concurrency: CONC }, () => {
         out.fire = F.use('fire', a.x, a.y); out.fireBoth = a.hp < 300 && b.hp < 300;
         G.p.mana = 0; out.noMana = F.whyNot('fire');
         // regeneration: per turn, and per kill
-        T.setup(7); G.p.mana = 5; for (let i = 0; i < 3; i++) F.endTurn(); out.regen = G.p.mana;
-        T.setup(7); G.p.mana = 0; const v = T.foe('goblin', 2, 0, false); window.__dbg.api.killEnemy(v); out.killMana = G.p.mana;
+        T.setup(7); G.p.mana = 5; { let mf = G.p.mf || 0, want = 5; for (let i = 0; i < 3; i++) { mf += B.mana.regen; const w = Math.floor(mf); mf -= w; want += w; } out.regenWant = want; } for (let i = 0; i < 3; i++) F.endTurn(); out.regen = G.p.mana;
+        T.setup(7); G.p.mana = 0; const v = T.foe('goblin', 2, 0, false); window.__dbg.api.killEnemy(v); out.killMana = G.p.mana; out.killWant = B.mana.perKill;
         return out;
       });
       assert.ok(r.bolt && r.boltHit); assert.equal(r.boltMana, r.boltWant, 'Bolt spends its mana');
@@ -108,8 +108,8 @@ describe('kits', { concurrency: CONC }, () => {
       assert.ok(r.blink && r.blinkMoved === 4);
       assert.ok(r.fire && r.fireBoth, 'Fireball blast covers neighbouring tiles');
       assert.match(r.noMana, /needs \d+ mana/);
-      assert.equal(r.regen, 5 + 3 * 1, 'mana regenerates every turn');
-      assert.equal(r.killMana, 2, 'a kill gives mana');
+      assert.equal(r.regen, r.regenWant, 'mana regenerates every turn (whole points, the fraction carries over)');
+      assert.equal(r.killMana, r.killWant, 'a kill gives mana');
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

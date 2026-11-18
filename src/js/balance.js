@@ -7,7 +7,7 @@ const W=30,H=30,MAXF=8;   // map size and number of floors (floor 8 = dragon lai
 // NOTE: descriptive strings in the tables below (perk/trait/unlock text, help screen) still contain hand-written copies of
 // some numbers - update them together when changing a value.
 const BAL = {
- ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,staleMs:600,camMinTs:22},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe just left / died on does nothing for this long; camMinTs = smallest tile size when the camera zooms out to frame targets
+ ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,staleMs:350,burstMs:900,camMinTs:22},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe left / died on in the turn just resolved does nothing for this long; burstMs = repeat taps on the tile of the previous tap's target do nothing once it is empty, for this long after the last one; camMinTs = smallest tile size when the camera zooms out to frame targets
   // --- dungeon layout (mapgen.js) ---
   map: {
     span: 22,              // rooms are placed inside the top-left span x span corner of the 30x30 grid (shorter floors)
@@ -26,10 +26,12 @@ const BAL = {
   enemy: {
     hpPerFloor: 0.78, atkPerFloor: 0.73,        // +78% / +73% of base per floor above 1
     rangedHpFactor: 0.6, rangedAtkFactor: 0.7,  // ranged enemies scale slower
+    early: [1, 0.92, 0.9, 0.93],                        // extra hp / attack multiplier on floors 1-4 (a smoother start; rewards are untouched, so levels and gold keep pace)
     eliteHpMul: 2, eliteAtkMul: 1.2, eliteAtkAdd: 1
   },
   spawn: {
     enemyBase: 5, enemyPerFloor: 1.0, enemyExtraMax: 2, ratLastFloor: 5,
+    earlyCut: [2, 1],         // fewer enemy groups on floors 1 and 2 (later floors are untouched, so XP and gold keep their pace)
     goldPiles: 3, goldMin: 3, goldMax: 6, goldPerFloor: 2,
     extraPotionChance: 0.4,
     weaponChance: 0.5, weaponMin: 1, weaponMax: 2, weaponPerFloor: 0.7,
@@ -87,15 +89,15 @@ const BAL = {
   },
   // --- resources (combat.js endTurn) ---
   rage: { max: 100, dealt: 8, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
-  mana: { regen: 1, perKill: 2 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
+  mana: { regen: 1.25, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
   // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
     bash:     { cd: 6, stun: 2, stunBoss: 1, mul: 1.0 },
     cleave:   { rage: 30, mul: 1.0, cd: 0 },
-    charge:   { rage: 20, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
+    charge:   { rage: 15, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
     brace:    { rage: 35, cd: 0, hits: 3, turns: 6, reduce: 0.5, reflect: 0.5 },
     bolt:     { mana: 7, cd: 0, mul: 1.3, add: 1, range: 8 },
-    nova:     { mana: 8, cd: 3, freeze: 3, freezeBoss: 1, mul: 0.6 },
+    nova:     { mana: 7, cd: 2, freeze: 3, freezeBoss: 1, mul: 0.6 },
     blink:    { mana: 4, cd: 2, range: 5 },
     fire:     { mana: 13, cd: 0, base: 10, perFloor: 3, range: 7, radius: 1 },
     backstab: { cd: 5, mul: 2.4, weakMul: 0.5 },
@@ -195,13 +197,13 @@ const UNLOCKS=[
  {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist to level-ups.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
 ];
 const EN={
- rat:{n:'Rat',e:'rat',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
+ rat:{n:'Rat',e:'rat',hp:6,atk:2,speed:2,pack:true,group:[2,3],w:2,maxF:BAL.spawn.ratLastFloor,xp:5,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
  goblin:{n:'Goblin',e:'goblin',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
  archer:{n:'Archer',e:'archer',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
  hound:{n:'Hound',e:'hound',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
  guard:{n:'Guard',e:'guard',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield blocks front hits and shots. Flank or stun it.'},
  skeleton:{n:'Skeleton',e:'skeleton',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
- ogre:{n:'Ogre',e:'ogre',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
+ ogre:{n:'Ogre',e:'ogre',hp:26,atk:8,slowAct:true,xp:13,minF:4,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
  troll:{n:'Troll',e:'troll',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},
  cultist:{n:'Cultist',e:'cultist',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
  bat:{n:'Bat',e:'bat',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},

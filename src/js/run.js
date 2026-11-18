@@ -3,7 +3,7 @@
 function makeEnemy(type,x,y,f){
  const d=EN[type],s=d.boss?1:1+BAL.enemy.hpPerFloor*(f-1)*(d.range?BAL.enemy.rangedHpFactor:1),sa=d.boss?1:1+BAL.enemy.atkPerFloor*(f-1)*(d.range?BAL.enemy.rangedAtkFactor:1);
  const fl=d.flat?1:s,fa=d.flat?1:sa;
- const em=enemyMul(d),hp=Math.round(d.hp*fl*em[0]),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*fa*em[1]),awake:false,cd:0,face:pick(DIRS)};
+ const em=enemyMul(d),ea=d.boss?1:(BAL.enemy.early[f-1]||1),hp=Math.round(d.hp*fl*em[0]*ea),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*fa*em[1]*ea),awake:false,cd:0,face:pick(DIRS)};
  G.enemies.push(e);return e;
 }
 function stairsOk(){
@@ -52,6 +52,7 @@ function buildFloor(f){
  const others=f===MAXF?rooms.slice(1,-1):rooms.slice(1);
  if(f===MAXF){const r=rooms[rooms.length-1];taken.add(ix(r.cx,r.cy));addEnemy('dragon',r,r.cx,r.cy);}
  let n=BAL.spawn.enemyBase+Math.floor(f*BAL.spawn.enemyPerFloor)+rnd(0,BAL.spawn.enemyExtraMax);
+ n-=BAL.spawn.earlyCut[f-1]||0;
  if(modIs('horde'))n=Math.round(n*MM.horde.countMul);
  const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&(!EN[k].maxF||f<=EN[k].maxF)&&(!modIs('horde')||EN[k].hp<=MM.horde.maxHp));
  for(let i=0;i<n;i++){
@@ -153,6 +154,7 @@ function deathTip(){
  if(/wall|impact/.test(k))return 'Knockback into walls adds damage. Keep open floor behind you.';
  if(/shrine|curse/.test(k))return 'Shrine gambles and cursed gear cost HP. Check your HP first.';
  if(/elite/.test(k))return 'Elites are tough. Lure them into a corridor or use Flames.';
+ if(G.auto&&G.auto.used)return 'Auto never retreats or kites. Take over for packs and bosses.';   // not "you died holding...": the player did not choose when to drink
  if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP.';
  if(G.p.hp<=0&&G.inv.fire>0)return 'You died holding Flames. Use them when a crowd closes in.';
  return 'Fight in corridors and doorways so only one foe reaches you.';

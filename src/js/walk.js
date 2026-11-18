@@ -47,7 +47,7 @@ function startWalk(path,opts){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');frameSight();render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
@@ -97,21 +97,19 @@ function itemName(it){
  const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife',key:'Brass key'}[it.t];
  return base||(gearName(it)+': '+(it.tr&&TR[it.tr]?TR[it.tr].d:itemRuleShort(it)).replace(/\.$/,''));
 }
-// Stale taps. A tap lands where a foe WAS (it died to the previous tap, or it just stepped away): that must never turn into a walk. endTurn
-// calls this: every tile a foe left or died on is "stale" for BAL.ui.staleMs, and every ignored tap on it renews the window, so a burst of
-// taps at one spot attacks while something is there and then does nothing at all. Foes on the tile NOW are always attacked normally.
-function staleTrack(){
- const now=performance.now(),cur=new Set(G.enemies.map(e=>ix(e.x,e.y)));
- if(staleG!==G||staleF!==G.floor){staleG=G;staleF=G.floor;staleT.clear();enemyTilesPrev=cur;return;}
- for(const k of enemyTilesPrev)if(!cur.has(k))staleT.set(k,now+BAL.ui.staleMs);
- enemyTilesPrev=cur;
-}
+// Stale taps. A tap lands where a foe WAS: it died to the previous tap, or it stepped away while the finger was on its way down. That must never
+// turn into a walk. Rule: a tap on an EMPTY tile is ignored (no move, no turn) when (1) a foe left or died on that tile in the turn that has just
+// resolved, less than BAL.ui.staleMs ago (it is what the player aimed at), or (2) it is the tile the previous tap attacked or closed in on, less
+// than BAL.ui.burstMs after that tap (a burst of taps at one spot); every ignored burst tap extends that window. A foe standing on the tile NOW
+// is attacked as usual; any other tap acts at once.
+function markGone(x,y){if(goneT.size>64)goneT.clear();goneT.set(ix(x,y),performance.now());}
 function staleTap(tx,ty){
- const k=ix(tx,ty),t=staleT.get(k);
- if(t==null)return false;
- const now=performance.now();
- if(t<=now||enemyAt(tx,ty)){staleT.delete(k);return false;}
- staleT.set(k,now+BAL.ui.staleMs);return true;
+ const k=ix(tx,ty),now=performance.now();
+ if(enemyAt(tx,ty))return false;
+ const g=goneT.get(k);
+ if(g!=null&&now-g<BAL.ui.staleMs)return true;
+ if(lastAtk&&lastAtk.k===k&&lastAtk.g===G&&now-lastAtk.t<BAL.ui.burstMs){lastAtk.t=now;return true;}
+ return false;
 }
 function onTap(tx,ty){
  walkTok++;
@@ -167,6 +165,7 @@ function onTap(tx,ty){
   guard=null;
  }
  if(e&&G.vis[ix(tx,ty)]){
+  lastAtk={k:ix(tx,ty),t:performance.now(),g:G};
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
   // melee is straight only (up / down / left / right): a foe on a diagonal cannot hit you either. A tap never steps out of position for it.
   if(cheb(e,p)===1&&!reachOk(e)){msg('Diagonal: no strike either way. Wait, or step in line.');return;}

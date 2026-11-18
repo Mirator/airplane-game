@@ -185,7 +185,7 @@ function autoWatch(t0,f0){
  if(prog)AUTO.lastProg=G.turn;
  const idle=G.turn===t0&&G.floor===f0&&$('modal').style.display==='none';
  AUTO.idle=idle?AUTO.idle+1:0;
- if(G.turn-AUTO.lastProg>=BAL.auto.stuckTurns)return 'no progress for '+BAL.auto.stuckTurns+' turns';
+ if(G.turn-AUTO.lastProg>=BAL.auto.stuckTurns)return 'no progress for '+BAL.auto.stuckTurns+' turns'+(G.enemies.some(e=>e.t==='cultist'&&e.awake&&G.vis[ix(e.x,e.y)])?': a Cultist keeps healing its allies. Your move':'');
  if(AUTO.idle>=BAL.auto.idleTicks)return 'its actions had no effect';
  return '';
 }
@@ -287,6 +287,11 @@ function autoDecide(){
    const r=autoBfs(new Set([...dz,...tz]),false);let bk=-1,bd=1e9;
    for(const e of awake){const k=autoNextTo(r,e.x,e.y);if(k>=0&&r.dist[k]<bd){bd=r.dist[k];bk=k;}}
    if(bk>=0&&bd>0&&autoGo(r,bk,'foe'))return;
+   // no free tile gets next to any awake foe (a corridor full of them): go through them, the first step attacks whatever blocks the way
+   // (otherwise Auto walks off to explore and comes back, and never fights: the "combat stalemate" watchdog trips)
+   {const r2=autoBfs(new Set([...dz,...tz]),true);let b2=-1,d2=1e9;
+    for(const e of awake){const k=autoNextTo(r2,e.x,e.y);if(k>=0&&r2.dist[k]<d2){d2=r2.dist[k];b2=k;}}
+    if(b2>=0&&d2>0&&autoGo(r2,b2,'push'))return;}
   }
  }else AUTO.hold=0;
  autoTravel(dz,cz,tz);

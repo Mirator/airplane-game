@@ -67,7 +67,7 @@ function resolveWind(e,d){
  }else{msg('The '+d.n+"'s attack hits empty ground.");floatFx(e.x,e.y,'miss','#ccc');}
 }
 function moveEnemy(e,x,y){
- const i=ix(x,y);if(vOff>0)holdSet(e.x,e.y,vOff);   // the step is drawn after the player's own action
+ const i=ix(x,y);markGone(e.x,e.y);if(vOff>0)holdSet(e.x,e.y,vOff);   // the step is drawn after the player's own action
  if(waterSet().has(i))e.wade=1;
  if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
  e.face=[Math.sign(x-e.x),Math.sign(y-e.y)];e.x=x;e.y=y;

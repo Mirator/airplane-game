@@ -5,7 +5,8 @@ const W=30,H=30,DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
 const ix=(x,y)=>y*W+x;
 const $=id=>document.getElementById(id);
 const GG=()=>window.__dbg(),F=()=>window.__dbg.fn,A=()=>window.__dbg.api;
-const click=id=>$(id).click();
+// Wait taps are counted (a Mage that must Wait 15-25 turns per fight to refill mana is a balance problem the table cannot show otherwise)
+const click=id=>{if(id==='b_wait'&&typeof BS!=='undefined'){BS.waits=(BS.waits||0)+1;const g=GG();if(g&&g.enemies.some(e=>e.awake&&g.vis[e.y*W+e.x]))BS.waitsC=(BS.waitsC||0)+1;}$(id).click();};
 const modalVisible=()=>$('modal').style.display!=='none';
 const inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
 function walk(G,x,y){if(!inb(x,y))return false;const t=G.map[ix(x,y)];if(t===0||t===5)return false;const m=G.merchant;if(m&&m.x===x&&m.y===y)return false;return true;}
@@ -196,7 +197,8 @@ function warriorAct(G,awake,adj,hpf){
  }
  if(can('charge')){
   const ts=F().targetTiles('charge').map(c=>enemyOf(G,c)).filter(e=>e&&e.awake);
-  const t=ts.sort((a,b)=>prio(G,a)-prio(G,b)).find(e=>RANGED.has(e.t)||guarded(G,e)||e.t==='dragon'||(BIG.has(e.t)&&e.wind));
+  // a gap to close with nothing adjacent: the stun is a free first strike on anything that is not a rat / bat (those are Cleave fodder)
+  const t=ts.sort((a,b)=>prio(G,a)-prio(G,b)).find(e=>RANGED.has(e.t)||guarded(G,e)||e.t==='dragon'||(BIG.has(e.t)&&e.wind)||(!adj.length&&e.t!=='rat'&&e.t!=='bat'&&e.t!=='whelp'));
   if(t&&U('charge',t.x,t.y))return true;
  }
  return false;
@@ -402,7 +404,7 @@ function think(G){
   }
  }
  // mage: let mana come back before walking into the next room
- if(p.cls==='mage'&&p.mana<0.5*window.__dbg.gear.mmax()&&(BS.mrest||0)<BOT_CFG.mageRest&&!awake.length&&hpf>0.3){BS.mrest=(BS.mrest||0)+1;click('b_wait');return;}
+ if(p.cls==='mage'&&p.mana<0.5*window.__dbg.gear.mmax()&&(BS.mrest||0)<BOT_CFG.mageRest&&!awake.length&&hpf>0.3){BS.mrest=(BS.mrest||0)+1;BS.waitsM=(BS.waitsM||0)+1;click('b_wait');return;}
  // sleepers
  const sl=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]&&!BS.bad.has('sleeper:'+e.id));
  if(sl.length&&hpf>(sl.some(e=>e.elite)?0.75:0.55)){
@@ -460,7 +462,7 @@ function normKiller(k){
 }
 function runOne(cls,cfg){
  cfg=cfg||{};const cap=cfg.cap||12000,fcap=cfg.fcap||1600;
- BS={ignore:new Set(),shopDone:{},wait:0,rest:0,nogoal:0,bad:new Set(),loops:0,hold:0,uses:{},uses8:{},mods:[]};
+ BS={ignore:new Set(),shopDone:{},wait:0,rest:0,nogoal:0,bad:new Set(),loops:0,hold:0,uses:{},uses8:{},mods:[],waits:0,waitsC:0,waitsM:0};
  const meta=A().meta(),g0=meta.gold;
  if(!cfg.resume)F().startRun(cls);
  $('modal').style.display='none';
@@ -480,7 +482,7 @@ function runOne(cls,cfg){
  let dbg=null;if(stall){const q=GG();dbg={st:(()=>{const k=q.map.indexOf(2);return k<0?null:[k%30,(k/30)|0,q.seen[k],q.exp[k]];})(),full:(()=>{let o=[];for(let y=0;y<30;y++){let l='';for(let x=0;x<30;x++){const k=y*30+x,t=q.map[k];let c=!q.seen[k]?(t===0?' ':'?'):t===0?'#':t===2?'>':t===3?'+':t===5?'L':t===4?'-':(q.exp[k]?'.':',');if(q.traps.some(a=>a.x===x&&a.y===y&&a.rev&&!a.done))c='T';if(q.enemies.some(e=>e.x===x&&e.y===y))c='E';if(q.p.x===x&&q.p.y===y)c='@';l+=c;}o.push(l);}return o.join('\n');})(),goal:BS.goal,exp:(BS.goal&&BS.goal.t==='front')?[q.exp[BS.goal.y*30+BS.goal.x],q.map[BS.goal.y*30+BS.goal.x],q.seen[BS.goal.y*30+BS.goal.x]]:null,tre:q.treasure,mp:(()=>{let o='';for(let y=q.p.y-3;y<=q.p.y+3;y++){for(let x=q.p.x-6;x<=q.p.x+6;x++)o+=(x<0||y<0||x>29||y>29)?'#':(x===q.p.x&&y===q.p.y)?'@':['#','.','>','+','-','L'][q.map[y*30+x]];o+='/';}return o;})(),tr:BS.tr.join(' '),itl:q.items.map(i=>i.t+':'+i.x+','+i.y).join(' '),shr:q.shrine,mer:q.merchant&&[q.merchant.x,q.merchant.y],log:q.log.slice(-4),pos:[q.p.x,q.p.y],hp:q.p.hp,en:q.enemies.map(e=>[e.t,e.x,e.y,e.awake?1:0,e.hp,e.wind?1:0,!!(q.vis[e.y*30+e.x])]),items:q.items.length,keys:q.keys,pot:q.inv.pot,onStairs:q.map[q.p.y*30+q.p.x]===2,seenStairs:q.map.some((t,k)=>t===2&&q.seen[k])};A().finish('abandon');}
  G=GG();
  res={cls,floor:G.floor,won:!!G.won,turns:G.turn,killer:normKiller(G.killer),stall,lvl:G.p.lvl,kills:G.kills,perks:Object.keys(G.perks).join(','),uses:BS.uses,uses8:BS.uses8,gear:['weapon','armor','off','charm'].map(sl=>G.p.eq[sl]?G.p.eq[sl].k:'-').join('/')};
- res.mods=BS.mods.join(',');res.gold=meta.gold-g0;res.loops=BS.loops;res.dbg=dbg;
+ res.waits=BS.waits||0;res.waitsC=BS.waitsC||0;res.waitsM=BS.waitsM||0;res.mods=BS.mods.join(',');res.gold=meta.gold-g0;res.loops=BS.loops;res.dbg=dbg;
  // back to title
  const bb=$('modalBox').querySelector('button');if(bb)bb.click();
  if(!stall&&G.won)res.winOk=true;

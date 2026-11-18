@@ -61,6 +61,7 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 
 ☰ menu → 🤖 Auto play (while it runs, the top bar shows an indicator, the speed button and Stop; the map stays bare) plays the run: explore, fight with the class's four abilities, loot, gear / perk / route / shrine / merchant choices, stairs, dragon. `autoStep()` makes one decision (one turn or one dialog choice); the timer (`autoTick`, exactly one pending `setTimeout`, 1x = `BAL.auto.tickMs`) just calls it, `__dbg.auto.runSync()` loops it for the simulator and tests. Dialogs carry `data-kind` / `data-k` labels (see `showModal`) so Auto picks buttons without parsing text; a chosen button is highlighted for `BAL.auto.flashMs` before it is pressed.
 
+- The menu's Auto button states the cost first ("half gold this run. Tap again"); the second tap starts it. When a path to the foes is blocked by other foes Auto goes through them (`push`) instead of wandering off; the watchdog line names a healing Cultist when that is the reason.
 - Any tap on the map (swallowed: it never also moves you), a dialog, a bar button, a key press or a hidden page switches it off; the run save keeps `G.auto = {on, used, noticed}` but a loaded run always comes back paused.
 - Watchdog: no new tile / kill / floor / new low of enemy HP for `BAL.auto.stuckTurns` turns, or `BAL.auto.idleTicks` decisions in a row that use no turn, switches Auto off with a log line.
 - A run in which Auto made any decision banks `BAL.auto.goldMul` of its gold (`finish()`), shows "Auto run - half gold" on the recap and is tagged Auto in the Records lists (`rec[..].aruns/awins`, `meta.aruns`, `meta.dly[..].auto`). Records, the Daily and achievements count as usual.
@@ -70,7 +71,7 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 
 ```
 node build.js          # regenerate index.html
-node tests/run.js      # (or npm test) the whole suite, about 10 s on 4 cores; non-zero exit on failure
+node tests/run.js      # (or npm test) the whole suite, about 35 s on 4 cores (~125 tests; ~0.3 CPU-s of every test is just opening a page); non-zero exit on failure
 npm run mutate         # mutation check of the suite: implants ~100 realistic bugs one at a time, about 15-25 min
 node tests/sim.js      # slow balance simulator (not part of npm test), e.g. --runs 50 --seed 1
 ```
@@ -80,7 +81,7 @@ Needs Node 22 and Playwright installed globally (`require('playwright')`; Chromi
 **Running the suite.** `tests/run.js` starts one `node --test` process per test file (in parallel, one per CPU core) and prints one line per
 file plus every failing test. Inside a file the tests run concurrently, each in its own browser context (fresh localStorage / IndexedDB).
 Options: `--bail` (stop at the first failure), `--jobs N`, and file-name words (`node tests/run.js kits auto`). `TEST_CONCURRENCY=N`
-changes how many tests of one file run at once (default 4). The suite is CPU-bound (headless Chromium, ~35 core-seconds), so it gets faster
+changes how many tests of one file run at once (default 4). The suite is CPU-bound (headless Chromium, ~70 core-seconds), so it gets faster
 with cores; tests wait on conditions, never on fixed delays, and no assertion has an upper time bound, so it stays green on a loaded machine.
 
 - `tests/build.test.js` - committed `index.html` equals a fresh build; no external requests; one inline script and style.
@@ -89,6 +90,7 @@ with cores; tests wait on conditions, never on fixed delays, and no assertion ha
 - `tests/kits.test.js` - each class's four abilities with their costs, cooldowns and resource gain/decay; gear slots and rules; perks; traps; enemy behaviours (hound, ogre, guard numbers, cultist, wind-up telegraphs, dragon phases and enrage); ability-button states; an old-version run save is discarded.
 - `tests/smoke.test.js` - random play (in-page, real DOM events) at 390x844 and 1280x800: zero console/page errors, layout fits; reload + Continue restores the whole saved run field by field.
 - `tests/auto.test.js` - Auto: a floor per class, tap / key / hidden page hand control back without moving, reload resumes paused, half gold + recap label, watchdog, dialogs (gear / perk / path / shrine / merchant), one timer under rapid toggling, layout.
+- `tests/fixes.test.js`, `tests/fixes2.test.js` - the playtest / art-review fix pass, all with real pointer and keyboard input (two files so they run side by side): the camera frames every targetable or in-sight foe (portrait and 1280x800, every map edge), stale-tile and diagonal taps never walk, event dialogs ignore a tap for ~400 ms (and a tap that began before them), Escape, Explore picks up seen loot, gear card text, Auto's cost notice, the rotate hint, number merging, boss visibility, enemy-phase timing.
 - `tests/save.test.js` - run save survives `kill -9` of the browser (IndexedDB mirror), a finished run is not resurrected.
 - `tests/sim.js` - bot campaigns: win rate, death floor and killer table per class and upgrade level (options documented in its header comment, including `--hard` and `--force <modifier>`; `--botcfg '{"kite":0,"snipe":0,"choke":0}'` switches the bot's human-style tactics off for A/B runs, `--lib` swaps the bot file).
 - `tests/lib/` - shared Playwright helpers (`harness.js`) and the in-page bots.
@@ -117,8 +119,9 @@ the suite would not notice that bug: add or tighten a test (prefer an assertion 
 
 Change numbers in `src/js/balance.js` only, then `node build.js`, `node tests/run.js`, `node tests/sim.js --runs 60 --levels fresh=0,mid=800,heavy=3000` (cells under 60 runs are noise; +-6 points at 60).
 Floor modifiers: `node tests/sim.js --force <id> --levels heavy=3000 --runs 40` makes every exit on floors 2-7 offer only that modifier, which exaggerates its effect - each one should land within roughly +-10 points of the unmodified heavy win rate (the bot's route heuristic prefers safe routes, `BRANCH_SCORE` in botlib.js, so unforced runs see modifiers on only about a quarter of floors). `--hard` plays on Hard; its target is about a third to a half of the normal win rate at the same upgrade level.
-Current bot targets: fresh character about 3-5% wins; mid (800 banked gold) 10-18%; heavy (3000) 40-50%; no class more than ~1.5x another; dragon beaten about 35-50% of the time by mid characters that reach floor 8; a median win takes at most ~1400 turns. `sim.js` also prints the share of ability uses per class: if one ability is over ~60% of a class's uses the kit has failed its purpose - change costs or enemies until it is not.
+Current bot targets: fresh character about 5-8% wins; mid (800 banked gold) 10-20%; heavy (3000) 40-50%; no class more than ~1.5x another; dragon beaten about 35-50% of the time by mid characters that reach floor 8; a median win takes at most ~1400 turns. `sim.js` also prints the share of ability uses per class: if one ability is over ~60% of a class's uses the kit has failed its purpose - change costs or enemies until it is not.
 The bot (`tests/lib/botlib.js`) uses all four abilities per class (`warriorAct`, `mageAct`, `rogueAct`) and equips gear with `gscore`; teach it any new ability or item or the numbers mean nothing.
+**Early game knobs** (the start was softened without touching later floors, because XP is the currency that pays for the late game - cutting kills everywhere made heavy runs 15-25 points worse): `BAL.spawn.earlyCut` (fewer enemy groups on floors 1-2), `BAL.enemy.early` (hp / attack multiplier on floors 1-4 only), rat packs of 2-3 (XP per rat raised to match), the Ogre first appears on floor 4, the Mage's mana flow (`BAL.mana`, Nova cost / cooldown) and Charge's rage cost. Always compare against a baseline measured with the SAME bot (`--file` takes an older `index.html`); two seeds, 100+ runs per cell. `sim.js` prints Wait taps per run (all / with a foe in sight / spent resting for mana): a Mage whose best play is waiting 20 turns per fight is a balance bug.
 Help, title, ability, gear and enemy text is generated from `BAL`. The older perk / unlock descriptions (`+12 max HP` etc.) are still hand-written copies.
 
 ## Saves
@@ -127,7 +130,11 @@ Meta progress (`dcr_meta_v1`: gold, shop levels, unlocks, records, achievements,
 
 ## UI rules (declutter pass)
 
-- The map carries only the minimap and, on a modified floor, one modifier icon. Nothing may cover tiles while an ability is armed (tested).
+- The map carries only the minimap and, on a modified floor, one modifier icon. Nothing may cover tiles while an ability is armed (tested): the minimap is hidden while aiming.
+- **Camera** (`camPlan` in render.js): the player is centred, unless an armed ability has targets (or the "Enemy in sight" stop met awake foes) outside the normal view; then the camera frames the player plus all of them (pan, and zoom out down to `BAL.ui.camMinTs` = 22 px tiles; sight is 7 so a box never needs more than 15 tiles). Unframed, awake foes in sight but off screen get a red edge arrow. Taps use `view.ox / oy / ts` (the framed values), never a recomputed formula.
+- **Taps never act on what is gone.** A tap on an EMPTY tile is ignored when a foe left or died on it in the turn just resolved (< `staleMs`), or when it is the tile the previous tap attacked (< `burstMs` after the last one, renewed by each ignored tap). A foe on the tile now is attacked as usual. Melee is straight only: tapping a diagonal foe never steps (it says why); Cleave and Nova still reach diagonals.
+- **Dialog grace.** A dialog opened by a game event (level-up, gear underfoot, shrine, exit choice, merchant, end of run) ignores real taps for `BAL.ui.modalGraceMs` (400 ms) and any tap whose finger went down before it opened. Clicks made through the DOM (Auto, bots) and menus the player opened are not delayed. The test harness sets the grace to 0 (most tests tap dialogs at once); `newPage(..., {grace: true})` keeps it.
+- Landscape phones (<= 520 px tall) get a rotate hint over the game (`#rot`, CSS only; the run is untouched, Auto pauses). The first Auto tap in a run states the half-gold cost, the second starts it.
 - Bottom: four ability buttons, then Items / Explore / Wait / Stairs. Items opens `#tray` (Potion, Flames, Teleport); the tray is drawn over the log strip only.
 - Text budgets (tests/ui.test.js): class tagline <= 45 chars; ability / perk / trait / charm / off-hand / weapon / armor / modifier lines <= 55; path risk / gain <= 30. Longer rules sit behind a tap (class Details, the gear screen).
 - Names: Potion, Flames (the scroll; Fireball is the mage spell), Teleport, Upgrades (permanent, title) vs Merchant (in-run), Sound.

@@ -164,7 +164,6 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 
 /* a long dialog scrolls inside its box; its last button (Back / Leave) stays reachable at the bottom edge */
 .box>button:last-child{position:sticky;bottom:0;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}
-.ov.top{align-items:flex-start}
 /* landscape phone: the map would be a 100 px strip, so the game is covered by a rotate hint (nothing is paused or lost: the run is untouched underneath) */
 #rot{display:none}
 @media (orientation:landscape) and (max-height:520px) and (max-width:1000px){
@@ -201,7 +200,7 @@ const W=30,H=30,MAXF=8;   // map size and number of floors (floor 8 = dragon lai
 // NOTE: descriptive strings in the tables below (perk/trait/unlock text, help screen) still contain hand-written copies of
 // some numbers - update them together when changing a value.
 const BAL = {
- ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,staleMs:600,camMinTs:22},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe just left / died on does nothing for this long; camMinTs = smallest tile size when the camera zooms out to frame targets
+ ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,staleMs:350,burstMs:900,camMinTs:22},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe left / died on in the turn just resolved does nothing for this long; burstMs = repeat taps on the tile of the previous tap's target do nothing once it is empty, for this long after the last one; camMinTs = smallest tile size when the camera zooms out to frame targets
   // --- dungeon layout (mapgen.js) ---
   map: {
     span: 22,              // rooms are placed inside the top-left span x span corner of the 30x30 grid (shorter floors)
@@ -220,10 +219,12 @@ const BAL = {
   enemy: {
     hpPerFloor: 0.78, atkPerFloor: 0.73,        // +78% / +73% of base per floor above 1
     rangedHpFactor: 0.6, rangedAtkFactor: 0.7,  // ranged enemies scale slower
+    early: [1, 0.92, 0.9, 0.93],                        // extra hp / attack multiplier on floors 1-4 (a smoother start; rewards are untouched, so levels and gold keep pace)
     eliteHpMul: 2, eliteAtkMul: 1.2, eliteAtkAdd: 1
   },
   spawn: {
     enemyBase: 5, enemyPerFloor: 1.0, enemyExtraMax: 2, ratLastFloor: 5,
+    earlyCut: [2, 1],         // fewer enemy groups on floors 1 and 2 (later floors are untouched, so XP and gold keep their pace)
     goldPiles: 3, goldMin: 3, goldMax: 6, goldPerFloor: 2,
     extraPotionChance: 0.4,
     weaponChance: 0.5, weaponMin: 1, weaponMax: 2, weaponPerFloor: 0.7,
@@ -281,15 +282,15 @@ const BAL = {
   },
   // --- resources (combat.js endTurn) ---
   rage: { max: 100, dealt: 8, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
-  mana: { regen: 1, perKill: 2 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
+  mana: { regen: 1.25, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
   // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
     bash:     { cd: 6, stun: 2, stunBoss: 1, mul: 1.0 },
     cleave:   { rage: 30, mul: 1.0, cd: 0 },
-    charge:   { rage: 20, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
+    charge:   { rage: 15, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
     brace:    { rage: 35, cd: 0, hits: 3, turns: 6, reduce: 0.5, reflect: 0.5 },
     bolt:     { mana: 7, cd: 0, mul: 1.3, add: 1, range: 8 },
-    nova:     { mana: 8, cd: 3, freeze: 3, freezeBoss: 1, mul: 0.6 },
+    nova:     { mana: 7, cd: 2, freeze: 3, freezeBoss: 1, mul: 0.6 },
     blink:    { mana: 4, cd: 2, range: 5 },
     fire:     { mana: 13, cd: 0, base: 10, perFloor: 3, range: 7, radius: 1 },
     backstab: { cd: 5, mul: 2.4, weakMul: 0.5 },
@@ -389,13 +390,13 @@ const UNLOCKS=[
  {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist to level-ups.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
 ];
 const EN={
- rat:{n:'Rat',e:'rat',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
+ rat:{n:'Rat',e:'rat',hp:6,atk:2,speed:2,pack:true,group:[2,3],w:2,maxF:BAL.spawn.ratLastFloor,xp:5,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
  goblin:{n:'Goblin',e:'goblin',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
  archer:{n:'Archer',e:'archer',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
  hound:{n:'Hound',e:'hound',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
  guard:{n:'Guard',e:'guard',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield blocks front hits and shots. Flank or stun it.'},
  skeleton:{n:'Skeleton',e:'skeleton',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
- ogre:{n:'Ogre',e:'ogre',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
+ ogre:{n:'Ogre',e:'ogre',hp:26,atk:8,slowAct:true,xp:13,minF:4,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
  troll:{n:'Troll',e:'troll',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},
  cultist:{n:'Cultist',e:'cultist',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
  bat:{n:'Bat',e:'bat',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
@@ -1428,7 +1429,7 @@ let noticeOld=false,G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,
 let AC=null,flashes={},shakeUntil=0,shakeAmt=0,puffs=[],pulseUntil=0,stepAnim=null,lastPos=null,visX=0,visY=0;
 let shrineQ=false,trapConfirm=-1,bannerText='',bannerUntil=0,wsc={arr:null,set:new Set()},toastQ=[],toastBusy=false,chipHtml='';
 let gearQ=null,insp=null,lp=null,lpAt=-1e9,lpDone=false,guard=null,hpLow=false,hpLowG=null,eliteSeen=new Set(),eliteG=null;
-let claimed=new Set(),staleT=new Map(),enemyTilesPrev=new Set(),staleG=null,staleF=0,frameT=null,modalAt=0,lastDown=0,modalGrace=0;
+let claimed=new Set(),goneT=new Map(),lastAtk=null,frameT=null,modalAt=0,lastDown=0,modalGrace=0;
 
 // util.js - tiny dependency-free helpers: random (one RNG for all game logic), grid indexing, reduced-motion check.
 
@@ -1742,18 +1743,21 @@ function floatFx(x,y,text,color,big){
  const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={x:x,y:y,text:text,color:col,big:!!big,t:t,t0:t0,k:k,sz:sz,d:k==='n'&&live>4?550:LBL_MS[k],off:base,dxo:dxo,n:1};
  const w=lblW(text,sz,k),h=sz*(k==='n'?1.15:1.5),step=Math.max(0.3,h);
  let row=-1;
- for(let i=0;i<3&&row<0;i++){
-  f.off=base-i*step;
-  let hit=false;const pa=lblPos(f,t);
-  for(const g of fx){if(g.c||t>g.t+g.d||g.t>t+f.d)continue;if(k==='n'&&g.k!=='n')continue;
-   const Tc=Math.max(t,g.t),A=lblPos(f,Tc),B=lblPos(g,Tc),gw=lblBox(g),gh=g.sz*(g.k==='n'?1.15:1.5);
-   if(Math.abs(A[0]-B[0])<(w+gw)/2&&Math.abs(A[1]-B[1])<(h+gh)/2){hit=true;break;}}
-  if(!hit)row=i;
- }
- if(row<0){   // no room within the cap: the oldest label on this tile makes way
-  let old=null;for(const g of fx)if(!g.c&&g.x===x&&g.y===y&&g.k===k&&(!old||g.t<old.t))old=g;
-  if(old)fx.splice(fx.indexOf(old),1);
-  f.off=base;
+ for(let tries=0;tries<12&&row<0;tries++){
+  const own=fx.some(g=>!g.c&&g.x===x&&g.y===y&&g!==f&&t<g.t+g.d);   // the 1.2-tile cap is about a crowded tile; a clash with a neighbour's label just stacks higher
+  for(let i=0;i<(own?3:6)&&row<0;i++){
+   f.off=base-i*step;
+   let hit=false;
+   for(const g of fx){if(g.c||t>g.t+g.d||g.t>t+f.d)continue;if(k==='n'&&g.k==='a'&&g.big)continue;
+    const Tc=Math.max(t,g.t),A=lblPos(f,Tc),B=lblPos(g,Tc),gw=lblBox(g),gh=g.sz*(g.k==='n'?1.15:1.5);
+    if(Math.abs(A[0]-B[0])<(w+gw)/2&&Math.abs(A[1]-B[1])<(h+gh)/2){hit=true;break;}}
+    if(!hit)row=i;
+  }
+  if(row<0){   // no room within the cap: the oldest label on this tile makes way
+   let old=null;for(const g of fx)if(!g.c&&g.x===x&&g.y===y&&(!old||g.t<old.t))old=g;
+   if(!old){f.off=base;break;}
+   fx.splice(fx.indexOf(old),1);
+  }
  }
  fx.push(f);
 }
@@ -2345,7 +2349,7 @@ function resolveWind(e,d){
  }else{msg('The '+d.n+"'s attack hits empty ground.");floatFx(e.x,e.y,'miss','#ccc');}
 }
 function moveEnemy(e,x,y){
- const i=ix(x,y);if(vOff>0)holdSet(e.x,e.y,vOff);   // the step is drawn after the player's own action
+ const i=ix(x,y);markGone(e.x,e.y);if(vOff>0)holdSet(e.x,e.y,vOff);   // the step is drawn after the player's own action
  if(waterSet().has(i))e.wade=1;
  if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
  e.face=[Math.sign(x-e.x),Math.sign(y-e.y)];e.x=x;e.y=y;
@@ -2445,7 +2449,7 @@ function curseDrain(){
 }
 function killEnemy(e,src){
  if(e.dead)return;
- e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
+ e.dead=true;markGone(e.x,e.y);G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
  const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');puffAdd(e.x,e.y);ghostAdd(e);
  calloutDelay=d.boss?900:0;gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));calloutDelay=0;
  if(d.boss){G.won=true;return;}
@@ -2584,6 +2588,7 @@ function knock(u,dx,dy){
   if(other&&!other.dead)hitU(other,Math.max(1,Math.floor(d/2)));
   return false;
  }
+ if(!isP)markGone(u.x,u.y);
  u.x=nx;u.y=ny;
  if(isP){pickup();}else{u.wind=null;}
  return true;
@@ -2612,7 +2617,7 @@ function endTurn(){
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
- staleTrack();lowHpWatch();computeVis();save();render();
+ lowHpWatch();computeVis();save();render();
  afterModals();
 }
 
@@ -2988,7 +2993,7 @@ function gainXp(n){
 function makeEnemy(type,x,y,f){
  const d=EN[type],s=d.boss?1:1+BAL.enemy.hpPerFloor*(f-1)*(d.range?BAL.enemy.rangedHpFactor:1),sa=d.boss?1:1+BAL.enemy.atkPerFloor*(f-1)*(d.range?BAL.enemy.rangedAtkFactor:1);
  const fl=d.flat?1:s,fa=d.flat?1:sa;
- const em=enemyMul(d),hp=Math.round(d.hp*fl*em[0]),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*fa*em[1]),awake:false,cd:0,face:pick(DIRS)};
+ const em=enemyMul(d),ea=d.boss?1:(BAL.enemy.early[f-1]||1),hp=Math.round(d.hp*fl*em[0]*ea),e={id:G.nid++,t:type,x,y,hp,mhp:hp,atk:Math.round(d.atk*fa*em[1]*ea),awake:false,cd:0,face:pick(DIRS)};
  G.enemies.push(e);return e;
 }
 function stairsOk(){
@@ -3037,6 +3042,7 @@ function buildFloor(f){
  const others=f===MAXF?rooms.slice(1,-1):rooms.slice(1);
  if(f===MAXF){const r=rooms[rooms.length-1];taken.add(ix(r.cx,r.cy));addEnemy('dragon',r,r.cx,r.cy);}
  let n=BAL.spawn.enemyBase+Math.floor(f*BAL.spawn.enemyPerFloor)+rnd(0,BAL.spawn.enemyExtraMax);
+ n-=BAL.spawn.earlyCut[f-1]||0;
  if(modIs('horde'))n=Math.round(n*MM.horde.countMul);
  const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&(!EN[k].maxF||f<=EN[k].maxF)&&(!modIs('horde')||EN[k].hp<=MM.horde.maxHp));
  for(let i=0;i<n;i++){
@@ -3138,6 +3144,7 @@ function deathTip(){
  if(/wall|impact/.test(k))return 'Knockback into walls adds damage. Keep open floor behind you.';
  if(/shrine|curse/.test(k))return 'Shrine gambles and cursed gear cost HP. Check your HP first.';
  if(/elite/.test(k))return 'Elites are tough. Lure them into a corridor or use Flames.';
+ if(G.auto&&G.auto.used)return 'Auto never retreats or kites. Take over for packs and bosses.';   // not "you died holding...": the player did not choose when to drink
  if(G.inv.pot>0)return 'You died holding '+G.inv.pot+' potion'+(G.inv.pot>1?'s':'')+'. Drink at about 40% HP.';
  if(G.p.hp<=0&&G.inv.fire>0)return 'You died holding Flames. Use them when a crowd closes in.';
  return 'Fight in corridors and doorways so only one foe reaches you.';
@@ -3240,7 +3247,7 @@ function startWalk(path,opts){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');frameSight();render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
@@ -3290,21 +3297,19 @@ function itemName(it){
  const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife',key:'Brass key'}[it.t];
  return base||(gearName(it)+': '+(it.tr&&TR[it.tr]?TR[it.tr].d:itemRuleShort(it)).replace(/\.$/,''));
 }
-// Stale taps. A tap lands where a foe WAS (it died to the previous tap, or it just stepped away): that must never turn into a walk. endTurn
-// calls this: every tile a foe left or died on is "stale" for BAL.ui.staleMs, and every ignored tap on it renews the window, so a burst of
-// taps at one spot attacks while something is there and then does nothing at all. Foes on the tile NOW are always attacked normally.
-function staleTrack(){
- const now=performance.now(),cur=new Set(G.enemies.map(e=>ix(e.x,e.y)));
- if(staleG!==G||staleF!==G.floor){staleG=G;staleF=G.floor;staleT.clear();enemyTilesPrev=cur;return;}
- for(const k of enemyTilesPrev)if(!cur.has(k))staleT.set(k,now+BAL.ui.staleMs);
- enemyTilesPrev=cur;
-}
+// Stale taps. A tap lands where a foe WAS: it died to the previous tap, or it stepped away while the finger was on its way down. That must never
+// turn into a walk. Rule: a tap on an EMPTY tile is ignored (no move, no turn) when (1) a foe left or died on that tile in the turn that has just
+// resolved, less than BAL.ui.staleMs ago (it is what the player aimed at), or (2) it is the tile the previous tap attacked or closed in on, less
+// than BAL.ui.burstMs after that tap (a burst of taps at one spot); every ignored burst tap extends that window. A foe standing on the tile NOW
+// is attacked as usual; any other tap acts at once.
+function markGone(x,y){if(goneT.size>64)goneT.clear();goneT.set(ix(x,y),performance.now());}
 function staleTap(tx,ty){
- const k=ix(tx,ty),t=staleT.get(k);
- if(t==null)return false;
- const now=performance.now();
- if(t<=now||enemyAt(tx,ty)){staleT.delete(k);return false;}
- staleT.set(k,now+BAL.ui.staleMs);return true;
+ const k=ix(tx,ty),now=performance.now();
+ if(enemyAt(tx,ty))return false;
+ const g=goneT.get(k);
+ if(g!=null&&now-g<BAL.ui.staleMs)return true;
+ if(lastAtk&&lastAtk.k===k&&lastAtk.g===G&&now-lastAtk.t<BAL.ui.burstMs){lastAtk.t=now;return true;}
+ return false;
 }
 function onTap(tx,ty){
  walkTok++;
@@ -3360,6 +3365,7 @@ function onTap(tx,ty){
   guard=null;
  }
  if(e&&G.vis[ix(tx,ty)]){
+  lastAtk={k:ix(tx,ty),t:performance.now(),g:G};
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
   // melee is straight only (up / down / left / right): a foe on a diagonal cannot hit you either. A tap never steps out of position for it.
   if(cheb(e,p)===1&&!reachOk(e)){msg('Diagonal: no strike either way. Wait, or step in line.');return;}
@@ -3564,6 +3570,7 @@ function showHelp(back){
    r('map','Minimap','Tap for the big map.'))+
   sec('Fighting',
    r('guard','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them or hit from behind.')+
+   r('ab_cleave','Straight lines','Melee and Bash go up, down, left, right. Cleave and Nova also reach diagonals. Foes cannot strike diagonally either.')+
    r('ab_bash','Knockback','Pushing a foe into a wall, door or unit adds damage.')+
    r('door','Doors','Fight in doorways so one foe reaches you.')+
    r('st_sleep','Unaware foes','Marked z. Rogues and daggers get sneak bonuses.')+
@@ -4223,7 +4230,7 @@ function autoWatch(t0,f0){
  if(prog)AUTO.lastProg=G.turn;
  const idle=G.turn===t0&&G.floor===f0&&$('modal').style.display==='none';
  AUTO.idle=idle?AUTO.idle+1:0;
- if(G.turn-AUTO.lastProg>=BAL.auto.stuckTurns)return 'no progress for '+BAL.auto.stuckTurns+' turns';
+ if(G.turn-AUTO.lastProg>=BAL.auto.stuckTurns)return 'no progress for '+BAL.auto.stuckTurns+' turns'+(G.enemies.some(e=>e.t==='cultist'&&e.awake&&G.vis[ix(e.x,e.y)])?': a Cultist keeps healing its allies. Your move':'');
  if(AUTO.idle>=BAL.auto.idleTicks)return 'its actions had no effect';
  return '';
 }
@@ -4325,6 +4332,11 @@ function autoDecide(){
    const r=autoBfs(new Set([...dz,...tz]),false);let bk=-1,bd=1e9;
    for(const e of awake){const k=autoNextTo(r,e.x,e.y);if(k>=0&&r.dist[k]<bd){bd=r.dist[k];bk=k;}}
    if(bk>=0&&bd>0&&autoGo(r,bk,'foe'))return;
+   // no free tile gets next to any awake foe (a corridor full of them): go through them, the first step attacks whatever blocks the way
+   // (otherwise Auto walks off to explore and comes back, and never fights: the "combat stalemate" watchdog trips)
+   {const r2=autoBfs(new Set([...dz,...tz]),true);let b2=-1,d2=1e9;
+    for(const e of awake){const k=autoNextTo(r2,e.x,e.y);if(k>=0&&r2.dist[k]<d2){d2=r2.dist[k];b2=k;}}
+    if(b2>=0&&d2>0&&autoGo(r2,b2,'push'))return;}
   }
  }else AUTO.hold=0;
  autoTravel(dz,cz,tz);
@@ -4617,7 +4629,7 @@ function frameSight(){if(G)frameT={g:G,t:G.turn,f:G.floor};}
 function seenAwake(){return G.enemies.filter(e=>e.awake&&!e.dead&&G.vis[ix(e.x,e.y)]);}
 function camPlan(ts0){
  const p=G.p,cw=view.cw,ch=view.ch;let pts=null;
- if(armed)pts=targetTiles(armed);
+ if(armed)pts=view.tg;
  else if(frameOn())pts=seenAwake().map(e=>[e.x,e.y]);
  if(!pts||!pts.length)return null;
  const top=$('chips').children.length?52:0;   // the modifier chip sits over the top-left corner
@@ -4648,7 +4660,7 @@ function drawEdgeMarks(ox,oy,ts){
 }
 // targeting: enemy targets get a bracket reticle; ground abilities get their reachable area as one shape with a single outline
 function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
- const col={bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=targetTiles(armed),ground=ABIL[armed].tg==='tile';
+ const col={bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile';
  if(ground){
   const set=new Set(tg.map(t=>ix(t[0],t[1])));
   ctx.globalAlpha=0.14;ctx.fillStyle=col;for(const t of tg)ctx.fillRect(ox+t[0]*ts,oy+t[1]*ts,ts,ts);ctx.globalAlpha=1;
@@ -4681,6 +4693,7 @@ function render(){
  const now=performance.now(),p=G.p,th=themeOf(G.floor,G.variant),rm=rmo();
  let shk=false;
  if(now<shakeUntil&&!rm){const sa=shakeAmt*(shakeUntil-now)/220;ctx.translate((Math.random()*2-1)*sa,(Math.random()*2-1)*sa);ctx.fillStyle='#07070d';ctx.fillRect(-12,-12,view.cw+24,view.ch+24);shk=true;}
+ view.tg=armed?targetTiles(armed):null;   // the aimed ability's tiles, computed once per frame (camera and reticles both use them)
  const ts0=Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5)),cam=camPlan(ts0);
  const ts=cam?cam.ts:ts0;
  const fox=cam?cam.ox:Math.round(view.cw/2-(p.x+0.5)*ts),foy=cam?cam.oy:Math.round(view.ch/2-(p.y+0.5)*ts);
@@ -4910,7 +4923,7 @@ function render(){
  if(drawVfx(ox,oy,ts,now))more0=true;
  // soft light around the player: the far edge of the screen fades into the dark
  {const fb=fogBmp(ts);ctx.drawImage(fb,Math.round(ox+(vx+0.5)*ts-view.cw/2-ts),Math.round(oy+(vy+0.5)*ts-view.ch/2-ts),view.cw+2*ts,view.ch+2*ts);}
- if(cam){view.mm=null;}else{drawEdgeMarks(ox,oy,ts);drawMini(ts);}   // framing a fight: nothing (not even the minimap) covers a tile
+ if(cam||armed){view.mm=null;}else{drawEdgeMarks(ox,oy,ts);drawMini(ts);}   // aiming or framing a fight: nothing (not even the minimap) covers a tile
  // the boss bar lives in a fixed strip at the top of the map, never under a neighbour
  if(boss){
   const e=boss.e,fr=Math.max(0,Math.min(1,e.hp/e.mhp)),col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,nm0=EN[e.t].n,chipsW=($('chips').children.length?52:0);
@@ -4979,8 +4992,8 @@ showTitle();
 syncRunFromIdb();
 window.__dbg=function(){return G;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
-window.__dbg.fn={genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){const s=dangerSet();for(const k of crackSet())s.add(k);return Array.from(s);},goDown:goDown,rollOpts:rollOpts,crackTick:crackTick,buildFloor:buildFloor,computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,hurtPlayer:hurtPlayer,hurtEnemy:hurtEnemy,use:useAbility,whyNot:whyNot,targetTiles:targetTiles,reachOk:reachOk,reachAttack:reachAttack,playerAttack:playerAttack,toggleAbility:toggleAbility,summonWhelps:summonWhelps,bossPhase:bossPhase,dim:{W:W,H:H,MAXF:MAXF}};
-window.__dbg.api={floatFx:floatFx,labelBoxes:function(T){return fx.filter(f=>!f.c&&T>=f.t&&T<f.t+f.d).map(f=>{const p=lblPos(f,T),w=lblW(f.text,f.sz,f.k),h=f.sz*(f.k==='n'?1.15:1.5);return {text:f.text,k:f.k,l:p[0]-w/2,r:p[0]+w/2,t:p[1]-h/2,b:p[1]+h/2};});},flash:function(){return {full:flashFull,amt:flashAmt,on:flashUntil>performance.now()};},SHOP:SHOP,cost:cost,sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,springPlayer:springPlayer,springEnemy:springEnemy,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,wakeAll:wakeAll,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt,trapAt:trapAt};
+window.__dbg.fn={showPerk:showPerk,onTap:onTap,render:render,frameSight:frameSight,genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){const s=dangerSet();for(const k of crackSet())s.add(k);return Array.from(s);},goDown:goDown,rollOpts:rollOpts,crackTick:crackTick,buildFloor:buildFloor,computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,hurtPlayer:hurtPlayer,hurtEnemy:hurtEnemy,use:useAbility,whyNot:whyNot,targetTiles:targetTiles,reachOk:reachOk,reachAttack:reachAttack,playerAttack:playerAttack,toggleAbility:toggleAbility,summonWhelps:summonWhelps,bossPhase:bossPhase,dim:{W:W,H:H,MAXF:MAXF}};
+window.__dbg.api={vt:function(){const n=performance.now();return {pflash:flashes.p?flashes.p-n:null,labels:fx.map(f=>({text:f.text,c:!!f.c,at:f.t-n,x:f.x,y:f.y}))};},floatFx:floatFx,labelBoxes:function(T){return fx.filter(f=>!f.c&&T>=f.t&&T<f.t+f.d).map(f=>{const p=lblPos(f,T),w=lblW(f.text,f.sz,f.k),h=f.sz*(f.k==='n'?1.15:1.5);return {text:f.text,k:f.k,l:p[0]-w/2,r:p[0]+w/2,t:p[1]-h/2,b:p[1]+h/2};});},flash:function(){return {full:flashFull,amt:flashAmt,on:flashUntil>performance.now()};},SHOP:SHOP,cost:cost,sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,springPlayer:springPlayer,springEnemy:springEnemy,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,wakeAll:wakeAll,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt,trapAt:trapAt};
 window.__dbg.mods={MODS:MODS,ACH:ACH,HARD_RULES:HARD_RULES,showBranch:showBranch,earn:earn,checkAchievements:checkAchievements,scoreOf:scoreOf,recordRun:recordRun,recOf:recOf,hardUnlocked:hardUnlocked,hardOn:hardOn,todayKey:todayKey,toast:toast,showRecords:showRecords,showAchievements:showAchievements,showDailyPicker:function(){showClassPicker({daily:true});},waterSet:function(){return Array.from(waterSet());},hashStr:hashStr,setForce:function(id){dbgForce=id||null;}};
 window.__dbg.auto={state:function(){return AUTO;},start:function(sync){return autoStart(!!sync);},stop:function(why){autoStop(why||'stopped');},toggle:autoToggle,speed:autoSpeedCycle,step:function(){return autoStep(true);},tick:autoTick,
  runSync:function(cap){cap=cap||12000;let n=0;while(AUTO.on&&G&&!G.over&&n++<cap)autoStep(true);return n;},timers:function(){return AUTO.tm?1:0;},choose:autoChoose,gearScore:autoGearScore,watch:autoWatch};

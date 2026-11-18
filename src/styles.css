@@ -157,7 +157,6 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 
 /* a long dialog scrolls inside its box; its last button (Back / Leave) stays reachable at the bottom edge */
 .box>button:last-child{position:sticky;bottom:0;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}
-.ov.top{align-items:flex-start}
 /* landscape phone: the map would be a 100 px strip, so the game is covered by a rotate hint (nothing is paused or lost: the run is untouched underneath) */
 #rot{display:none}
 @media (orientation:landscape) and (max-height:520px) and (max-width:1000px){

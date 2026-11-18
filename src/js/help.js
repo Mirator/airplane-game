@@ -21,6 +21,7 @@ function showHelp(back){
    r('map','Minimap','Tap for the big map.'))+
   sec('Fighting',
    r('guard','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them or hit from behind.')+
+   r('ab_cleave','Straight lines','Melee and Bash go up, down, left, right. Cleave and Nova also reach diagonals. Foes cannot strike diagonally either.')+
    r('ab_bash','Knockback','Pushing a foe into a wall, door or unit adds damage.')+
    r('door','Doors','Fight in doorways so one foe reaches you.')+
    r('st_sleep','Unaware foes','Marked z. Rogues and daggers get sneak bonuses.')+

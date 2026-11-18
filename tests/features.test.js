@@ -75,10 +75,11 @@ describe('features', { concurrency: CONC }, () => {
         // rich: doubled gold on pickup
         F.newFloor(3, { mod: 'rich', v: 0 }); { const G = g(); clear(); G.items.length = 0; G.p.goldMul = 1; const g0 = G.p.gold; G.items.push({ x: G.p.x, y: G.p.y, t: 'gold', v: 10 }); F.tryMove(0, 0); o.richGold = G.p.gold - g0; }
         // flooded: stepping into water gives the awake enemy a free move
-        F.newFloor(4, { mod: 'flooded', v: 0 }); { const G = g(); clear(); const w = new Set(G.water); let step = null;
-          for (let y = 1; y < 29 && !step; y++) for (let x = 1; x < 29 && !step; x++) { if (!w.has(y * 30 + x)) continue; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const px = x + dx, py = y + dy; if (G.map[py * 30 + px] === 1 && !w.has(py * 30 + px)) { step = { px, py, dx: -dx, dy: -dy }; break; } } }
+        let step = null; for (let tries = 0; tries < 6 && !step; tries++) { F.newFloor(4, { mod: 'flooded', v: 0 }); const G = g(); clear(); const w = new Set(G.water);
+          for (let y = 1; y < 29 && !step; y++) for (let x = 1; x < 29 && !step; x++) { if (!w.has(y * 30 + x)) continue; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const px = x + dx, py = y + dy; if (G.map[py * 30 + px] === 1 && !w.has(py * 30 + px)) { step = { px, py, dx: -dx, dy: -dy }; break; } } } }
+        { const G = g(); const w = new Set(G.water);
           o.waterFound = !!step;
-          if (step) { G.p.x = step.px; G.p.y = step.py; G.items.length = 0; G.traps.length = 0; const e = F.makeEnemy('goblin', step.px + (step.dx === 0 ? 3 : -step.dx * 3), step.py, 4); e.awake = true; G.enemies = [e]; F.computeVis(); F.tryMove(step.dx, step.dy); o.waded = /slog through the water/.test(G.log.join('|')); } }
+          const w2 = new Set(G.water); if (step) { G.p.x = step.px; G.p.y = step.py; G.items.length = 0; G.traps.length = 0; G.seen.fill(true); let cand = null; for (let y = 1; y < 29 && !cand; y++) for (let x = 1; x < 29 && !cand; x++) { const d = Math.abs(x - step.px) + Math.abs(y - step.py); if (d >= 2 && d <= 5 && G.map[y * 30 + x] === 1 && !w2.has(y * 30 + x) && !(x === step.px + step.dx && y === step.py + step.dy) && (F.bfsPath(step.px, step.py, x, y) || []).length > 0) cand = [x, y]; } const e = F.makeEnemy('goblin', cand[0], cand[1], 4); e.awake = true; G.enemies = [e]; F.computeVis(); F.tryMove(step.dx, step.dy); o.waded = /slog through the water/.test(G.log.join('|')); } }
         // unstable: cracks appear, collapse hurts the one standing on them, not the one who moved away
         F.newFloor(4, { mod: 'unstable', v: 0 }); { const G = g(); clear(); G.p.hp = G.p.mhp; for (let i = 0; i < 8; i++) F.endTurn(); o.cracks = G.cracks.length;
           G.p.hp = G.p.mhp; G.cracks = [{ x: G.p.x, y: G.p.y, t: 1 }]; const h = G.p.hp; F.endTurn(); o.collapseDmg = h - G.p.hp; o.cracksLeft = G.cracks.length; }
@@ -290,7 +291,7 @@ describe('features', { concurrency: CONC }, () => {
       // record: end the run, reload, the Daily button reports the result
       await A.x.page.evaluate(() => { window.__dbg.api.finish('dead'); });
       await reload(A.x.page);
-      assert.match(await A.x.page.locator('#btnDaily').textContent(), /best floor \d+ - \d+ pts/);
+      assert.match(await A.x.page.locator('#btnDaily').textContent(), /floor \d+ · \d+ pts/);
       const m = await A.x.page.evaluate(() => JSON.parse(localStorage.getItem('dcr_meta_v1')).dly);
       assert.equal(Object.keys(m).length, 1); assert.equal(m['2026-06-15'].att, 1);
       for (const x of [A.x, B.x]) assert.deepEqual(x.errors, []);
