@@ -354,12 +354,12 @@ const BAL = {
   meta: { startScrollFireChance: 0.5 },
   // --- permanent upgrades (UPG / PAIRS below, idle.js). price of level l+1 (l owned) = base*(l+1)*(1+l*rise), the old shop curve. A pair's variant can be swapped for switchFee once the pair has a level.
   // legacy = what one level of each of the old flat boosts gave (migration keeps an old save's stats exactly, see save.js).
-  upg: { rise: 0.3, switchFee: 50, legacy: { hp: 8, atk: 1, def: 1, pot: 1, goldp: 15 } },
+  upg: { rise: 0.3, lateRise: 0.8, switchFee: 50, legacy: { hp: 8, atk: 1, def: 1, pot: 1, goldp: 15 } },
   run: { winBonus: 150 },
   // --- Auto (autopilot, auto.js). Deliberately a simple player: no kiting, no retreating to regenerate ---
   auto: {
     // Auto no longer banks run gold: the time it plays (real ms, or virtual ms in the simulator) is paid at the 30-minute expedition rate (BAL.exp, EXP_TABLE).
-    // A run that was only partly Auto keeps its manual share of the run gold. Heat multiplies both.
+    // A run that was only partly Auto keeps its manual share of the run gold (Heat multiplies that share, not the idle pay).
     tickMs: 250,                  // 1x = one decision per tick = 4 turns per second; speeds below divide this
     speeds: [1, 2, 4],
     flashMs: 400,                 // an Auto-resolved dialog stays on screen this long at 1x so a watcher sees the choice
@@ -414,25 +414,27 @@ const BAL = {
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
 // the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give much less (diminishing returns); int = whole numbers (half levels round). pct = a percentage. =====
 const UPG=[
- {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,1.5]],int:1},
- {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1],[1,0.5]],int:1},
- {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1],[1,0.5]],int:1},
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,1.5]],int:1,late:5},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1],[1,0.5]],int:1,late:3},
+ {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1],[1,0.5]],int:1,late:3},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
- {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1},
- {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,1.5]],pct:1}
+ {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1,late:4},
+ {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,1.5]],pct:1,late:0}
 ];
 function upMax(u){return u.max||u.steps.reduce((a,s)=>a+s[0],0);}
 function upVal(u,l){let v=0,r=l;for(const s of u.steps){const t=Math.min(r,s[0]);v+=t*s[1];r-=t;if(r<=0)break;}return v;}
-function upCost(u,l){return Math.round(u.base*(l+1)*(1+l*BAL.upg.rise));}
+// u.late = first level whose price also carries the late surcharge (1 + lateRise per level from there): the early levels keep the old shop prices
+function upCost(u,l){const f=u.base*(l+1)*(1+l*BAL.upg.rise);return Math.round(u.late!=null&&l>=u.late?f*(1+BAL.upg.lateRise*(l-u.late+1)):f);}
 // either / or pairs: one shared level counter, the chosen variant decides what each level gives. f(p, l, G) applies it at the start of a run.
+const r1=x=>Math.round(x*10)/10;
 const PAIRS=[
- {k:'edge',n:'Edge',base:60,max:3,v:[
-  {id:'keen',n:'Keen',d:l=>'+'+l+'% crit',f:(p,l)=>{p.crit+=0.01*l;}},
-  {id:'vicious',n:'Vicious',d:l=>'+'+(1.2*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.012*l;}}]},
- {k:'vigor',n:'Vigor',base:60,max:3,v:[
-  {id:'regrow',n:'Regrowth',d:l=>'heal '+(1.5*l)+'% HP on each new floor',f:(p,l)=>{p.renew+=0.015*l;}},
-  {id:'drink',n:'Lifedrinker',d:l=>'heal '+l+'% of damage dealt',f:(p,l)=>{p.life+=0.01*l;}}]},
- {k:'prep',n:'Scrolls',base:70,max:1,v:[
+ {k:'edge',n:'Edge',base:60,max:3,late:0,v:[
+  {id:'keen',n:'Keen',d:l=>'+'+r1(l)+'% crit',f:(p,l)=>{p.crit+=0.01*l;}},
+  {id:'vicious',n:'Vicious',d:l=>'+'+r1(1.2*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.012*l;}}]},
+ {k:'vigor',n:'Vigor',base:60,max:3,late:0,v:[
+  {id:'regrow',n:'Regrowth',d:l=>r1(1.5*l)+'% HP healed per floor',f:(p,l)=>{p.renew+=0.015*l;}},
+  {id:'drink',n:'Lifedrinker',d:l=>r1(l)+'% of damage healed',f:(p,l)=>{p.life+=0.01*l;}}]},
+ {k:'prep',n:'Scrolls',base:70,max:1,late:0,v:[
   {id:'flames',n:'Flames',d:l=>'+'+l+' starting Flames',f:(p,l,g)=>{g.inv.fire+=l;}},
   {id:'tele',n:'Teleport',d:l=>'+'+l+' starting Teleport',f:(p,l,g)=>{g.inv.tele+=l;}}]}
 ];
@@ -561,7 +563,13 @@ const OFF={
  lens:{cls:'mage',n:'Piercing Lens',e:'lens',ab:'bolt'},
  dagger2:{cls:'rogue',n:'Second Dagger',e:'dagger2',ab:'backstab'},
  satchel:{cls:'rogue',n:"Smoker's Satchel",e:'satchel',ab:'smoke'},
- quiver:{cls:'rogue',n:'Deep Quiver',e:'quiver',ab:'knife'}
+ quiver:{cls:'rogue',n:'Deep Quiver',e:'quiver',ab:'knife'},
+ garrote:{cls:'rogue',n:'Garrote',e:'garrote',ab:'backstab',bp:'c'},
+ focus:{cls:'mage',n:'Focus Crystal',e:'focus',ab:'bolt',bp:'c'},
+ warbanner:{cls:'warrior',n:'War Banner',e:'warbanner',ab:'cleave',bp:'r'},
+ gauntlet:{cls:'warrior',n:'Ram Gauntlet',e:'gauntlet',ab:'charge',bp:'r'},
+ shard:{cls:'mage',n:'Mirror Shard',e:'shard',ab:'blink',bp:'r'},
+ caltrops:{cls:'rogue',n:'Caltrops',e:'caltrops',ab:'smoke',bp:'r'}
 };
 // charms: one passive rule each (numbers: BAL.charm)
 const CH={
@@ -625,8 +633,8 @@ const HARD_RULES=(function(){
 })();
 // ===== Expedition outcome table: per class, per upgrade power (gold spent on boosts), measured with the bot (tests/sim.js). Regenerate with `node tests/calibrate.js`. =====
 // reach[f-1] = share of runs that ended on floor f (index 8 = won); gold / kills = mean per run ending there; turns = mean turns per run; gph = manual gold per hour (turns x BAL.exp.turnSec)
-// BEGIN EXP_TABLE
-const EXP_TABLE={warrior:[{pw:0,reach:[.1,.1,.1,.1,.1,.2,.1,.1,.1],gold:[20,40,60,80,100,120,140,160,300],kills:[5,10,15,20,25,30,35,40,60],turns:700,gph:500}],mage:[{pw:0,reach:[.1,.1,.1,.1,.1,.2,.1,.1,.1],gold:[20,40,60,80,100,120,140,160,300],kills:[5,10,15,20,25,30,35,40,60],turns:700,gph:500}],rogue:[{pw:0,reach:[.1,.1,.1,.1,.1,.2,.1,.1,.1],gold:[20,40,60,80,100,120,140,160,300],kills:[5,10,15,20,25,30,35,40,60],turns:700,gph:500}]};
+// BEGIN EXP_TABLE (generated by tests/calibrate.js: runs 60 per cell, seed 1, levels fresh=0,mid=800,heavy=3000,high=9000,maxed=999999)
+const EXP_TABLE={warrior:[{pw:0,reach:[0,0.03,0.08,0.25,0.32,0.13,0.05,0.1,0.03],gold:[326,50,142,150,250,383,417,775,1384],kills:[0,20,27,44,61,85,103,128,166],turns:660,gph:1480},{pw:560,reach:[0,0,0,0.07,0.24,0.24,0.14,0.19,0.14],gold:[506,506,506,123,283,512,506,653,875],kills:[0,0,0,46,63,87,104,131,153],turns:914,gph:1660},{pw:2054,reach:[0,0,0,0.02,0.14,0.1,0.07,0.22,0.46],gold:[643,643,643,95,263,435,358,536,917],kills:[0,0,0,35,64,86,99,134,152],turns:1075,gph:1796},{pw:6473,reach:[0,0,0,0.03,0.08,0.07,0.08,0.31,0.42],gold:[860,860,860,321,283,679,498,942,1061],kills:[0,0,0,43,65,83,111,136,153],turns:1070,gph:2412},{pw:16554,reach:[0,0,0,0.05,0,0.08,0.05,0.25,0.57],gold:[1049,1049,1049,209,1049,520,486,1048,1257],kills:[0,0,0,45,0,82,100,136,152],turns:1087,gph:2896}],mage:[{pw:0,reach:[0,0,0.02,0.17,0.23,0.15,0.12,0.27,0.05],gold:[428,428,121,139,241,328,361,784,932],kills:[0,0,31,45,59,85,113,136,138],turns:807,gph:1593},{pw:560,reach:[0,0,0,0.08,0.2,0.07,0.07,0.33,0.25],gold:[610,610,610,154,247,462,432,782,909],kills:[0,0,0,51,63,76,115,141,158],turns:929,gph:1968},{pw:2054,reach:[0,0,0,0.02,0.07,0.05,0.02,0.27,0.57],gold:[706,706,706,149,259,431,397,552,876],kills:[0,0,0,38,52,86,104,141,147],turns:1062,gph:1995},{pw:6473,reach:[0,0,0,0.02,0.03,0.05,0.05,0.15,0.7],gold:[1035,1035,1035,124,297,447,649,974,1174],kills:[0,0,0,49,53,89,101,139,151],turns:1113,gph:2788},{pw:16554,reach:[0,0,0,0,0.05,0.03,0.03,0.22,0.67],gold:[1145,1145,1145,1145,435,574,906,964,1298],kills:[0,0,0,0,67,78,129,121,150],turns:1116,gph:3079}],rogue:[{pw:0,reach:[0,0.23,0.1,0.33,0.2,0.05,0.03,0.02,0.03],gold:[176,47,145,136,223,320,383,240,845],kills:[0,15,29,42,56,82,112,119,166],turns:468,gph:1130},{pw:560,reach:[0,0,0.02,0.17,0.32,0.15,0.05,0.13,0.17],gold:[503,503,93,166,266,453,812,1015,872],kills:[0,0,33,45,62,85,108,135,146],turns:847,gph:1781},{pw:2054,reach:[0,0,0,0.07,0.08,0.23,0.1,0.08,0.43],gold:[683,683,683,134,216,522,434,1137,913],kills:[0,0,0,43,61,85,103,152,146],turns:986,gph:2077},{pw:6473,reach:[0,0,0,0.03,0.1,0.1,0.05,0.19,0.53],gold:[845,845,845,117,303,486,576,883,1078],kills:[0,0,0,43,69,85,96,132,146],turns:1075,gph:2356},{pw:16554,reach:[0,0,0,0.03,0.02,0.07,0,0.22,0.66],gold:[1281,1281,1281,160,310,645,1281,918,1542],kills:[0,0,0,44,54,91,0,141,150],turns:1094,gph:3510}]};
 // END EXP_TABLE
 // ===== Heat 0-5. HEAT[h] = the rule added at that level (Heat 1 is Hard: HARD_RULES lists its parts). Numbers: BAL.heat / BAL.hard =====
 const HEAT=(function(){
@@ -1758,6 +1766,7 @@ if(hadMeta&&!(+metaRaw.mv>=2)){
   const l=Math.min(n,upMax(u)),was=n*g,now=u.int?Math.round(upVal(u,l)):upVal(u,l);
   meta.up[u.k]=l;if(was>now)meta.leg[u.k]=was-now;
  }
+ for(const k of ['hp','atk','def','pot','goldp','hardOn'])delete meta[k];   // the flat fields of the old shop and the Hard toggle: replaced by up / leg / heatSel
  if(+metaRaw.wins>=1)meta.heat=Math.max(+meta.heat||0,1);
  if(metaRaw.hardOn&&+metaRaw.wins>=1)meta.heatSel=1;
  migrated=true;
@@ -1901,7 +1910,7 @@ function upText(it){
   return '+'+v+u+(n?' · next +'+n:' · MAX');
  }
  const va=pairVar(it);
- return (l?va.d(l):'no effect yet')+(l<mx?' · next '+va.d(l+1).replace(/^\+/,'+'):' · MAX');
+ return (l?va.d(l):'no effect yet')+(l<mx?'':' · MAX');
 }
 
 // ---------- Heat ----------
@@ -1944,10 +1953,8 @@ function bpRunDrop(won){
 }
 function bpIcon(b){return b.t==='perk'?'p_'+b.id:b.e;}
 function bpDesc(b){
- if(b.t==='weapon')return wpRule(b.id,false);
- if(b.t==='off')return offRule(b.id);
- if(b.t==='charm')return charmRule(b.id);
- const pk=perkById(b.id);return pk?pk.d:'';
+ const d=b.t==='weapon'?wpRule(b.id,false):b.t==='off'?offRule(b.id):b.t==='charm'?charmRule(b.id):(perkById(b.id)||{d:''}).d;
+ return d.replace(/\.$/,'');
 }
 // loot pools only contain unlocked blueprints
 function bpTable(T){const o={};for(const k in T)if(!T[k].bp||bpOn(k))o[k]=T[k];return o;}
@@ -3573,7 +3580,7 @@ function finish(kind){
  const won=kind==='win',dead=kind==='dead',hard=!!G.hard,heat=gHeat(G),aut=!!(G.auto&&G.auto.used);
  // Auto: the time it played is paid at the idle rate; only the turns the player played themselves keep their share of the run gold
  const bonus=won?BAL.run.winBonus:0,share=aut?Math.min(1,((G.auto.t|0)+(AUTO.self?Math.max(0,G.turn-AUTO.t0):0))/Math.max(1,G.turn)):0,idle=aut?autoPay(G):0;
- const banked=Math.round(((p.gold+bonus)*(1-share)+idle)*heatGold(heat));
+ const banked=Math.round((p.gold+bonus)*(1-share)*heatGold(heat)+idle);   // Heat multiplies run gold only: idle pay is by the clock, not by the dungeon
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
@@ -4606,8 +4613,8 @@ cv.addEventListener('contextmenu',function(ev){
 const AUTO_SPEED_KEY='dcr_auto_speed',RANGED=['cultist','archer','warlock'];
 const AUTO={on:false,tm:null,pick:null,speed:1,self:false,uiKey:'',ignore:new Set(),shopped:{},bad:new Set(),uses:{},uses8:{},ticks:0,modals:0,idle:0,mrun:0,hold:0,lastProg:0,pf:0,pexp:0,hp:1e9,kills:0,err:null,lastStop:''};
 try{const s=+localStorage.getItem(AUTO_SPEED_KEY);if(BAL.auto.speeds.indexOf(s)>=0)AUTO.speed=s;}catch(e){}
-// what the player is told about Auto's pay: gold per hour (the 30-minute expedition rate at the current upgrade power, times Heat)
-function autoRateText(){const c=G&&G.p?G.p.cls:'warrior';return '~'+Math.round(autoRate(c)*heatGold(gHeat(G)))+' gold/h';}
+// what the player is told about Auto's pay: gold per hour (the 30-minute expedition rate at the current upgrade power; Heat does not change it)
+function autoRateText(){const c=G&&G.p?G.p.cls:'warrior';return '~'+Math.round(autoRate(c))+' gold/h';}
 function autoDelay(flash){return Math.max(15,(flash?BAL.auto.flashMs:BAL.auto.tickMs)/AUTO.speed);}
 // exactly one pending timer, ever: scheduling always cancels the previous one
 function autoSchedule(ms){if(AUTO.tm)clearTimeout(AUTO.tm);AUTO.tm=setTimeout(autoTick,ms);}

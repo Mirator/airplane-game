@@ -166,7 +166,7 @@ function finish(kind){
  const won=kind==='win',dead=kind==='dead',hard=!!G.hard,heat=gHeat(G),aut=!!(G.auto&&G.auto.used);
  // Auto: the time it played is paid at the idle rate; only the turns the player played themselves keep their share of the run gold
  const bonus=won?BAL.run.winBonus:0,share=aut?Math.min(1,((G.auto.t|0)+(AUTO.self?Math.max(0,G.turn-AUTO.t0):0))/Math.max(1,G.turn)):0,idle=aut?autoPay(G):0;
- const banked=Math.round(((p.gold+bonus)*(1-share)+idle)*heatGold(heat));
+ const banked=Math.round((p.gold+bonus)*(1-share)*heatGold(heat)+idle);   // Heat multiplies run gold only: idle pay is by the clock, not by the dungeon
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);

@@ -362,7 +362,7 @@ describe('features', { concurrency: CONC }, () => {
       const r = await page.evaluate(() => {
         const D = window.__dbg, F = D.fn, m = D.api.meta(), B = D.tables.BAL, out = {};
         const bank = (kind, gold, hard) => {
-          m.hardOn = hard ? 1 : 0; D.mods.ACH.forEach((a) => { m.ach[a.id] = 1; });   // no achievement gold mixed into the numbers
+          m.heatSel = hard ? 1 : 0; D.mods.ACH.forEach((a) => { m.ach[a.id] = 1; });   // no achievement gold mixed into the numbers
           F.startRun('warrior'); document.getElementById('modal').style.display = 'none';
           const G = D(); G.p.gold = gold; if (kind === 'win') G.won = true;
           const g0 = m.gold; D.api.finish(kind); return m.gold - g0;
@@ -399,40 +399,43 @@ describe('features', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('Hard toggle is locked before the first win; unlocked it toggles, persists and starts a harder run (Daily stays normal)', async () => {
+  it('Heat picker is locked before the first win; afterwards it selects Heat 0 or 1 (Heat 2+ stay locked), persists and starts a harder run (Daily stays normal)', async () => {
     const a = await newPage(browser, { seed: 11, meta: BASE_META });
     try {
-      assert.equal(await a.page.locator('#hardBtn').count(), 0, 'no Hard box on the title');
+      assert.equal(await a.page.locator('#heatRow').count(), 0, 'no Heat row on the title');
       await a.page.locator('#btnNew').click();
-      assert.equal(await a.page.locator('#hardBtn').count(), 0, 'hidden on the class pick until the first win');
+      assert.equal(await a.page.locator('#heatRow').count(), 0, 'hidden on the class pick until the first win');
       assert.equal(await a.page.evaluate(() => window.__dbg.mods.hardOn()), false);
       assert.deepEqual(a.errors, []);
     } finally { await a.ctx.close(); }
     const b = await newPage(browser, { seed: 12, meta: { ...BASE_META, wins: 1, best: 8 } });
     try {
-      assert.equal(await b.page.locator('#titleBox #hardBtn').count(), 0, 'not on the title');
+      assert.equal(await b.page.locator('#titleBox #heatRow').count(), 0, 'not on the title');
       await b.page.locator('#btnNew').click();
-      assert.equal(await b.page.locator('#hardBtn').isDisabled(), false);
-      await b.page.locator('#hardBtn').click();
-      assert.match(await b.page.locator('#hardBtn').textContent(), /ON/);
+      const st = await b.page.locator('#heatRow button').evaluateAll((bs) => bs.map((e) => ({ d: e.disabled, h: e.getBoundingClientRect().height, w: e.getBoundingClientRect().width })));
+      assert.equal(st.length, 6); assert.deepEqual(st.map((x) => x.d), [false, false, true, true, true, true], 'a win has unlocked Heat 1 only');
+      assert.ok(st.every((x) => x.h >= 44 && x.w >= 44), 'tap targets: ' + JSON.stringify(st));
+      await b.page.locator('#heatRow button[data-heat="1"]').click();
+      assert.match(await b.page.locator('#heatInfo').textContent(), /Heat 1 · Hard/);
       await reload(b.page);
       await b.page.locator('#btnNew').click();
-      assert.match(await b.page.locator('#hardBtn').textContent(), /ON/);
+      assert.match(await b.page.locator('#heatRow button.on').textContent(), /1/, 'the choice is kept');
       await b.page.locator('#title button', { hasText: /Warrior/ }).first().click(); await dbgReady(b.page); await closeModal(b.page);
-      const h = await b.page.evaluate(() => { const G = window.__dbg(), F = window.__dbg.fn; const e = F.makeEnemy('goblin', 1, 1, 3); const hp = e.hp; G.hard = 0; const e2 = F.makeEnemy('goblin', 1, 1, 3); G.hard = 1; return { hard: G.hard, hp, hp0: e2.hp, pots: G.inv.pot }; });
-      assert.equal(h.hard, 1); assert.ok(h.hp > h.hp0, 'hard enemies are tougher'); assert.equal(h.pots, 0, 'one fewer starting potion');
-      assert.equal(await b.page.locator('#stats [data-ic="skull"]').count(), 1, 'Hard shows in the top bar');
-      // Daily ignores the toggle
+      const h = await b.page.evaluate(() => { const G = window.__dbg(), F = window.__dbg.fn; const e = F.makeEnemy('goblin', 1, 1, 3); const hp = e.hp; G.hard = 0; const e2 = F.makeEnemy('goblin', 1, 1, 3); G.hard = 1; return { hard: G.hard, heat: G.heat, hp, hp0: e2.hp, pots: G.inv.pot }; });
+      assert.equal(h.hard, 1); assert.equal(h.heat, 1); assert.ok(h.hp > h.hp0, 'hard enemies are tougher'); assert.equal(h.pots, 0, 'one fewer starting potion');
+      assert.equal(await b.page.locator('#stats [data-ic="skull"]').count(), 1, 'Heat shows in the top bar');
+      // Daily ignores the Heat choice
       await b.page.evaluate(() => { window.__dbg.api.finish('abandon'); });
       await b.page.locator('#modalBox button').click();
       await b.page.locator('#btnDaily').click(); await run(b.page, 'Warrior'); await dbgReady(b.page);
       assert.equal(await b.page.evaluate(() => window.__dbg().hard), 0);
+      assert.equal(await b.page.evaluate(() => window.__dbg().heat), 0);
       assert.deepEqual(b.errors, []);
     } finally { await b.ctx.close(); }
   });
 
   it('Hard dragon: an extra whelp wave at 90% and earlier enrage', async () => {
-    const x = await openRun(browser, 'warrior', { seed: 13, meta: { ...BASE_META, wins: 1, hardOn: 1 } });
+    const x = await openRun(browser, 'warrior', { seed: 13, meta: { ...BASE_META, wins: 1, heatSel: 1 } });
     try {
       const r = await x.page.evaluate(() => {
         const F = window.__dbg.fn, G = window.__dbg(), B = window.__dbg.tables.BAL; F.newFloor(8, { mod: null, v: 0 });
@@ -451,16 +454,20 @@ describe('features', { concurrency: CONC }, () => {
   });
 
   // ------------------------------------------------------------------------------------------------ save migration
-  it('an old meta save (no records/achievements fields) keeps gold, upgrades and unlocks and gains safe defaults', async () => {
-    const old = { seenHelp: 1, gold: 777, hp: 2, atk: 1, pot: 1, goldp: 0, def: 3, wins: 1, best: 6, kills: 31, elites: 2, unl: { rogue: 1, scroll: 1, midas: 1 } };
+  it('an old meta save (flat shop levels, Hard toggle, no records/achievements fields) migrates: gold and unlocks kept, levels become the new levels, stats never drop, Hard becomes Heat 1', async () => {
+    const old = { seenHelp: 1, gold: 777, hp: 2, atk: 1, pot: 1, goldp: 0, def: 3, wins: 1, best: 6, kills: 31, elites: 2, hardOn: 1, unl: { rogue: 1, scroll: 1, midas: 1 } };
     const { page, ctx, errors } = await newPage(browser, { seed: 14, meta: old });
     try {
       const m = await page.evaluate(() => JSON.parse(JSON.stringify(window.__dbg.api.meta())));
-      for (const k of ['gold', 'hp', 'atk', 'pot', 'def', 'wins', 'best', 'kills', 'elites']) assert.equal(m[k], old[k], k);
+      for (const k of ['gold', 'wins', 'best', 'kills', 'elites']) assert.equal(m[k], old[k], k);
+      assert.deepEqual(m.up, { hp: 2, atk: 1, def: 3, pot: 1, goldp: 0, xpf: 0, edge: 0, vigor: 0, prep: 0 }, 'old levels are the new levels of the same name');
+      assert.equal(m.mv, 2); assert.equal(m.heat, 1, 'an existing winner has Heat 1'); assert.equal(m.heatSel, 1, 'a Hard toggle that was on selects Heat 1');
+      assert.deepEqual(m.leg, {}, 'levels this low are identical, so no veteran bonus is needed');
+      for (const k of ['hp', 'atk', 'pot', 'def', 'goldp', 'hardOn']) assert.equal(k in m, false, 'old field gone: ' + k);
       assert.deepEqual(m.unl.rogue, 1); assert.equal(m.unl.scroll, 1); assert.equal(m.unl.midas, 1);
       assert.deepEqual(m.rec, { n: {}, h: {} }); assert.equal(m.runs, 0); assert.equal(m.streak, 0); assert.ok(m.ach.win1, 'first win is recognised retroactively');
       await page.locator('#btnNew').click();
-      assert.equal(await page.locator('#hardBtn').isDisabled(), false, 'an existing winner gets Hard');
+      assert.equal(await page.locator('#heatRow button[data-heat="1"]').isDisabled(), false, 'an existing winner gets Heat 1');
       await page.locator('#titleBox button.c', { hasText: /^Back$/ }).click();
       await page.locator('#btnMore').click();
       await page.locator('#btnRecords').click();

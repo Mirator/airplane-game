@@ -30,7 +30,7 @@ function upText(it){
   return '+'+v+u+(n?' · next +'+n:' · MAX');
  }
  const va=pairVar(it);
- return (l?va.d(l):'no effect yet')+(l<mx?' · next '+va.d(l+1).replace(/^\+/,'+'):' · MAX');
+ return (l?va.d(l):'no effect yet')+(l<mx?'':' · MAX');
 }
 
 // ---------- Heat ----------
@@ -73,10 +73,8 @@ function bpRunDrop(won){
 }
 function bpIcon(b){return b.t==='perk'?'p_'+b.id:b.e;}
 function bpDesc(b){
- if(b.t==='weapon')return wpRule(b.id,false);
- if(b.t==='off')return offRule(b.id);
- if(b.t==='charm')return charmRule(b.id);
- const pk=perkById(b.id);return pk?pk.d:'';
+ const d=b.t==='weapon'?wpRule(b.id,false):b.t==='off'?offRule(b.id):b.t==='charm'?charmRule(b.id):(perkById(b.id)||{d:''}).d;
+ return d.replace(/\.$/,'');
 }
 // loot pools only contain unlocked blueprints
 function bpTable(T){const o={};for(const k in T)if(!T[k].bp||bpOn(k))o[k]=T[k];return o;}

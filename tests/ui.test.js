@@ -133,13 +133,13 @@ describe('ui', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('class pick: icon + name + one short line + four ability icons per card; Details behind a tap; Hard mode here; every class still starts a run', async () => {
+  it('class pick: icon + name + one short line + four ability icons per card; Details behind a tap; Heat picker here; every class still starts a run', async () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 24, meta: { seenHelp: 1, gold: 0, wins: 1, best: 8, unl: { rogue: 1, mage: 1 } } });
     try {
       // the title: Continue/New dominate, no Hard box, no stat lines
       const tb = await page.locator('#titleBox button').evaluateAll((bs) => bs.map((b) => b.textContent.trim()));
       assert.ok(tb.length <= 5, 'few buttons on the title: ' + JSON.stringify(tb));
-      assert.equal(await page.locator('#titleBox #hardBtn').count(), 0);
+      assert.equal(await page.locator('#titleBox #heatRow').count(), 0);
       assert.ok((await page.locator('#titleBox').innerText()).split(/\s+/).length <= 25, 'few words on the title');
       await page.locator('#btnNew').click();
       const cards = await page.locator('#titleBox .cls').count(); assert.equal(cards, 3);
@@ -160,9 +160,9 @@ describe('ui', { concurrency: CONC }, () => {
       await page.locator('#modalBox button', { hasText: /^Back$/ }).click();
       assert.equal(await page.evaluate(() => document.getElementById('modal').style.display), 'none');
       assert.equal(await page.evaluate(() => !!window.__dbg()), false, 'no run started by looking at details');
-      // Hard toggle is on this screen
-      await page.locator('#hardBtn').click(); assert.match(await page.locator('#hardBtn').textContent(), /ON/);
-      await page.locator('#hardBtn').click(); assert.match(await page.locator('#hardBtn').textContent(), /OFF/);
+      // the Heat picker is on this screen
+      await page.locator('#heatRow button[data-heat="1"]').click(); assert.match(await page.locator('#heatInfo').textContent(), /Hard/);
+      await page.locator('#heatRow button[data-heat="0"]').click(); assert.match(await page.locator('#heatInfo').textContent(), /Heat 0/);
       // each class starts via its card
       for (const [i, c] of ['warrior', 'mage', 'rogue'].entries()) {
         if (i > 0) { await page.evaluate(() => { window.__dbg.api.finish('abandon'); document.getElementById('modalBox').querySelector('button').click(); }); await page.locator('#btnNew').click(); }

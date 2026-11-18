@@ -27,6 +27,7 @@ if(hadMeta&&!(+metaRaw.mv>=2)){
   const l=Math.min(n,upMax(u)),was=n*g,now=u.int?Math.round(upVal(u,l)):upVal(u,l);
   meta.up[u.k]=l;if(was>now)meta.leg[u.k]=was-now;
  }
+ for(const k of ['hp','atk','def','pot','goldp','hardOn'])delete meta[k];   // the flat fields of the old shop and the Hard toggle: replaced by up / leg / heatSel
  if(+metaRaw.wins>=1)meta.heat=Math.max(+meta.heat||0,1);
  if(metaRaw.hardOn&&+metaRaw.wins>=1)meta.heatSel=1;
  migrated=true;
