@@ -45,9 +45,14 @@ const RESTORE = () => {
 // every new floor). Software-rendered headless Chromium pays dearly for that, and no test depends on the frame rate, so frames are
 // requested at 10 per second instead of 60 (pass {frames: 'full'} to newPage to opt out).
 const SLOW_FRAMES = () => { window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 100); };
+// A dialog that opens because of a game event ignores real taps for BAL.ui.modalGraceMs (so a finger still tapping the map cannot pick a perk by
+// accident). Almost every test taps dialog buttons right after they open, so the harness sets the grace to 0; the tests of the grace itself
+// (fixes.test.js) pass {grace: true} to newPage and run with the real value.
+const noGrace = (page) => page.evaluate(() => { try { window.__dbg.tables.BAL.ui.modalGraceMs = 0; } catch (e) { /* no game yet */ } });
 async function reload(page) {
   await page.evaluate(() => { window.name = '__ls:' + JSON.stringify(Object.entries(localStorage)); });
   await page.reload();
+  if (!page.__grace) await page.waitForFunction(() => !!window.__dbg).then(() => noGrace(page));
 }
 
 // New page with error collection. opts: {w,h,seed,meta,reducedMotion,touch,fakeDate}. meta pre-seeds the permanent save
@@ -73,6 +78,8 @@ async function newPage(browser, opts = {}) {
   // only when the key is missing, so later reloads keep whatever progress the page saved
   await page.addInitScript((m) => { try { if (localStorage.getItem('dcr_meta_v1') === null) localStorage.setItem('dcr_meta_v1', m); } catch (e) { /* storage blocked */ } }, JSON.stringify(meta));
   await page.goto(URL);
+  page.__grace = !!opts.grace;
+  if (!opts.grace) await noGrace(page);
   return { page, ctx, errors };
 }
 
@@ -94,7 +101,8 @@ async function openRun(browser, cls, opts) {
   return r;
 }
 // Auto lives in the menu now: open it and tap "Auto play" (the stop / speed buttons are in the top bar while it runs)
-const autoOn = async (page) => { await page.click('#menuBtn'); await page.locator('#modalBox button[data-k="auto"]').click(); };
+// (the first tap in a run only states the half-gold cost, the second starts it)
+const autoOn = async (page) => { await page.click('#menuBtn'); const b = page.locator('#modalBox button[data-k="auto"]'); await b.click(); if (await page.locator('#modal').isVisible()) await b.click(); };
 const closeModal = (page) => page.evaluate(() => { document.getElementById('modal').style.display = 'none'; });
 // Auto normally decides once per 250 ms; tests that only need "Auto is running" shorten that (the rule under test is unchanged)
 const fastAuto = (page, ms = 20) => page.evaluate((m) => { window.__dbg.tables.BAL.auto.tickMs = m; }, ms);
