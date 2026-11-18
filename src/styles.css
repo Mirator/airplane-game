@@ -81,7 +81,7 @@ button.armed{background:#6b4f12;border-color:var(--gold);box-shadow:0 0 0 2px va
 #title{background:radial-gradient(#1c1f3a,#07070d);z-index:5}
 #titleBox h1{font-size:28px;letter-spacing:.5px;color:#ffd36a;text-shadow:0 2px 0 #7a3a10,0 0 14px rgba(255,150,50,.35);text-transform:uppercase;line-height:1.1;margin-top:-4px}
 .logo{margin:-6px -6px 0;border-radius:14px;overflow:hidden;background:#12152b}
-.scene{display:block;width:100%;height:auto}
+.scene{display:block;width:100%;height:auto;max-height:max(220px,28vh)}
 .row{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .gold{color:var(--gold);font-weight:800}
 .gold .ic{vertical-align:-0.25em}
@@ -161,7 +161,7 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 .box>button:last-child{position:sticky;bottom:0;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}
 /* landscape phone: the map would be a 100 px strip, so the game is covered by a rotate hint (nothing is paused or lost: the run is untouched underneath) */
 #rot{display:none}
-@media (orientation:landscape) and (max-height:520px) and (max-width:1000px){
+@media (orientation:landscape) and (max-height:499px) and (max-width:1000px){
  #rot{position:fixed;inset:0;z-index:60;background:#07070d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px}
  #rot b{font-size:20px;color:#ffd36a}
  #rot span{font-size:14px;color:var(--dim)}
@@ -197,3 +197,38 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 .lockrow{display:flex;align-items:center;gap:10px;opacity:.7;padding:4px 0}
 .lockrow .ct{display:flex;flex-direction:column}
 .lockrow .ct span{font-size:13px;opacity:.85}
+
+/* tablets and notebooks */
+#c{-webkit-touch-callout:none}
+#cv.arming #c{cursor:crosshair}
+@media (hover:hover){
+ button:not(:disabled):hover{background:#2c3256;border-color:#5560a0}
+ button.armed:hover{background:#7a5a16;border-color:var(--gold)}
+ #bar button.dis:hover,#bar2 button.dis:hover{background:var(--panel2);border-color:#2a2f52}
+ .heat button.on:hover{background:#4a1c24;border-color:#ff6a5a}
+ .tabs button.on:hover,.xcls button.on:hover{background:#4a3a14;border-color:var(--gold)}
+ button.danger:not(:disabled):hover{background:#6a2430;border-color:#ff8a7a}
+}
+/* key hints: only after a keyboard was used (body.kb), pure CSS so button markup is never rewritten */
+button[data-key]::before{display:none}
+body.kb button[data-key]::before{content:attr(data-key);display:block;position:absolute;left:3px;top:2px;min-width:16px;padding:0 4px;border-radius:5px;border:1px solid #5a6194;background:#10121f;color:#cfd3f5;font-size:10px;font-weight:800;line-height:14px;text-align:center;font-style:normal;pointer-events:none}
+#menuBtn,#gearBtn{position:relative}
+button.danger{border-color:#ff6a5a;background:#4a1c24;color:#ffd6d0}
+.box.reset button.keep{min-height:60px;font-size:18px;font-weight:800;border-color:var(--accent)}
+@media (min-width:700px){.box{max-width:520px}}
+/* portrait tablet: the bars keep a sane width */
+@media (min-width:700px){#bar,#bar2{width:100%;max-width:600px;margin:0 auto}#log{max-width:600px;margin:0 auto;width:100%}#hud{max-width:600px;margin:0 auto;width:100%}}
+/* wide screens: map left, side panel right (HUD, log, abilities, actions) */
+@media (min-width:960px) and (min-height:500px) and (min-aspect-ratio:11/10){
+ :root{--pw:clamp(360px,27vw,420px)}
+ #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-areas:"cv hud" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
+ #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:12px 12px 6px}
+ #cv{grid-area:cv}
+ #logw{grid-area:logw;min-height:0;overflow:hidden}
+ #log{max-width:none;margin:0;width:auto;height:100%;padding:6px 14px}
+ #tray{top:auto;height:72px}
+ #bar2{grid-area:bar2;max-width:none;margin:0;width:auto;padding:4px 12px 0}
+ #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 12px 14px}
+ #bar button,#bar2 button{max-height:76px}
+ #hpbar{max-width:none}#resbar{max-width:none}
+}
