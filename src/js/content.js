@@ -65,9 +65,9 @@ const CLASS_TAG={warrior:'Tough brawler. Wades into packs.',mage:'Fragile caster
 function classBlurb(k){return CLASS_TAG[k]||'';}
 function classDetail(k){
  const C=CLS[k],R=BAL.rage,M=BAL.mana;
- if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds when you hit or are hit, and fades out of combat.';
+ if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds as you fight.';
  if(k==='mage')return C.hp+' HP. '+C.mana+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
- return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' damage on unaware foes. Cooldowns and '+BAL.ability.knife.max+' knives, no resource bar.';
+ return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' on unaware foes. '+BAL.ability.knife.max+' knives, no resource bar.';
 }
 // gear rule lines (budget: <= 60 characters). noStat drops the +attack part (the comparison shows it as a number).
 function wpRule(k,noStat){

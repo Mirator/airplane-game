@@ -23,3 +23,5 @@ window.__dbg.spawnGear=function(slot,k,tr,v){
    G.items.push({x,y,t:slot,k:k,v:v!=null?v:applyTrait(slot==='weapon'?4:slot==='armor'?3:0,tr||null),tr:tr||null});computeVis();render();return [x,y];}}
  return null;
 };
+// player-facing text generators, for the text-budget tests
+window.__dbg.text={abilityDesc:abilityDesc,classBlurb:classBlurb,classDetail:classDetail,wpRule:wpRule,armRule:armRule,offRule:offRule,charmRule:charmRule,itemRule:itemRule,deathTip:deathTip,optHtml:optHtml,CLASS_TAG:CLASS_TAG};

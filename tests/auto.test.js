@@ -353,7 +353,7 @@ describe('auto', { concurrency: CONC }, () => {
         return { banked: m.gold - g0, text: document.getElementById('modalBox').textContent, recap: !!document.getElementById('autoRecap'), aruns: m.rec.n.warrior.aruns, runs: m.runs - runs0, on: G.auto.on };
       });
       assert.equal(aut.banked, 51, 'round(101 * 0.5)');
-      assert.equal(aut.recap, true); assert.match(aut.text, /Auto run — half gold/);
+      assert.equal(aut.recap, true); assert.match(aut.text, /Auto run: half gold/);
       assert.equal(aut.aruns, 1); assert.equal(aut.runs, 1, 'the run counts in the records'); assert.equal(aut.on, 0);
       const lists = await page.evaluate(() => { document.getElementById('modalBox').querySelector('button').click(); window.__dbg.mods.showRecords(); return document.getElementById('titleBox').innerHTML; });
       assert.match(lists, /Auto<\/em>/, 'Records list shows the Auto tag');

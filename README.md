@@ -39,13 +39,13 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 | `records.js` | run score, personal records / streaks / Daily results, achievement checking (`earn`, `checkAchievements`), the toast |
 | `save.js` | permanent meta save, achievements, run autosave / Continue (localStorage + IndexedDB mirror) |
 | `mapgen.js`, `fov.js` | dungeon layout; line of sight, distance maps, path finding |
-| `mods.js` | the 8 floor modifiers (water, collapsing tiles, stalker, ...), the two-way exit choice (`rollOpts`, `showBranch`) and the HUD chips |
+| `mods.js` | the 8 floor modifiers (water, collapsing tiles, stalker, ...), the two-way exit choice (`rollOpts`, `showBranch`) and the one map chip (modifier icon) |
 | `enemies.js`, `combat.js`, `abilities.js` | AI, wind-ups, healers, dragon phases; damage, shields, status effects, resources, turn end; the 12 class abilities (`DO`), `useAbility`, spear reach |
 | `items.js`, `perks.js`, `player.js` | gear slots, derived stats (`meleeAtk`, `mmax`, `spellMul`...), generation, comparison, pickup, consumables; perk pool / granting / synergies; XP |
 | `features.js`, `run.js` | traps, shrine, merchant; run start, floor population, descend, end screen |
 | `walk.js`, `input.js` | movement, auto-walk, Explore, tap handling; click/key listeners |
-| `auto.js` | **Auto** (autopilot): one timer, one decision per tick through the same action functions a tap uses (`tryMove`, `useAbility`, `drink`, `descend`, the dialog buttons); dialog choices, class ability priorities, watchdog, the AUTO button / speed control / strip. Numbers: `BAL.auto`; perk and modifier priorities `AUTO_PERKS` / `AUTO_MODS` in balance.js |
-| `modals.js`, `help.js`, `title.js`, `screens.js`, `hud.js` | UI screens (title, class picker, upgrades; Records and Achievements), bottom bar, HUD |
+| `auto.js` | **Auto** (autopilot): one timer, one decision per tick through the same action functions a tap uses (`tryMove`, `useAbility`, `drink`, `descend`, the dialog buttons); dialog choices, class ability priorities, watchdog, the top-bar strip (indicator / speed / stop). Numbers: `BAL.auto`; perk and modifier priorities `AUTO_PERKS` / `AUTO_MODS` in balance.js |
+| `modals.js`, `help.js`, `title.js`, `screens.js`, `hud.js` | UI screens (title + More, class picker with Details, upgrades; Records and Achievements), the ability row, the Items / Explore / Wait / Stairs row and the Items tray (Potion, Flames, Teleport), HUD |
 | `render.js`, `minimap.js`, `effects.js`, `audio.js` | canvas drawing, minimap, juice (shake, float text), WebAudio |
 | `main.js` | boot + the `window.__dbg` debug/test API (the test bots rely on it - keep it stable) |
 
@@ -57,7 +57,7 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 
 ## Auto
 
-The 🤖 AUTO button (bottom right of the map; the top right holds the minimap) plays the run: explore, fight with the class's four abilities, loot, gear / perk / route / shrine / merchant choices, stairs, dragon. `autoStep()` makes one decision (one turn or one dialog choice); the timer (`autoTick`, exactly one pending `setTimeout`, 1x = `BAL.auto.tickMs`) just calls it, `__dbg.auto.runSync()` loops it for the simulator and tests. Dialogs carry `data-kind` / `data-k` labels (see `showModal`) so Auto picks buttons without parsing text; a chosen button is highlighted for `BAL.auto.flashMs` before it is pressed.
+☰ menu → 🤖 Auto play (while it runs, the top bar shows an indicator, the speed button and Stop; the map stays bare) plays the run: explore, fight with the class's four abilities, loot, gear / perk / route / shrine / merchant choices, stairs, dragon. `autoStep()` makes one decision (one turn or one dialog choice); the timer (`autoTick`, exactly one pending `setTimeout`, 1x = `BAL.auto.tickMs`) just calls it, `__dbg.auto.runSync()` loops it for the simulator and tests. Dialogs carry `data-kind` / `data-k` labels (see `showModal`) so Auto picks buttons without parsing text; a chosen button is highlighted for `BAL.auto.flashMs` before it is pressed.
 
 - Any tap on the map (swallowed: it never also moves you), a dialog, a bar button, a key press or a hidden page switches it off; the run save keeps `G.auto = {on, used, noticed}` but a loaded run always comes back paused.
 - Watchdog: no new tile / kill / floor / new low of enemy HP for `BAL.auto.stuckTurns` turns, or `BAL.auto.idleTicks` decisions in a row that use no turn, switches Auto off with a log line.
@@ -122,3 +122,10 @@ Help, title, ability, gear and enemy text is generated from `BAL`. The older per
 ## Saves
 
 Meta progress (`dcr_meta_v1`: gold, shop levels, unlocks, records, achievements, Daily results, Hard toggle) is never reset; fields added later get defaults at boot (`META_DEFAULTS` in save.js). The run save is versioned (`SAVE_VER` = 3, key `dcr_run_v2`, IndexedDB entry `run2`). A v2 run (from before modifiers) is accepted and upgraded on Continue: it has no modifier, the exit choice is rolled when it reaches the stairs, and run-history achievements (no potions, no dragon hits) are skipped for it because its history is unknown. Anything older is discarded on boot with a one-line notice on the title screen.
+
+## UI rules (declutter pass)
+
+- The map carries only the minimap and, on a modified floor, one modifier icon. Nothing may cover tiles while an ability is armed (tested).
+- Bottom: four ability buttons, then Items / Explore / Wait / Stairs. Items opens `#tray` (Potion, Flames, Teleport); the tray is drawn over the log strip only.
+- Text budgets (tests/ui.test.js): class tagline <= 45 chars; ability / perk / trait / charm / off-hand / weapon / armor / modifier lines <= 55; path risk / gain <= 30. Longer rules sit behind a tap (class Details, the gear screen).
+- Names: Potion, Flames (the scroll; Fireball is the mage spell), Teleport, Upgrades (permanent, title) vs Merchant (in-run), Sound.

@@ -174,7 +174,8 @@ function finish(kind){
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<p class="recap">'+clsOf(p).e+' <b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'<br>Floor <b>'+G.floor+'</b> &middot; <b>'+G.turn+'</b> turns &middot; <b>'+G.kills+'</b> kills</p>'+
-  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Hard ×'+BAL.hard.goldMul+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  (aut?'<p id="autoRecap" class="sub">🤖 Auto run: '+autoGoldWord()+' gold banked.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (G.newAch&&G.newAch.length?'<p class="recap">🏆 Achievement: <b>'+G.newAch.join(', ')+'</b></p>':'')+
   (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),

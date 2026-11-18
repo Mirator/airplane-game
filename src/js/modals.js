@@ -38,7 +38,7 @@ function showPerk(){
 // equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
  const it=G.p.eq[sl];
- if(!it)return '<small>Empty</small>';
+ if(!it)return '';
  const st=sl==='weapon'?'+'+it.v+' attack · ':sl==='armor'?'Defense '+armorDef(it)+' · ':'';
  return '<small>'+st+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
 }
@@ -48,7 +48,7 @@ function statStrip(){
 }
 function gearHtml(){
  let h=statStrip();
- for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?itemIcon(it)+' '+gearName(it):'None')+'</b><br>'+slotLines(sl)+'</div>';}
+ for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?itemIcon(it)+' '+gearName(it):'None')+'</b>'+(it?'<br>'+slotLines(sl):'')+'</div>';}
  return h;
 }
 function showEquip(back){

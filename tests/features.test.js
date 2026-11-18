@@ -460,12 +460,12 @@ describe('features', { concurrency: CONC }, () => {
       assert.deepEqual(m.rec, { n: {}, h: {} }); assert.equal(m.runs, 0); assert.equal(m.streak, 0); assert.ok(m.ach.win1, 'first win is recognised retroactively');
       await page.locator('#btnNew').click();
       assert.equal(await page.locator('#hardBtn').isDisabled(), false, 'an existing winner gets Hard');
-      await page.locator('#titleBox button', { hasText: /Back/ }).click();
+      await page.locator('#titleBox button.c', { hasText: /^Back$/ }).click();
       await page.locator('#btnMore').click();
       await page.locator('#btnRecords').click();
       assert.match(await page.locator('#titleBox').textContent(), /Runs 0/);
       await page.locator('#btnBack').click();
-      await page.locator('#titleBox button', { hasText: /Back/ }).click();
+      await page.locator('#titleBox button.c', { hasText: /^Back$/ }).click();
       await page.locator('#btnUpg').click();
       assert.match(await page.locator('#titleBox').textContent(), /Hardy 2\/8/);
       assert.deepEqual(errors, []);

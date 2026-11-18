@@ -75,8 +75,8 @@ const tz=trapSet(),cz=crackSet();
  startWalk(path.reverse(),{explore:true});
 }
 function itemName(it){
- const base={gold:'Gold pile',potion:'Health potion',fire:'Flame scroll',tele:'Teleport scroll',knife:'Throwing knife'}[it.t];
- return base||(gearName(it)+': '+itemDesc(it).replace(/\.$/,''));
+ const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife'}[it.t];
+ return base||(gearName(it)+': '+itemRuleShort(it).replace(/\.$/,''));
 }
 function onTap(tx,ty){
  walkTok++;

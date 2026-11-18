@@ -66,7 +66,7 @@ describe('kits', { concurrency: CONC }, () => {
       assert.ok(r.bash && r.stunned);
       assert.equal(r.bashCd, r.bashCdWant); assert.ok(r.bashCd > 0, 'Bash has a cooldown');
       assert.equal(r.bashRage, r.bashRageWant);
-      assert.match(r.cleaveShort, /Not enough rage/);
+      assert.match(r.cleaveShort, /needs \d+ rage/);
       assert.ok(r.cleave && r.cleaved, 'Cleave hits both neighbours');
       assert.equal(r.cleaveRage, r.cleaveRageWant, 'Cleave spends its rage and gains per hit');
       assert.equal(r.chargeAdjacent, 0, 'Charge cannot target an adjacent enemy');
@@ -75,7 +75,7 @@ describe('kits', { concurrency: CONC }, () => {
       assert.ok(r.defHit < r.plainHit * 0.65, `defense reduces damage taken: ${r.defHit} vs ${r.plainHit}`);
       assert.ok(r.hitCrit > r.hitPlain * 1.8, `a crit hits about twice as hard: ${r.hitCrit} vs ${r.hitPlain}`);
       assert.ok(r.braceHit < r.plainHit * 0.75, `a braced hit hurts far less: ${r.braceHit} vs ${r.plainHit}`);
-      assert.match(r.noRageBrace, /Not enough rage/);
+      assert.match(r.noRageBrace, /needs \d+ rage/);
       assert.equal(r.rageDealt, B.dealt); assert.equal(r.rageTaken, B.taken); assert.equal(r.rageDecay, 50 - B.decay);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
@@ -107,7 +107,7 @@ describe('kits', { concurrency: CONC }, () => {
       assert.ok(r.nova && r.frozen);
       assert.ok(r.blink && r.blinkMoved === 4);
       assert.ok(r.fire && r.fireBoth, 'Fireball blast covers neighbouring tiles');
-      assert.match(r.noMana, /Not enough mana/);
+      assert.match(r.noMana, /needs \d+ mana/);
       assert.equal(r.regen, 5 + 3 * 1, 'mana regenerates every turn');
       assert.equal(r.killMana, 2, 'a kill gives mana');
       assert.deepEqual(errors, []);
@@ -216,7 +216,7 @@ describe('kits', { concurrency: CONC }, () => {
       await page.evaluate(() => { window.__dbg().p.mana = 0; });
       await quiet(page);
       await page.click('#a_3');                                            // Fireball with no mana: refused, reason in the log, button greyed
-      assert.match(await page.evaluate(() => window.__dbg().log.slice(-1)[0]), /Not enough mana/);
+      assert.match(await page.evaluate(() => window.__dbg().log.slice(-1)[0]), /needs \d+ mana/);
       assert.equal(await page.evaluate(() => document.getElementById('a_3').classList.contains('dis')), true, 'Fireball is greyed out without mana');
       // the bar's other buttons follow the state too: Potion needs a potion, Stairs needs the stairs
       const dis = (id) => page.evaluate((i) => document.getElementById(i).classList.contains('dis'), id);
@@ -239,7 +239,12 @@ describe('kits', { concurrency: CONC }, () => {
         const title = await page.evaluate(() => document.querySelector('#modalBox h2').textContent);
         assert.match(title, /found/i);
         const body = await page.evaluate(() => document.getElementById('modalBox').textContent);
-        assert.match(body, /EQUIPPED/); assert.match(body, /FOUND/); assert.match(body, /If you equip it/);
+        assert.match(body, /replaces/);
+        assert.ok(await page.locator('#modalBox .dlt').count() >= 1, 'stat changes are shown as chips');
+        const cls = await page.locator('#modalBox .dlt').evaluateAll((els) => els.map((e) => e.className + '|' + e.textContent));
+        for (const c of cls) assert.ok(/^dlt up\|\w+ \+\d+%?$|^dlt dn\|\w+ \u2212\d+%?$|^dlt same/.test(c), 'delta chip is signed and coloured: ' + c);
+        assert.ok(await page.locator('#modalBox .rl').count() <= 2, 'at most two rule lines');
+        assert.ok(body.replace(/Equip|Leave/g, '').split(/\s+/).length < 40, 'short: ' + body);
         await page.locator('#modalBox button', { hasText: /^Equip/ }).click();
         const got = await page.evaluate((s) => { const it = window.__dbg().p.eq[s]; return it && it.k; }, slot);
         assert.equal(got, kind, slot + ' equipped');
@@ -346,7 +351,7 @@ describe('kits', { concurrency: CONC }, () => {
       await reload(page);
       await page.waitForSelector('#titleBox button');
       assert.equal(await page.locator('#title button', { hasText: /Continue run/ }).count(), 0);
-      assert.match(await page.locator('#titleBox').textContent(), /older version/i);
+      assert.match(await page.locator('#titleBox').textContent(), /old run save/i);
       assert.equal(await page.evaluate(() => localStorage.getItem('dcr_run_v1')), null);
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('dcr_meta_v1')).gold), 777);
       // same shape under the current key but without a version stamp is also discarded

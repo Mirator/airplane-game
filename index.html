@@ -27,7 +27,7 @@ body{position:fixed;inset:0}
 #xpbar{height:5px;background:#1b2238;border-radius:3px;overflow:hidden}
 #xpfill{height:100%;background:#5aa0ff;width:0}
 #srow{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
-#stats{font-size:14px;display:flex;gap:12px;flex-wrap:nowrap;white-space:nowrap;color:#cfcde0;min-width:0}
+#stats{font-size:14px;display:flex;gap:12px;flex-wrap:nowrap;white-space:nowrap;color:#cfcde0;min-width:0;overflow:hidden}
 button{font:inherit;color:#fff;background:#2f3350;border:1px solid #4b5080;border-radius:10px;min-height:48px;min-width:48px;padding:6px 12px;cursor:pointer;touch-action:manipulation}
 button:active{background:#454a78}
 button:disabled{opacity:.4}
@@ -115,7 +115,7 @@ button.autopick{background:#7a5a10;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
  <div id="hud">
   <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><div id="resbar" class="res"><div id="resfill"></div><div id="restxt"></div></div><button id="gearBtn" aria-label="Equipment">🎒</button><button id="menuBtn" aria-label="Menu">☰</button></div>
   <div id="xpbar"><div id="xpfill"></div></div>
-  <div id="srow"><div id="stats"></div><div id="autoBox" style="display:none"><span id="autoTag">🤖 Auto</span><button id="autoSpd" aria-label="Auto speed">1×</button><button id="autoBtn" aria-label="Stop Auto" aria-pressed="true">⏹</button></div></div>
+  <div id="srow"><div id="stats"></div><div id="autoBox" style="display:none"><span id="autoTag">🤖 Auto</span><button id="autoSpd" aria-label="Auto speed">1×</button><button id="autoBtn" aria-label="Stop Auto" aria-pressed="true">⏹ Stop</button></div></div>
  </div>
  <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="toast" aria-live="polite"></div></div>
  <div id="logw"><div id="log"></div><div id="tray" style="display:none"></div></div>
@@ -335,7 +335,7 @@ const EN={
  bat:{n:'Bat',e:'🦇',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
  warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
  whelp:{n:'Whelp',e:'🦎',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
- dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: fire breath (red tiles), calls whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join(' and ')+' HP. Stun or blind cancels a wind-up.'}
+ dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
@@ -580,9 +580,9 @@ const CLASS_TAG={warrior:'Tough brawler. Wades into packs.',mage:'Fragile caster
 function classBlurb(k){return CLASS_TAG[k]||'';}
 function classDetail(k){
  const C=CLS[k],R=BAL.rage,M=BAL.mana;
- if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds when you hit or are hit, and fades out of combat.';
+ if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds as you fight.';
  if(k==='mage')return C.hp+' HP. '+C.mana+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
- return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' damage on unaware foes. Cooldowns and '+BAL.ability.knife.max+' knives, no resource bar.';
+ return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' on unaware foes. '+BAL.ability.knife.max+' knives, no resource bar.';
 }
 // gear rule lines (budget: <= 60 characters). noStat drops the +attack part (the comparison shows it as a number).
 function wpRule(k,noStat){
@@ -2199,7 +2199,8 @@ function finish(kind){
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<p class="recap">'+clsOf(p).e+' <b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'<br>Floor <b>'+G.floor+'</b> &middot; <b>'+G.turn+'</b> turns &middot; <b>'+G.kills+'</b> kills</p>'+
-  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Hard ×'+BAL.hard.goldMul+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  (aut?'<p id="autoRecap" class="sub">🤖 Auto run: '+autoGoldWord()+' gold banked.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (G.newAch&&G.newAch.length?'<p class="recap">🏆 Achievement: <b>'+G.newAch.join(', ')+'</b></p>':'')+
   (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),
@@ -2306,8 +2307,8 @@ const tz=trapSet(),cz=crackSet();
  startWalk(path.reverse(),{explore:true});
 }
 function itemName(it){
- const base={gold:'Gold pile',potion:'Health potion',fire:'Flame scroll',tele:'Teleport scroll',knife:'Throwing knife'}[it.t];
- return base||(gearName(it)+': '+itemDesc(it).replace(/\.$/,''));
+ const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife'}[it.t];
+ return base||(gearName(it)+': '+itemRuleShort(it).replace(/\.$/,''));
 }
 function onTap(tx,ty){
  walkTok++;
@@ -2398,7 +2399,7 @@ function showPerk(){
 // equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
  const it=G.p.eq[sl];
- if(!it)return '<small>Empty</small>';
+ if(!it)return '';
  const st=sl==='weapon'?'+'+it.v+' attack · ':sl==='armor'?'Defense '+armorDef(it)+' · ':'';
  return '<small>'+st+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
 }
@@ -2408,7 +2409,7 @@ function statStrip(){
 }
 function gearHtml(){
  let h=statStrip();
- for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?itemIcon(it)+' '+gearName(it):'None')+'</b><br>'+slotLines(sl)+'</div>';}
+ for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?itemIcon(it)+' '+gearName(it):'None')+'</b>'+(it?'<br>'+slotLines(sl):'')+'</div>';}
  return h;
 }
 function showEquip(back){
@@ -3421,5 +3422,7 @@ window.__dbg.spawnGear=function(slot,k,tr,v){
    G.items.push({x,y,t:slot,k:k,v:v!=null?v:applyTrait(slot==='weapon'?4:slot==='armor'?3:0,tr||null),tr:tr||null});computeVis();render();return [x,y];}}
  return null;
 };
+// player-facing text generators, for the text-budget tests
+window.__dbg.text={abilityDesc:abilityDesc,classBlurb:classBlurb,classDetail:classDetail,wpRule:wpRule,armRule:armRule,offRule:offRule,charmRule:charmRule,itemRule:itemRule,deathTip:deathTip,optHtml:optHtml,CLASS_TAG:CLASS_TAG};
 })();
 </script></body></html>
