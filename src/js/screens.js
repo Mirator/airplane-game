@@ -7,6 +7,7 @@ function screenFrame(title){
 }
 function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.addEventListener('click',function(){showMore();});t.appendChild(b);}
 function recLine(r){
+ if(!r||!r.runs)return '<span style="color:#8f8da8">No runs yet</span>';
  return 'Floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest <b>'+(r.fast?r.fast+'t':'-')+'</b> &middot; Score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> '+r.awins+'/'+r.aruns:'');
 }
 function showRecords(){

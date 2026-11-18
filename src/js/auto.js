@@ -412,3 +412,8 @@ function autoTravel(dz,cz,tz){
   if(fk3>=0&&r3.dist[fk3]>0){if(!AUTO.crossed){AUTO.crossed=1;msg('Auto: no other way on, so it crosses a trap.');}if(autoGo(r3,fk3,'trapfront'))return;}}
  autoNote('wait');wait();
 }
+
+// a phone turned sideways covers the game with a rotate hint (styles.css #rot): Auto must not keep playing unseen behind it
+try{const mq=window.matchMedia('(orientation:landscape) and (max-height:520px) and (max-width:1000px)');
+ const rotCheck=function(e){if(e.matches&&AUTO.on)autoStop('Auto paused: rotate your phone.');};
+ if(mq.addEventListener)mq.addEventListener('change',rotCheck);else if(mq.addListener)mq.addListener(rotCheck);}catch(e){}

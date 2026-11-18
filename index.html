@@ -25,7 +25,7 @@ body{position:fixed;inset:0}
 #resfill{height:100%;width:0;transition:width .15s;border-radius:12px;box-shadow:inset 0 6px 0 rgba(255,255,255,.16)}
 .res.rage #resfill{background:#ff9a3a}.res.rage{border-color:#8a5424}
 .res.mana #resfill{background:#4f8bff}.res.mana{border-color:#2a4a8a}
-.res.knives #resfill{background:#b8bfd8}
+.res.knives #resfill{background:#5b6384}.res.knives{background:#232845;border-color:#3c4272}
 #restxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4px;text-align:center;font-size:13px;line-height:24px;font-weight:800;text-shadow:0 1px 2px #000;white-space:nowrap}
 #xpbar{height:5px;background:#1b2238;border-radius:3px;overflow:hidden}
 #xpfill{height:100%;background:#5aa0ff;width:0;border-radius:3px}
@@ -40,7 +40,7 @@ button:disabled{opacity:.4}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block;background:#07070d}
 #logw{position:relative}
 #log{height:68px;padding:4px 12px;font-size:14px;line-height:18px;overflow:hidden;color:var(--dim);display:flex;flex-direction:column;justify-content:flex-end}
-#log div{flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.5}
+#log div{flex:none;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;opacity:.5;overflow-wrap:anywhere}
 #log div:nth-last-child(2){opacity:.75}
 #log div:last-child{opacity:1;color:#fff;font-weight:700}
 /* Items tray: drawn over the log lines only, so it can never cover a map tile */
@@ -159,6 +159,21 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 .portrait{display:flex;justify-content:center}
 .chips3{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .chips3 span{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:6px 10px;font-size:14px}
+
+.rl.lose{color:#ff9a8a;font-size:13px}
+
+/* a long dialog scrolls inside its box; its last button (Back / Leave) stays reachable at the bottom edge */
+.box>button:last-child{position:sticky;bottom:0;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}
+.ov.top{align-items:flex-start}
+/* landscape phone: the map would be a 100 px strip, so the game is covered by a rotate hint (nothing is paused or lost: the run is untouched underneath) */
+#rot{display:none}
+@media (orientation:landscape) and (max-height:520px) and (max-width:1000px){
+ #rot{position:fixed;inset:0;z-index:60;background:#07070d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px}
+ #rot b{font-size:20px;color:#ffd36a}
+ #rot span{font-size:14px;color:var(--dim)}
+}
+#title{align-items:flex-start}#titleBox{margin-top:6vh}
+@media (min-height:900px){#titleBox{margin-top:10vh}}
 </style></head><body>
 <div id="app">
  <div id="hud">
@@ -171,6 +186,7 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
  <div id="bar2"></div>
  <div id="bar"></div>
 </div>
+<div id="rot" role="alert"><svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><rect x="20" y="6" width="24" height="44" rx="5" fill="none" stroke="#ffd36a" stroke-width="3"/><circle cx="32" cy="43" r="2" fill="#ffd36a"/><path d="M50 52a18 18 0 0 1-30 10" fill="none" stroke="#46dcf5" stroke-width="3" stroke-linecap="round"/><path d="M18 58l2 6 6-3" fill="none" stroke="#46dcf5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><b>Rotate your phone</b><span>Depths of Emberfall is played upright. Your run is waiting.</span></div>
 <div id="title" class="ov"><div class="box" id="titleBox"></div></div>
 <div id="modal" class="ov" style="display:none"><div class="box" id="modalBox"></div></div>
 <script>
@@ -185,7 +201,7 @@ const W=30,H=30,MAXF=8;   // map size and number of floors (floor 8 = dragon lai
 // NOTE: descriptive strings in the tables below (perk/trait/unlock text, help screen) still contain hand-written copies of
 // some numbers - update them together when changing a value.
 const BAL = {
- ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window
+ ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,staleMs:600,camMinTs:22},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe just left / died on does nothing for this long; camMinTs = smallest tile size when the camera zooms out to frame targets
   // --- dungeon layout (mapgen.js) ---
   map: {
     span: 22,              // rooms are placed inside the top-left span x span corner of the 30x30 grid (shorter floors)
@@ -377,7 +393,7 @@ const EN={
  goblin:{n:'Goblin',e:'goblin',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
  archer:{n:'Archer',e:'archer',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
  hound:{n:'Hound',e:'hound',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
- guard:{n:'Guard',e:'guard',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield takes '+Math.round(BAL.weapon.shieldFront*100)+'% from front, '+Math.round(BAL.weapon.shieldRanged*100)+'% ranged. Flank it.'},
+ guard:{n:'Guard',e:'guard',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield blocks front hits and shots. Flank or stun it.'},
  skeleton:{n:'Skeleton',e:'skeleton',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
  ogre:{n:'Ogre',e:'ogre',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
  troll:{n:'Troll',e:'troll',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},
@@ -686,7 +702,10 @@ function tileBmp(th,kind,v,lit,ts){
   c.fillStyle=base;
   for(const q of lay){rrc(c,q[0]*ts+g,q[1]*ts+g,q[2]*ts-2*g,q[3]*ts-2*g,[ts*0.07,ts*0.07,ts*0.07,ts*0.07]);c.fill();}
   if(v===2){c.fillStyle=L(th.fc);c.beginPath();c.moveTo(ts-g,ts-g);c.lineTo(ts-g-ts*0.2,ts-g);c.lineTo(ts-g,ts-g-ts*0.17);c.closePath();c.fill();}
-  if(th.em&&v===3){c.fillStyle=lit?'#ff9a3a':L('#ff9a3a');c.globalAlpha=0.8;c.beginPath();c.arc(ts*0.3,ts*0.7,Math.max(1.1,ts*0.04),0,7);c.arc(ts*0.37,ts*0.79,Math.max(0.8,ts*0.028),0,7);c.arc(ts*0.74,ts*0.3,Math.max(0.9,ts*0.03),0,7);c.fill();c.globalAlpha=1;}
+  if(th.em&&v===3){ // a few glowing ember specks (separate dots in a soft glow: a connected shape reads as a dropped item)
+   const dot=function(x,y,r){c.beginPath();c.arc(x,y,r,0,7);c.fill();};
+   c.fillStyle=lit?'#ffcf6a':L('#ffcf6a');c.globalAlpha=0.2;dot(ts*0.33,ts*0.74,Math.max(2,ts*0.12));c.globalAlpha=0.7;c.fillStyle=lit?'#ff9a3a':L('#ff9a3a');
+   dot(ts*0.3,ts*0.72,Math.max(1.5,ts*0.045));dot(ts*0.4,ts*0.8,Math.max(1,ts*0.03));dot(ts*0.7,ts*0.3,Math.max(1,ts*0.03));c.globalAlpha=1;}
   if(kind==='floors'){c.globalAlpha=lit?0.5:0.35;c.fillStyle=L(th.fs);c.fillRect(0,0,ts,ts*0.3);c.globalAlpha=lit?0.25:0.18;c.fillRect(0,ts*0.3,ts,ts*0.12);c.globalAlpha=1;}
  }else if(kind==='water'){
   // one merged pool: v is the 4-bit mask of sides that have water next to them (1 up, 2 right, 4 down, 8 left); open sides are inset (a shore)
@@ -695,7 +714,12 @@ function tileBmp(th,kind,v,lit,ts){
   c.fillStyle=lit?'rgba(47,111,208,0.72)':'rgba(30,66,130,0.55)';rrc(c,x0,y0,x1-x0,y1-y0,cr);c.fill();
   c.strokeStyle=lit?'rgba(143,196,255,0.7)':'rgba(110,150,200,0.35)';c.lineWidth=Math.max(1.2,ts*0.05);c.lineCap='round';
   const e=c.lineWidth/2;
-  c.beginPath();if(u){c.moveTo(x0+cr[0],y0+e);c.lineTo(x1-cr[1],y0+e);}if(d){c.moveTo(x0+cr[3],y1-e);c.lineTo(x1-cr[2],y1-e);}if(l){c.moveTo(x0+e,y0+cr[0]);c.lineTo(x0+e,y1-cr[3]);}if(r){c.moveTo(x1-e,y0+cr[1]);c.lineTo(x1-e,y1-cr[2]);}c.stroke();
+  c.beginPath();if(u){c.moveTo(x0+cr[0],y0+e);c.lineTo(x1-cr[1],y0+e);}if(d){c.moveTo(x0+cr[3],y1-e);c.lineTo(x1-cr[2],y1-e);}if(l){c.moveTo(x0+e,y0+cr[0]);c.lineTo(x0+e,y1-cr[3]);}if(r){c.moveTo(x1-e,y0+cr[1]);c.lineTo(x1-e,y1-cr[2]);}
+  if(cr[0]){c.moveTo(x0+e,y0+cr[0]);c.arcTo(x0+e,y0+e,x0+cr[0],y0+e,Math.max(0.5,cr[0]-e));}   // the corners join the straight rims
+  if(cr[1]){c.moveTo(x1-cr[1],y0+e);c.arcTo(x1-e,y0+e,x1-e,y0+cr[1],Math.max(0.5,cr[1]-e));}
+  if(cr[2]){c.moveTo(x1-e,y1-cr[2]);c.arcTo(x1-e,y1-e,x1-cr[2],y1-e,Math.max(0.5,cr[2]-e));}
+  if(cr[3]){c.moveTo(x0+cr[3],y1-e);c.arcTo(x0+e,y1-e,x0+e,y1-cr[3],Math.max(0.5,cr[3]-e));}
+  c.stroke();
   c.strokeStyle=lit?'rgba(205,234,255,0.8)':'rgba(130,170,220,0.35)';c.lineWidth=Math.max(1.3,ts*0.055);c.beginPath();
   const o=(v&1)?ts*0.05:0,wl=ts*0.2,wr=ts*0.8;for(const wy of [ts*0.4,ts*0.68]){c.moveTo(wl+o,wy);c.quadraticCurveTo(wl+ts*0.15+o,wy-ts*0.1,wl+ts*0.3+o,wy);c.quadraticCurveTo(wl+ts*0.45+o,wy+ts*0.1,Math.min(wr,wl+ts*0.6+o),wy);}c.stroke();
  }else if(kind==='fogedge'){ // soft edge of the lit area: v = side (0 up, 1 right, 2 down, 3 left), drawn over a lit tile that borders a remembered one
@@ -734,7 +758,7 @@ function rockPattern(ts){
 }
 // tiny deterministic hash (no Math.random: map looks must not consume the game's random stream)
 function hash2(x,y){let h=(x*374761393+y*668265263)|0;h=(h^(h>>>13))*1274126177|0;return ((h^(h>>>16))>>>0);}
-function floorVar(x,y){const h=hash2(x,y)%100;return h<38?0:h<66?1:h<94?2:3;}
+function floorVar(x,y){const h=hash2(x,y)%100;return h<38?0:h<66?1:h<96?2:3;}
 
 // per-frame fast path for the tile loop: a numeric lookup table (no string keys per tile) resolved once per theme / size
 const TK={floor:0,floors:1,wallf:2,wallt:3,water:4,fogedge:5};
@@ -1131,8 +1155,9 @@ def('door_locked',['#5d6786','#3a4260','#97a2c6'],[
  ['y',R(36,46,28,24,6),0,1],['k',C(50,57,4),0,0],['y','M40 48 Q40 34 50 34 Q60 34 60 48',5,0]
 ]);
 def('stairs',['#46dcf5','#1f8fb0','#b9f4ff'],[
- ['#0c0d18',R(8,8,84,84,10),0,0],
- ['#1b2040',R(12,12,76,17,3),0,0],['#2a3160',R(12,31,76,17,3),0,0],['#3a4480',R(12,50,76,17,3),0,0],['#4c5aa0',R(12,69,76,17,3),0,0],
+ ['#0c0d18',P(5,8,95,8,82,94,18,94),0,0],
+ ['#5a67a8',P(10,12,90,12,87,29,13,29),0,0],['#434f8f',P(15,31,85,31,82,47,18,47),0,0],['#313b72',P(20,49,80,49,77,64,23,64),0,0],['#222a55',P(25,66,75,66,72,80,28,80),0,0],
+ ['#8f9bd8',P(10,12,90,12,89,17,11,17),0,0],['#6f7cc0',P(15,31,85,31,84,35,16,35),0,0],
  ['u','M30 8 L50 28 L70 8 L70 18 L50 38 L30 18z',0,0],['U','M30 8 L50 28 L70 8 L63 8 L50 20 L37 8z',0,0]
 ]);
 def('chest',['#9a6234','#633a1a','#cf9560'],[
@@ -1298,7 +1323,7 @@ const THEMES=ENV;
 // each depth band has a second, hand-picked look for the "other" exit (own palette and name)
 const THEMES2=[
  {n:'The Ossuary',fa:'#4f4a44',fb:'#57514a',fc:'#3d3934',fs:'#17130f',wt:'#2f2b27',wf:'#433d36',we:'#25211d',wh:'#8a7f6c',mw:'#6a6050',mf:'#b0a58e',mfd:'#5a5246',em:0},
- {n:'The Fungal Grotto',fa:'#3f5a63',fb:'#46636c',fc:'#2f4650',fs:'#0e1b20',wt:'#2a2748',wf:'#3a3763',we:'#1f1d38',wh:'#6a5ca6',mw:'#5c4f94',mf:'#8ab0bf',mfd:'#4a6670',em:0},
+ {n:'The Fungal Grotto',fa:'#3f5a63',fb:'#46636c',fc:'#2f4650',fs:'#0e1b20',wt:'#232a3a',wf:'#2f3a50',we:'#1b2130',wh:'#5a4a86',mw:'#5c4f94',mf:'#8ab0bf',mfd:'#4a6670',em:0},
  {n:'The Ashen Halls',fa:'#4a4748',fb:'#524f50',fc:'#383536',fs:'#161212',wt:'#2d2a2b',wf:'#433f40',we:'#201c1d',wh:'#c0702f',mw:'#6a5a52',mf:'#b0a8a4',mfd:'#5c5652',em:1}
 ];
 function themeOf(f,v){const i=f<=3?0:f<=6?1:2;return v===1&&f<MAXF?THEMES2[i]:THEMES[i];}
@@ -1317,12 +1342,12 @@ function abCost(k){const a=BAL.ability[k];return a.rage?a.rage+' rage':a.mana?a.
 function abilityDesc(k){
  const a=BAL.ability[k];
  switch(k){
-  case 'bash':return 'Stun an adjacent foe '+a.stun+' turns and push it back.';
-  case 'cleave':return 'Hit every adjacent foe for '+pct(a.mul)+'.';
+  case 'bash':return 'Stun the foe in front '+a.stun+' turns and push it back.';
+  case 'cleave':return 'Hit all 8 neighbours, diagonals too, for '+pct(a.mul)+'.';
   case 'charge':return 'Dash '+a.minDist+'-'+a.maxDist+' tiles, hit for '+pct(a.mul)+', stun '+a.stun+' turns.';
   case 'brace':return 'Halve the next '+a.hits+' hits; reflect '+pct(a.reflect)+' of melee.';
   case 'bolt':return 'Ranged hit on a visible foe, up to '+a.range+' tiles.';
-  case 'nova':return 'Freeze adjacent foes '+a.freeze+' turns and hit for '+pct(a.mul)+'.';
+  case 'nova':return 'Freeze all 8 neighbours '+a.freeze+' turns, hit for '+pct(a.mul)+'.';
   case 'blink':return 'Teleport up to '+a.range+' tiles.';
   case 'fire':return 'Blast radius '+a.radius+': '+Math.round(a.base+a.perFloor)+' damage, more deeper.';
   case 'backstab':return 'x'+a.mul+' on unaware, stunned or flanked foes; else '+pct(a.weakMul)+'.';
@@ -1338,32 +1363,35 @@ function classBlurb(k){return CLASS_TAG[k]||'';}
 function classDetail(k){
  const C=CLS[k],R=BAL.rage,M=BAL.mana;
  if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds as you fight.';
- if(k==='mage')return C.hp+' HP. '+C.mana+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
+ if(k==='mage')return C.hp+' HP. '+(C.mana+WP[C.start].mana)+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
  return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' on unaware foes. '+BAL.ability.knife.max+' knives, no resource bar.';
 }
-// gear rule lines (budget: <= 60 characters). noStat drops the +attack part (the comparison shows it as a number).
-function wpRule(k,noStat){
- const w=WP[k],t=[];
+// gear rule lines (budget: <= 60 characters). noStat drops the attack / defense part (the comparison shows it as a number). cls hides what means
+// nothing to that class (mana and spell power for a Warrior or Rogue, rage for a Mage or Rogue).
+function wpTerms(k,noStat,cls){
+ const w=WP[k],t=[],mage=!cls||cls==='mage';
  if(w.atk&&!noStat)t.push(sgn(w.atk)+' attack');
  if(w.sweep)t.push('hits neighbours for '+pct(w.sweep));
  if(w.reach)t.push('reach '+w.reach);
  if(w.crit)t.push(sgn(Math.round(w.crit*100))+'% crit');
  if(w.sneak)t.push('sneak +'+w.sneak);
- if(w.spell)t.push(sgn(Math.round(w.spell*100))+'% spell power');
- if(w.mana)t.push(sgn(w.mana)+' mana');
- return t.length?t.join(', '):'Balanced.';
+ if(w.spell&&mage)t.push(sgn(Math.round(w.spell*100))+'% spell power');
+ if(w.mana&&mage)t.push(sgn(w.mana)+' mana');
+ return t;
 }
-function armRule(k){
- const a=ARM[k],t=[];
- if(a.noDef)t.push('no defense');else if(a.def)t.push(sgn(a.def)+' defense');
+function wpRule(k,noStat,cls){const t=wpTerms(k,noStat,cls);return t.length?t.join(', '):'Balanced.';}
+function armTerms(k,noStat,cls){
+ const a=ARM[k],t=[],mage=!cls||cls==='mage',war=!cls||cls==='warrior';
+ if(!noStat){if(a.noDef)t.push('no defense');else if(a.def)t.push(sgn(a.def)+' defense');}
  if(a.dodge)t.push(sgn(Math.round(a.dodge*100))+'% dodge');
- if(a.spell)t.push(sgn(Math.round(a.spell*100))+'% spell power');
- if(a.manaBase)t.push('+'+a.manaBase+' mana');
- if(a.mana)t.push(sgn(a.mana)+' mana');
- if(a.manaRegenMul)t.push('mana regen '+pct(a.manaRegenMul));
- if(a.rageMul)t.push('rage gain '+pct(a.rageMul));
- return t.length?t.join(', '):'Balanced.';
+ if(a.spell&&mage)t.push(sgn(Math.round(a.spell*100))+'% spell power');
+ if(a.manaBase&&mage)t.push('+'+a.manaBase+' mana');
+ if(a.mana&&mage)t.push(sgn(a.mana)+' mana');
+ if(a.manaRegenMul&&mage)t.push('mana regen '+pct(a.manaRegenMul));
+ if(a.rageMul&&war)t.push('rage gain '+pct(a.rageMul));
+ return t;
 }
+function armRule(k,noStat,cls){const t=armTerms(k,noStat,cls);return t.length?t.join(', '):'Balanced.';}
 function offRule(k){
  const O=BAL.offhand;
  return {
@@ -1400,7 +1428,7 @@ let noticeOld=false,G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,
 let AC=null,flashes={},shakeUntil=0,shakeAmt=0,puffs=[],pulseUntil=0,stepAnim=null,lastPos=null,visX=0,visY=0;
 let shrineQ=false,trapConfirm=-1,bannerText='',bannerUntil=0,wsc={arr:null,set:new Set()},toastQ=[],toastBusy=false,chipHtml='';
 let gearQ=null,insp=null,lp=null,lpAt=-1e9,lpDone=false,guard=null,hpLow=false,hpLowG=null,eliteSeen=new Set(),eliteG=null;
-let claimed=new Set();
+let claimed=new Set(),staleT=new Map(),enemyTilesPrev=new Set(),staleG=null,staleF=0,frameT=null,modalAt=0,lastDown=0,modalGrace=0;
 
 // util.js - tiny dependency-free helpers: random (one RNG for all game logic), grid indexing, reduced-motion check.
 
@@ -1479,10 +1507,10 @@ function recordRun(kind,score){
  }
  return nr;
 }
-function dailyNote(){
+function dailyNote(){   // short: it sits under the Daily button, a third of the screen wide
  const d=meta.dly[todayKey()];
  if(!d)return 'not played yet';
- return d.score?('best '+(d.won?'WON':'floor '+d.floor)+' - '+d.score+' pts'):('started'+(d.att>1?' x'+d.att:'')+', no result yet');
+ return d.score?((d.won?'WON':'floor '+d.floor)+' · '+d.score+' pts'):('in progress'+(d.att>1?' x'+d.att:''));
 }
 // ---- achievements ----
 function earn(id){
@@ -1504,6 +1532,7 @@ function nextToast(){
  const el=$('toast');if(!el)return;
  const t=toastQ.shift();if(!t){toastBusy=false;el.style.opacity='0';return;}
  toastBusy=true;el.textContent=t.t;el.style.opacity='1';
+ el.style.top=(performance.now()<bannerUntil&&view.mm?Math.max(56,Math.round(Math.max(view.ch*0.16,view.mm.y+view.mm.h+13)+42+8)):56)+'px';   // never touches the floor banner
  setTimeout(function(){el.style.opacity='0';setTimeout(nextToast,260);},t.ms);
 }
 
@@ -1645,13 +1674,13 @@ document.addEventListener('pointerdown',function(){if(meta.sound&&!AC)ac();},tru
 
 function shake(a){if(rmo())return;shakeUntil=performance.now()+220;shakeAmt=a;}
 // hurt flash: a red vignette at the screen edge, scaled by the share of max HP lost (0.12..0.5); only a hit of >=20% max HP washes the whole screen. None with reduced motion.
-let flashAmt=0,flashFull=false;
+let flashAmt=0,flashFull=false,flashFrom=0;
 function playerHurtFx(d){
- const p=G.p,now=performance.now();flashes.p=now;sfx('hurt');
+ const p=G.p,now=performance.now()+vOff;flashes.p=now;sfx('hurt');
  const share=d/Math.max(1,p.mhp),big=d>=Math.max(6,p.mhp*0.2);
  if(!rmo()){
   const a=Math.max(0.12,Math.min(0.5,share*2.2)),live=now<flashUntil;
-  flashFull=(live&&flashFull)||share>=0.2;flashAmt=live?Math.max(flashAmt,a):a;flashUntil=now+(flashFull?250:180);
+  flashFull=(live&&flashFull)||share>=0.2;flashAmt=live?Math.max(flashAmt,a):a;flashUntil=now+(flashFull?250:180);flashFrom=now;
  }
  buzz(big?70:30);if(big)shake(6);
 }
@@ -1672,35 +1701,70 @@ function lblW(text,sz,k){ // box width in tile units
  if(w==null){if(!lblCtx)lblCtx=mkCanvas(4,4).getContext('2d');lblCtx.font='800 100px system-ui,-apple-system,sans-serif';w=lblWc[key]=lblCtx.measureText(text).width/100;}
  return w*sz+(k==='n'?0.12:sz*1.1);
 }
+function lblBox(f){return lblW(f.text+(f.n>1?' x'+f.n:''),f.sz,f.k);}
 function lblPos(f,T){ // centre of the label's box at time T, in tile units
  const a=Math.max(0,(T-f.t)/800);
  return [f.x+0.5+(f.dxo||0),f.y+0.2+(f.off||0)-a*0.6];
 }
+let vOff=0;   // while the enemy phase is drawn: how far behind the player's own action its visuals start (see enemiesAct)
+const DEALT='#ffd24a',TAKEN='#ff5a5a';
+function hpPulse(){const b=$('hpbar');if(!b)return;b.classList.remove('pulse');void b.offsetWidth;b.classList.add('pulse');}
+// Numbers: damage the player TAKES is red, on the left of the player's tile; damage DEALT is gold, on the right of the foe's tile. Within 450 ms a number of
+// the same kind on the same tile is added to the one already there (a "x3" tag counts the hits) instead of stacking; a tile holds at most 3 rows of labels
+// (1.2 tiles of height) and a fourth replaces the oldest; a heal of less than 5 HP only pulses the HP bar; numbers never wait for pills (pills dodge numbers).
 function floatFx(x,y,text,color,big){
  const now=performance.now();
  const k=/^[-+]?\d|^!$/.test(text)?'n':(text===text.toUpperCase()&&/[A-Z]/.test(text))?'a':'s';
- let t=now+holdAt(x,y);const t0=t;
+ const mine=!!G&&!!G.p&&x===G.p.x&&y===G.p.y;
+ let dxo=0,col=color,base=0;
+ if(k==='n'){
+  if(/^\+\d+$/.test(text)&&mine&&+text.slice(1)<5){hpPulse();return;}
+  if(text[0]==='-'){
+   if(mine){dxo=-0.42;col=TAKEN;}
+   else if(color!=='#7be04b'&&color!=='#ff9a3a'&&color!=='#c6f'){dxo=0.3;col=/!$/.test(text)?'#fff1b0':DEALT;}
+  }
+ }
+ if(G&&G.enemies){const bo=G.enemies.find(e=>e.x===x&&e.y===y&&EN[e.t].boss);if(bo)base=-1.6;}   // the boss is 2.6 tiles tall: labels sit at its head, not its belly
+ if(k==='a'&&big)base=Math.min(base,-0.9);                                                       // area pills (BOOM, NOVA, SMOKE) ride above the numbers
+ let t=now+holdAt(x,y)+vOff;const t0=t;
  for(const g of fx){if(g.c)continue;
   if(k!=='n'&&g.text===text&&Math.abs(g.t0-t0)<160)return;                       // one word per volley
   if(k==='s'&&g.k==='n'&&g.x===x&&g.y===y&&g.t>now-300)t=Math.max(t,g.t+250);}  // after the number, not on top of it
- const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={x:x,y:y,text:text,color:color,big:!!big,t:t,t0:t0,k:k,sz:sz,d:LBL_MS[k],off:0,dxo:0};
- const w=lblW(text,sz,k),h=sz*(k==='n'?1.15:1.5);
- for(let i=0;i<14;i++){
-  f.off=-i*Math.max(0.3,h);
+ if(k==='n'){
+  for(const g of fx){
+   if(g.c||g.k!=='n'||g.x!==x||g.y!==y||g.dxo!==dxo||g.color!==col||g.big!==!!big)continue;
+   if(!/^[-+]?\d+!?$/.test(g.text)||t-g.t>450||t<g.t)continue;
+   const a=parseInt(g.text,10),b=parseInt(text,10);
+   g.text=(a+b<0?'-':'+')+Math.abs(a+b)+(/!$/.test(text)||/!$/.test(g.text)?'!':'');g.n=(g.n||1)+1;g.t=t;g.t0=t;return;
+  }
+ }
+ const live=fx.filter(g=>!g.c&&now<g.t+g.d).length;
+ const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={x:x,y:y,text:text,color:col,big:!!big,t:t,t0:t0,k:k,sz:sz,d:k==='n'&&live>4?550:LBL_MS[k],off:base,dxo:dxo,n:1};
+ const w=lblW(text,sz,k),h=sz*(k==='n'?1.15:1.5),step=Math.max(0.3,h);
+ let row=-1;
+ for(let i=0;i<3&&row<0;i++){
+  f.off=base-i*step;
   let hit=false;const pa=lblPos(f,t);
-  for(const g of fx){if(g.c||t>g.t+g.d||g.t>t+f.d)continue;const Tc=Math.max(t,g.t),A=lblPos(f,Tc),B=lblPos(g,Tc),gw=lblW(g.text,g.sz,g.k),gh=g.sz*(g.k==='n'?1.15:1.5);
+  for(const g of fx){if(g.c||t>g.t+g.d||g.t>t+f.d)continue;if(k==='n'&&g.k!=='n')continue;
+   const Tc=Math.max(t,g.t),A=lblPos(f,Tc),B=lblPos(g,Tc),gw=lblBox(g),gh=g.sz*(g.k==='n'?1.15:1.5);
    if(Math.abs(A[0]-B[0])<(w+gw)/2&&Math.abs(A[1]-B[1])<(h+gh)/2){hit=true;break;}}
-  if(!hit)break;
+  if(!hit)row=i;
+ }
+ if(row<0){   // no room within the cap: the oldest label on this tile makes way
+  let old=null;for(const g of fx)if(!g.c&&g.x===x&&g.y===y&&g.k===k&&(!old||g.t<old.t))old=g;
+  if(old)fx.splice(fx.indexOf(old),1);
+  f.off=base;
  }
  fx.push(f);
 }
 // callout: a brief on-map word or two (<=3 words, ~1 s) for the few events worth seeing without reading the log. Drawn on the canvas (so it can
 // never take a tap), at most BAL.ui.calloutMax at once (a third one is dropped; the log keeps the history), no motion with reduced motion.
+let calloutDelay=0;   // a boss's death plays for ~900 ms: pills born in the same turn (LEVEL UP) wait for it
 function callout(x,y,text,color){
  const now=performance.now(),d=BAL.ui.calloutMs;let n=0;
  for(const f of fx)if(f.c&&now-f.t<d)n++;
  if(n>=BAL.ui.calloutMax)return;
- fx.push({x,y,text,color,big:true,t:now,c:1,d:d});
+ fx.push({x,y,text,color,big:true,t:now+calloutDelay,c:1,d:d});
 }
 // HP below 30%: one callout per crossing (it re-arms once HP is back above 40%). The first look at a run only records the state.
 function lowHpWatch(){
@@ -1720,8 +1784,8 @@ function eliteWatch(){
 // (a seeded run must play out identically with or without them), and all are skipped with prefers-reduced-motion. ----
 let lunges={},ghosts=[],vfx=[];
 const VFX_MS={bolt:300,knife:240,nova:380,blink:320,fire:440,cleave:240,charge:280,bash:240,brace:340,backstab:260,vanish:340,smoke:430};
-function lunge(id,dx,dy){if(dx)faces[id]=Math.sign(dx);if(rmo())return;lunges[id]={t:performance.now(),dx:Math.sign(dx),dy:Math.sign(dy)};}
-function ghostAdd(e){if(rmo())return;const boss=!!EN[e.t].boss;ghosts.push({id:EN[e.t].e,x:e.x,y:e.y,elite:!!e.elite,boss:boss,rage:!!e.enraged,t:performance.now()+holdAt(e.x,e.y)});if(boss)shake(8);}
+function lunge(id,dx,dy){if(dx)faces[id]=Math.sign(dx);if(rmo())return;lunges[id]={t:performance.now()+vOff,dx:Math.sign(dx),dy:Math.sign(dy)};}
+function ghostAdd(e){if(rmo())return;const boss=!!EN[e.t].boss;ghosts.push({id:EN[e.t].e,x:e.x,y:e.y,elite:!!e.elite,boss:boss,rage:!!e.enraged,t:performance.now()+holdAt(e.x,e.y)+vOff});if(boss)shake(8);}
 function puffAdd(x,y){if(rmo())return;puffs.push({x:x,y:y,t:performance.now()+holdAt(x,y),s:Math.random()*6});}
 function vfxAdd(k,x,y,x2,y2,r){
  if(rmo())return;
@@ -1731,6 +1795,7 @@ function vfxAdd(k,x,y,x2,y2,r){
 }
 const lerp=(a,b,t)=>a+(b-a)*t;
 function ring(cx,cy,r,col,w,al){ctx.globalAlpha=Math.max(0,al);ctx.strokeStyle=col;ctx.lineWidth=w;ctx.beginPath();ctx.arc(cx,cy,Math.max(0.5,r),0,7);ctx.stroke();ctx.globalAlpha=1;}
+function ringE(cx,cy,rx,ry,col,w,al){ctx.globalAlpha=Math.max(0,al);ctx.strokeStyle=col;ctx.lineWidth=w;ctx.beginPath();ctx.ellipse(cx,cy,Math.max(0.5,rx),Math.max(0.5,ry),0,0,7);ctx.stroke();ctx.globalAlpha=1;}
 function disc(cx,cy,r,col,al){ctx.globalAlpha=Math.max(0,al);ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,Math.max(0.5,r),0,7);ctx.fill();ctx.globalAlpha=1;}
 function star4(cx,cy,r,col,al,rot){ctx.save();ctx.translate(cx,cy);ctx.rotate(rot||0);ctx.globalAlpha=Math.max(0,al);ctx.fillStyle=col;ctx.beginPath();for(let i=0;i<8;i++){const a=i*Math.PI/4,rr=i%2?r*0.28:r;ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);}ctx.closePath();ctx.fill();ctx.restore();ctx.globalAlpha=1;}
 // draws the live effects; returns true while any is still running (render keeps animating)
@@ -1835,11 +1900,18 @@ function gearDeltaHtml(it){
  return d.map(x=>'<span class="dlt '+(x[1]>0?'up':'dn')+'">'+L[x[0]]+' '+(x[1]>0?'+':'\u2212')+Math.abs(x[1])+((x[0]==='crit'||x[0]==='dodge'||x[0]==='spell')?'%':'')+'</span>').join('');
 }
 function itemDesc(it){
- const st=it.t==='weapon'?'+'+it.v+' attack':it.t==='armor'?'Defense '+armorDef(it):'';
- return [st,itemRule(it)].filter(Boolean).join(' · ')+(it.tr?'<br>'+traitLine(it.tr):'');
+ const st=it.t==='weapon'?sgn(it.v+(WP[it.k]?WP[it.k].atk:0))+' attack':it.t==='armor'?'Defense '+armorDef(it):'';
+ const r=itemRuleShort(it);
+ return [st,r==='Balanced.'?'':r].filter(Boolean).join(' · ')+(it.tr?'<br>'+traitLine(it.tr):'');
 }
 // the rule line only (no stat numbers): weapon rules without the attack offset
-function itemRuleShort(it){return it.t==='weapon'?wpRule(it.k,true):it.t==='armor'?armRule(it.k):itemRule(it);}
+function itemRuleShort(it){const c=G&&G.p?G.p.cls:undefined;return it.t==='weapon'?wpRule(it.k,true,c):it.t==='armor'?armRule(it.k,true,c):itemRule(it);}
+// the rule phrases of an item (no stat numbers, nothing the class cannot use) plus its trait: used to say what a swap gives up
+function itemTerms(it){
+ if(!it)return [];const c=G.p.cls;
+ const t=it.t==='weapon'?wpTerms(it.k,true,c):it.t==='armor'?armTerms(it.k,true,c):[itemRule(it)].filter(Boolean);
+ return it.tr&&TR[it.tr]?t.concat([TR[it.tr].n]):t;
+}
 function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'';}
 function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
 function rollTrait(slot,f){
@@ -1903,7 +1975,7 @@ function pickOne(it){
    if(it.t==='off'||it.t==='charm')sellGear(it,'You already own this:');
    else if(it.v>cur.v){equipItem(it);msg('Equipped '+gearName(it)+'.');}
    else sellGear(it,'Weak');
-  }else{gearQ=it;take=false;}
+  }else{if(!it.skip)gearQ=it;take=false;}
  }
  else if(it.t==='fire'){G.inv.fire++;msg('+1 Flames.');}
  else if(it.t==='tele'){G.inv.tele++;msg('+1 Teleport.');}
@@ -2273,7 +2345,7 @@ function resolveWind(e,d){
  }else{msg('The '+d.n+"'s attack hits empty ground.");floatFx(e.x,e.y,'miss','#ccc');}
 }
 function moveEnemy(e,x,y){
- const i=ix(x,y);
+ const i=ix(x,y);if(vOff>0)holdSet(e.x,e.y,vOff);   // the step is drawn after the player's own action
  if(waterSet().has(i))e.wade=1;
  if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
  e.face=[Math.sign(x-e.x),Math.sign(y-e.y)];e.x=x;e.y=y;
@@ -2301,9 +2373,12 @@ function surroundStep(e,p){
  return best;
 }
 function enemiesAct(free){
- const p=G.p,dist=bfsDist(p.x,p.y);claimed=new Set();
+ const p=G.p,dist=bfsDist(p.x,p.y);claimed=new Set();let beat=0;
+ try{
  for(const e of G.enemies.slice()){
   if(p.hp<=0)break;if(e.dead)continue;
+  // everything the enemy phase shows starts 140 ms behind the player's own action, attackers 60 ms apart (at most 300 ms): cause, then effect
+  vOff=Math.min(300,140+60*beat);if(e.awake&&G.vis[ix(e.x,e.y)])beat++;
   const d=EN[e.t];if(!free&&e.cd>0)e.cd--;if(!free&&e.hcd>0)e.hcd--;
   if(d.boss&&!free)bossPhase(e);
   if(e.stun>0||e.frz>0){e.wind=null;if(!free){if(e.stun>0)e.stun--;if(e.frz>0)e.frz--;}continue;}
@@ -2353,6 +2428,7 @@ function enemiesAct(free){
    if(best)moveEnemy(e,best[0],best[1]);else break;
   }
  }
+}finally{vOff=0;}
 }
 
 // combat.js - damage, kills, status effects (poison, stun, freeze), shields, knockback, resource ticks and turn end processing.
@@ -2371,7 +2447,7 @@ function killEnemy(e,src){
  if(e.dead)return;
  e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
  const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');puffAdd(e.x,e.y);ghostAdd(e);
- gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));
+ calloutDelay=d.boss?900:0;gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));calloutDelay=0;
  if(d.boss){G.won=true;return;}
  if(modIs('horde')&&!G.enemies.length)earn('horde');
  if(traitOf('weapon')==='cursed')curseDrain();
@@ -2397,7 +2473,7 @@ function hurtEnemy(e,dmg,col,crit,kind){
   if(kind!=='melee')m=Math.min(m,BAL.weapon.shieldRanged);
   if(m<1){dmg=Math.max(1,Math.round(dmg*m));floatFx(e.x,e.y,'shield','#9ab');}
  }
- e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now()+holdAt(e.x,e.y);floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
+ e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now()+holdAt(e.x,e.y)+vOff;floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
 }
 // resolve a hit: kill if dead, else maybe execute
 function settle(e,src){
@@ -2478,7 +2554,7 @@ function hurtPlayer(e,dmg,melee,verb){
   floatFx(p.x,p.y,'braced','#9cf');if(--G.brace.hits<=0)G.brace=null;
  }
  p.hp-=dmg;G.killer=nm(e);floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
- msg('The '+nm(e)+' '+(verb||(melee?'hits':'blasts'))+' you for '+dmg+'.');playerHurtFx(dmg);
+ msg('The '+nm(e)+' '+(verb||(melee?'hits':'shoots'))+' you for '+dmg+'.');playerHurtFx(dmg);
  gainRage(BAL.rage.taken);
  secondWind();
  if(refl>0&&!e.dead){hurtEnemy(e,refl,'#9cf');msg('Your brace reflects '+refl+' damage.');settle(e,'Reflection');}
@@ -2536,7 +2612,7 @@ function endTurn(){
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
- lowHpWatch();computeVis();save();render();
+ staleTrack();lowHpWatch();computeVis();save();render();
  afterModals();
 }
 
@@ -2634,7 +2710,7 @@ function costOf(k){
  if(k==='blink'&&pc('phase'))mana=Math.max(0,mana-BAL.perk.phaseCost);
  return {rage:rage,mana:mana};
 }
-function costLabel(k){const c=costOf(k);return c.rage?c.rage+' rage':c.mana?c.mana+' mana':k==='knife'?'1 knife':cdFor(k)?'cd '+cdFor(k):'free';}
+function costLabel(k){const c=costOf(k);return c.rage?c.rage+' rage':c.mana?c.mana+' mana':k==='knife'?'1 knife':cdFor(k)?'ready':'free';}
 function inSmoke(x,y){const k=ix(x,y);if(G.smoke)for(const c of G.smoke)if(c.cells.indexOf(k)>=0)return true;return false;}
 function isFront(e){const p=G.p;if(!e.face)return true;return e.face[0]*(p.x-e.x)+e.face[1]*(p.y-e.y)>0;}
 function isBehind(e){const p=G.p;if(!e.face)return false;return e.face[0]*(p.x-e.x)+e.face[1]*(p.y-e.y)<0;}
@@ -2702,7 +2778,7 @@ function whyNot(k){
  if((k==='cleave'||k==='nova')&&!chebEnemies().length)return A.n+': no enemy next to you.';
  if(A.tg!=='self'&&!targetTiles(k).length){
   return k==='charge'?'Charge: need a foe in line, '+BAL.ability.charge.minDist+'-'+BAL.ability.charge.maxDist+' tiles.':
-   (k==='bash'||k==='backstab')?A.n+': no enemy next to you.':A.n+': no target.';
+   (k==='bash'||k==='backstab')?(chebEnemies().length?A.n+': that foe is diagonal. Straight lines only.':A.n+': no enemy next to you.'):A.n+': no target.';
  }
  return '';
 }
@@ -3154,8 +3230,8 @@ function startWalk(path,opts){
   const hp0=p.hp,v0=visIds(),f0=G.floor;G.stopWalk=false;
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
   if(!G||G.over||G.floor!==f0||p.hp<hp0||G.stopWalk||modalOpen()){stop();return;}
-  const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0)){stop();return;}
-  if(opts.explore&&G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){stop();return;}
+  const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0)){frameSight();stop();return;}
+  if(opts.explore&&G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){frameSight();stop();return;}
   if(path.length)setTimeout(step,70);else{stop();if(opts.done&&G&&!G.over&&!modalOpen())opts.done();}
  };
  if(path.length){const l=path[path.length-1];dest={x:l[0],y:l[1],tok:tok};}
@@ -3164,11 +3240,16 @@ function startWalk(path,opts){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');frameSight();render();return;}
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
 const tz=trapSet(),cz=crackSet();
+ // loot already seen and worth taking is a goal too (otherwise Explore says "nothing left" with gold lying in a visited room)
+ const loot=new Set();
+ for(const it of G.items){const k=ix(it.x,it.y);if(!G.seen[k]||it.skip||enemyAt(it.x,it.y))continue;
+  if((it.t==='potion'&&G.inv.pot>=G.p.potCap)||(it.t==='knife'&&(G.knives||0)>=maxKnives()))continue;
+  if(it.x===p.x&&it.y===p.y)continue;loot.add(k);}
  const sleepers=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]);
  const near=new Set();for(const e of sleepers)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)near.add(ix(e.x+dx,e.y+dy));
  const search=function(avoid){
@@ -3177,7 +3258,7 @@ const tz=trapSet(),cz=crackSet();
    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
     if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||cz.has(k)||enemyAt(nx,ny)||dz.has(k)||(avoid&&near.has(k)))continue;
     prev.set(k,ix(x,y));q.push([nx,ny]);
-    if(!G.exp[k]||G.map[k]===3){goal=k;break;}}}
+    if(!G.exp[k]||G.map[k]===3||loot.has(k)){goal=k;break;}}}
   return {prev:prev,goal:goal};
  };
  let res=search(sleepers.length>0);
@@ -3190,7 +3271,7 @@ const tz=trapSet(),cz=crackSet();
    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
     if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||cz.has(k)||enemyAt(nx,ny)||dz.has(k))continue;
     pv.set(k,ix(x,y));q.push([nx,ny]);
-    if(!G.exp[k]||G.map[k]===3){g2=k;break;}}}
+    if(!G.exp[k]||G.map[k]===3||loot.has(k)){g2=k;break;}}}
   if(g2>=0){
    const full=[];let k=g2;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
    const i=full.findIndex(t=>tz.has(ix(t[0],t[1])));
@@ -3206,8 +3287,24 @@ const tz=trapSet(),cz=crackSet();
  startWalk(path.reverse(),{explore:true});
 }
 function itemName(it){
- const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife'}[it.t];
- return base||(gearName(it)+': '+itemRuleShort(it).replace(/\.$/,''));
+ const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife',key:'Brass key'}[it.t];
+ return base||(gearName(it)+': '+(it.tr&&TR[it.tr]?TR[it.tr].d:itemRuleShort(it)).replace(/\.$/,''));
+}
+// Stale taps. A tap lands where a foe WAS (it died to the previous tap, or it just stepped away): that must never turn into a walk. endTurn
+// calls this: every tile a foe left or died on is "stale" for BAL.ui.staleMs, and every ignored tap on it renews the window, so a burst of
+// taps at one spot attacks while something is there and then does nothing at all. Foes on the tile NOW are always attacked normally.
+function staleTrack(){
+ const now=performance.now(),cur=new Set(G.enemies.map(e=>ix(e.x,e.y)));
+ if(staleG!==G||staleF!==G.floor){staleG=G;staleF=G.floor;staleT.clear();enemyTilesPrev=cur;return;}
+ for(const k of enemyTilesPrev)if(!cur.has(k))staleT.set(k,now+BAL.ui.staleMs);
+ enemyTilesPrev=cur;
+}
+function staleTap(tx,ty){
+ const k=ix(tx,ty),t=staleT.get(k);
+ if(t==null)return false;
+ const now=performance.now();
+ if(t<=now||enemyAt(tx,ty)){staleT.delete(k);return false;}
+ staleT.set(k,now+BAL.ui.staleMs);return true;
 }
 function onTap(tx,ty){
  walkTok++;
@@ -3224,8 +3321,11 @@ function onTap(tx,ty){
  if(tx===p.x&&ty===p.y){
   const sh=G.shrine;
   if(sh&&!sh.used&&sh.x===p.x&&sh.y===p.y){showShrine();return;}
+  const gi=G.items.find(i=>i.x===p.x&&i.y===p.y&&SLOTS.indexOf(i.t)>=0);
+  if(gi&&gi.skip){gi.skip=0;gearQ=gi;showGear();return;}   // tap yourself on a gear item you declined: its card again
   if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
  if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored tile.');return;}
+ if(staleTap(tx,ty)){msg('That foe is gone.');return;}
  const adj=Math.abs(tx-p.x)+Math.abs(ty-p.y)===1;
  if(merchantAt(tx,ty)){
   if(adj){showShop();return;}
@@ -3261,6 +3361,8 @@ function onTap(tx,ty){
  }
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
+  // melee is straight only (up / down / left / right): a foe on a diagonal cannot hit you either. A tap never steps out of position for it.
+  if(cheb(e,p)===1&&!reachOk(e)){msg('Diagonal: no strike either way. Wait, or step in line.');return;}
   if(reachOk(e)){reachAttack(e);return;}
   const d=EN[e.t];   // short log line; hold the foe for the full card (trait, state)
   msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'.'+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
@@ -3307,19 +3409,31 @@ function rawPath(sx,sy,tx,ty){
 function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
 // kind + button.k are plain labels (data attributes) so Auto can tell dialogs and choices apart without parsing text
+// A dialog that opens because of something that happened (level-up, gear underfoot, shrine, exit choice, merchant, end of run) may appear
+// under a finger that is still tapping the map. Real taps are ignored for BAL.ui.modalGraceMs after it opens, and so is any tap whose finger
+// went down BEFORE it opened (never both counted). Clicks made through the DOM (Auto, bots) and keyboard activations are not touched.
+const GRACE_KINDS={perk:1,gear:1,shrine:1,path:1,shop:1,end:1};
+document.addEventListener('pointerdown',function(){lastDown=performance.now();},true);
+function modalBlocked(e){
+ if(!modalGrace||!e||!e.isTrusted)return false;
+ return performance.now()-modalAt<modalGrace||(e.detail>0&&lastDown<modalAt);
+}
 function showModal(title,html,buttons,kind,icon){
+ const wasOpen=$('modal').style.display!=='none';
+ modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]?BAL.ui.modalGraceMs:0;
  armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win');
  const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
   const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;
   el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
-  el.addEventListener('click',function(e){e.stopPropagation();bt.fn(el);});
+  el.addEventListener('click',function(e){e.stopPropagation();if(modalBlocked(e))return;bt.fn(el);});
   b.appendChild(el);
  }
+ $('modal').style.alignItems=kind==='help'?'flex-start':'';   // an open section must not move the headings under the finger
  $('modal').style.display='flex';
 }
-function closeModal(){$('modal').style.display='none';}
+function closeModal(){$('modal').style.display='none';if(G&&G.p)render();}
 function perkTags(pk){
  let t='';
  if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';
@@ -3328,7 +3442,12 @@ function perkTags(pk){
 }
 // leading icon chip for choice cards (perks / upgrades): a few specific icons, the rest share the generic perk mark
 const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',trapper:'trap_spike',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
-function cardHtml(id,inner){return '<span class="chp">'+ic(CARD_IC[id]||'perk',28)+'</span><span class="ct">'+inner+'</span>';}
+// perk categories tint the icon chip: offence orange, defence blue, utility violet
+const PERK_CAT={might:'o',vamp:'o',keen:'o',venom:'o',chain:'o',blood:'o',berserk:'o',exec:'o',glass:'o',fury:'o',stampede:'o',assassin:'o',arcana:'o',deepfreeze:'o',pyro:'o',warlord:'o',riposte:'o',
+ vit:'d',bul:'d',thorns:'d',evade:'d',second:'d',phoenix:'d',renew:'d',regen:'d',retrib:'d',shadow:'d'};
+const CAT_COL={o:'#ff8a3a',d:'#3f86ff',u:'#b38bff'};
+function perkChip(id,px){const c=CAT_COL[PERK_CAT[id]||'u'];return '<span class="chp" style="border-color:'+c+';background:'+c+'26">'+ic(CARD_IC[id]||'perk',px||28)+'</span>';}
+function cardHtml(id,inner){return (CARD_IC[id]&&PERK_CAT[id]!==undefined||PERKS.some(p=>p.id===id)?perkChip(id):'<span class="chp">'+ic(CARD_IC[id]||'perk',28)+'</span>')+'<span class="ct">'+inner+'</span>';}
 function showPerk(){
  if(!G||G.pending<=0)return;
  walkTok++;
@@ -3346,8 +3465,9 @@ function showPerk(){
 function slotLines(sl){
  const it=G.p.eq[sl];
  if(!it)return '';
- const st=sl==='weapon'?'+'+it.v+' attack · ':sl==='armor'?'Defense '+armorDef(it)+' · ':'';
- return '<small>'+st+itemRule(it)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
+ const st=sl==='weapon'?sgn(it.v+(WP[it.k]?WP[it.k].atk:0))+' attack · ':sl==='armor'?'Defense '+armorDef(it)+' · ':'';
+ const r=itemRuleShort(it);
+ return '<small>'+st+(r==='Balanced.'?'':r)+(it.tr?'<br><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d:'')+'</small>';
 }
 function statStrip(){
  const p=G.p;
@@ -3374,7 +3494,7 @@ function showAbilities(back){
 function showPerks(back){
  let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
  if(!own.length)h+='<p class="sub">No perks yet. Level up to pick one.</p>';
- for(const pk of own)h+='<div class="pl"><b>'+pk.n+(pk.max>1?' ×'+pc(pk.id):'')+'</b>'+perkTags(pk)+'<br><small>'+pk.d+'</small></div>';
+ for(const pk of own)h+='<div class="pl"><b>'+ic(CARD_IC[pk.id]||'perk',20)+' '+pk.n+(pk.max>1?' ×'+pc(pk.id):'')+'</b>'+perkTags(pk)+'<br><small>'+pk.d+'</small></div>';
  h+='<p><b>Synergies</b></p>';
  for(const s of SYN){
   const on=pc(s.a)&&pc(s.b);
@@ -3384,10 +3504,13 @@ function showPerks(back){
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
- const arm={v:false};
+ const arm={v:false},armAuto={v:false};
  showModal('Menu','',[
   {html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
-  {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(){closeModal();autoStart();}},
+  {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(el){
+   // the cost is stated BEFORE the first activation: the first tap only says it, the second starts (no alert / confirm)
+   if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' '+autoGoldWord()+' gold this run. Tap again';return;}
+   closeModal();autoStart();}},
   {html:ic('perk',20)+' Perks',c:1,fn:function(){showPerks(showMenu);}},
   {html:ic('info',20)+' Controls',c:1,fn:function(){showHelp(showMenu);}},
   {html:ic('snd',20)+' '+soundLabel(),c:1,fn:function(el){toggleSound();el.innerHTML=ic('snd',20)+' '+soundLabel();}},
@@ -3402,7 +3525,8 @@ function showGear(){
  walkTok++;
  const p=G.p,sl=it.t,cur=p.eq[sl],nn=gearName(it);
  // found item, what it replaces, green / red stat changes, then at most two short rule lines
- const rule=itemRuleShort(it),rules=(rule&&rule!=='Balanced.'?'<div class="rl">'+rule+'</div>':'')+(it.tr?'<div class="rl"><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d+'</div>':'');
+ const rule=itemRuleShort(it),gone=itemTerms(cur).filter(x=>itemTerms(it).indexOf(x)<0),
+  rules=(rule&&rule!=='Balanced.'?'<div class="rl">'+rule+'</div>':'')+(it.tr?'<div class="rl"><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d+'</div>':'')+(gone.length?'<div class="rl lose">Gives up: '+gone.join(', ')+'</div>':'');
  const html='<div class="found"><b>'+ic(itemIcon(it),28)+' '+nn+'</b><small>replaces '+(cur?ic(itemIcon(cur),16)+' '+gearName(cur):'nothing')+'</small></div>'+
   '<div class="dl">'+gearDeltaHtml(it)+'</div>'+rules;
  showModal(SLOT_LABEL[sl]+' found',html,[
@@ -3413,7 +3537,7 @@ function showGear(){
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
    closeModal();save();render();
    if(G.pending>0)showPerk();}},
-  {k:'leave',label:'Leave',c:1,big:1,fn:function(){msg('Left the '+nn+'.');closeModal();render();}}
+  {k:'leave',label:'Leave',c:1,big:1,fn:function(){it.skip=1;msg('Left the '+nn+'. Tap yourself to see it again.');closeModal();render();}}
  ],'gear');
 }
 
@@ -3598,6 +3722,7 @@ function screenFrame(title){
 }
 function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.addEventListener('click',function(){showMore();});t.appendChild(b);}
 function recLine(r){
+ if(!r||!r.runs)return '<span style="color:#8f8da8">No runs yet</span>';
  return 'Floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest <b>'+(r.fast?r.fast+'t':'-')+'</b> &middot; Score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> '+r.awins+'/'+r.aruns:'');
 }
 function showRecords(){
@@ -3681,7 +3806,7 @@ function abStatus(k){
  if(c.mana&&(p.mana||0)<c.mana)return {dis:1,sub:c.mana+' mana'};
  if(k==='knife'&&(G.knives||0)<1)return {dis:1,sub:'no knives'};
  // why a targeted ability cannot fire: only O(visible foes) checks, no map scan
- if((k==='cleave'||k==='nova'||k==='bash'||k==='backstab')&&!(k==='bash'||k==='backstab'?advEnemies(true):chebEnemies()).length)return {dis:1,sub:G.enemies.some(e=>G.vis[ix(e.x,e.y)])?'too far':'no target'};
+ if((k==='cleave'||k==='nova'||k==='bash'||k==='backstab')&&!(k==='bash'||k==='backstab'?advEnemies(true):chebEnemies()).length)return {dis:1,sub:(k==='bash'||k==='backstab')&&chebEnemies().length?'diagonal':G.enemies.some(e=>G.vis[ix(e.x,e.y)])?'too far':'no target'};
  if(k==='charge'&&!chargeLines().length)return {dis:1,sub:G.enemies.some(e=>G.vis[ix(e.x,e.y)])?'no line':'no target'};
  if((k==='bolt'||k==='knife')&&!enemyShots(BAL.ability[k].range).length){
   const R=BAL.ability[k].range,vis=G.enemies.filter(e=>G.vis[ix(e.x,e.y)]);
@@ -3744,6 +3869,19 @@ cv.addEventListener('click',function(ev){
  if(mm&&!G.over&&cx>=mm.x&&cx<=mm.x+mm.w&&cy>=mm.y&&cy<=mm.y+mm.h){bigMap=true;render();return;}
  const tx=Math.floor((ev.clientX-r.left-view.ox)/view.ts),ty=Math.floor((ev.clientY-r.top-view.oy)/view.ts);
  onTap(tx,ty);
+});
+// Escape: closes the open dialog through its own Back / Resume / Leave button (never a forced choice: perk pick, end of run), else cancels aiming
+document.addEventListener('keydown',function(ev){
+ if(ev.key!=='Escape')return;
+ const m=$('modal');
+ if(m.style.display!=='none'){
+  const box=$('modalBox'),k=box.dataset.kind;if(k==='perk'||k==='end')return;
+  const b=[...box.querySelectorAll('button')].reverse().find(x=>!x.disabled&&/^(back|resume|close|leave|got it)/i.test(x.textContent.trim()));
+  if(b){ev.preventDefault();b.click();}
+  return;
+ }
+ if(!G||G.over||$('title').style.display!=='none')return;
+ if(bigMap){bigMap=false;render();}else if(insp){clearInspect();render();}else if(armed)cancelTarget();
 });
 document.addEventListener('keydown',function(ev){
  if(!G||G.over||modalOpen()||$('title').style.display!=='none')return;
@@ -4313,6 +4451,11 @@ function autoTravel(dz,cz,tz){
  autoNote('wait');wait();
 }
 
+// a phone turned sideways covers the game with a rotate hint (styles.css #rot): Auto must not keep playing unseen behind it
+try{const mq=window.matchMedia('(orientation:landscape) and (max-height:520px) and (max-width:1000px)');
+ const rotCheck=function(e){if(e.matches&&AUTO.on)autoStop('Auto paused: rotate your phone.');};
+ if(mq.addEventListener)mq.addEventListener('change',rotCheck);else if(mq.addListener)mq.addListener(rotCheck);}catch(e){}
+
 // minimap.js - minimap / big-map drawing (rounded dark panel, theme colours, round markers).
 
 function drawMini(){
@@ -4357,6 +4500,7 @@ function resize(){
 }
 if(window.ResizeObserver)new ResizeObserver(resize).observe($('cv'));
 window.addEventListener('resize',resize);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&G)render();});
 function rrect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 // ground shadow under a standing thing
 function gshadow(cx,cy,rx,ry,al){ctx.fillStyle='rgba(6,6,14,'+(al||0.32)+')';ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,7);ctx.fill();}
@@ -4419,8 +4563,7 @@ function badgeRow(e,x,y,r,k){
  const list=[];
  if(e.pois)list.push([e.pois.burn?'st_burn':'st_pois',e.pois.burn?'#ff9a3a':'#58d36b']);
  if(e.blind>0)list.push(['st_blind','#cfd4e6']);
- if(e.rest)list.push(['st_rest','#ffc93c']);
- if(e.hunter)list.push(['st_hunt','#ff5acd']);
+ if(e.rest)list.push(['st_rest','#ffc93c']);   // (a hunter is shown by its dashed pink ring alone)
  for(let i=0;i<list.length&&i<3;i++)badge(x+r+i*r*1.75*k,y,r,list[i][0],list[i][1]);
  if(list.length>3){ctx.font='800 '+Math.round(r*1.5)+'px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle=INK;ctx.strokeText('+',x+r+3*r*1.75*k-r*0.4,y);ctx.fillStyle='#fff';ctx.fillText('+',x+r+3*r*1.75*k-r*0.4,y);}
 }
@@ -4441,11 +4584,15 @@ function itemMark(it,x,y,s,al){ // an item (or trap) shown small in a tile corne
 // the boss: drawn at 2.6 tiles, feet on its own tile; its head is redrawn after everything else (bossHead) so neighbours never cover it
 const BOSS_K=2.6;
 function bossGeom(px,py,ts){const S=ts*BOSS_K;return {S:S,sx:px+ts/2-S*0.57,sy:py+ts*0.93-S*0.95};}
+let bossSq=1,bossMem=null;
+function bossFoot(e){for(let dy=-2;dy<=0;dy++)for(let dx=-1;dx<=1;dx++){const x=e.x+dx,y=e.y+dy;if(inb(x,y)&&G.vis[ix(x,y)])return true;}return false;}
 function drawBossSpr(e,g,variant,al,crop){
  const d=EN[e.t],v=variant||(e.enraged?'rage':''),bmp=spriteBmp(d.e,g.S,v);
  ctx.globalAlpha=al;
+ const fyb=g.sy+g.S*0.95;if(bossSq!==1){ctx.save();ctx.translate(0,fyb);ctx.scale(1,bossSq);ctx.translate(0,-fyb);}
  if(crop){const w=bmp.width/100,H=DRAGON_HEAD;ctx.drawImage(bmp,H[0]*w,H[1]*w,H[2]*w,H[3]*w,g.sx+H[0]/100*g.S,g.sy+H[1]/100*g.S,H[2]/100*g.S,H[3]/100*g.S);}
  else ctx.drawImage(bmp,g.sx,g.sy,g.S,g.S);
+ if(bossSq!==1)ctx.restore();
  ctx.globalAlpha=1;
 }
 function drawDanger(dz,x0,x1,y0,y1,ox,oy,ts,now,am,clip){
@@ -4459,6 +4606,44 @@ function drawDanger(dz,x0,x1,y0,y1,ox,oy,ts,now,am,clip){
   for(let o=-ts;o<ts*2;o+=Math.max(8,ts/4)){ctx.moveTo(px+o,py+ts);ctx.lineTo(px+o+ts,py);}
   ctx.stroke();ctx.restore();
   ctx.globalAlpha=am;ctx.strokeStyle=PAL.danger;ctx.lineWidth=3;rrect(px+1.5,py+1.5,ts-3,ts-3,4);ctx.stroke();ctx.lineWidth=1;ctx.globalAlpha=1;
+ }
+}
+// ---- camera. Normally the player is centred. Whatever the game calls targetable (an armed ability's tiles) or "in sight" (the stop after
+// Explore / a walk met a foe) has to be on screen and tappable: if some of it falls outside the normal view, the camera frames the player plus all of
+// it - panning to the middle of that box and, when the box is bigger than the view, zooming out down to BAL.ui.camMinTs. Sight is 7 tiles, so a
+// box never needs more than 15 x 15 tiles. The frame holds while the ability stays armed, or until the next turn for the sight case.
+function frameOn(){return !!frameT&&frameT.g===G&&frameT.t===G.turn&&frameT.f===G.floor;}
+function frameSight(){if(G)frameT={g:G,t:G.turn,f:G.floor};}
+function seenAwake(){return G.enemies.filter(e=>e.awake&&!e.dead&&G.vis[ix(e.x,e.y)]);}
+function camPlan(ts0){
+ const p=G.p,cw=view.cw,ch=view.ch;let pts=null;
+ if(armed)pts=targetTiles(armed);
+ else if(frameOn())pts=seenAwake().map(e=>[e.x,e.y]);
+ if(!pts||!pts.length)return null;
+ const top=$('chips').children.length?52:0;   // the modifier chip sits over the top-left corner
+ const fits=function(x,y,ts,o1,o2,t){return o1+x*ts>=0&&o1+(x+1)*ts<=cw&&o2+y*ts>=t&&o2+(y+1)*ts<=ch;};
+ const dox=cw/2-(p.x+0.5)*ts0,doy=ch/2-(p.y+0.5)*ts0;
+ if(pts.every(t=>fits(t[0],t[1],ts0,dox,doy,0)))return null;   // all of it is already in the normal view
+ let x0=p.x,x1=p.x,y0=p.y,y1=p.y;
+ for(const t of pts){if(t[0]<x0)x0=t[0];if(t[0]>x1)x1=t[0];if(t[1]<y0)y0=t[1];if(t[1]>y1)y1=t[1];}
+ const bw=x1-x0+1,bh=y1-y0+1,avH=ch-top;
+ const ts=Math.min(ts0,Math.max(Math.min(BAL.ui.camMinTs,ts0),Math.floor(Math.min(cw/(bw+0.6),avH/(bh+0.6)))));
+ let ox=Math.round(cw/2-(x0+bw/2)*ts),oy=Math.round(top+avH/2-(y0+bh/2)*ts);
+ return {ts:ts,ox:ox,oy:oy};
+}
+// off-screen foes that are awake and in sight: a red arrow on the screen edge pointing at them (the minimap dot alone is easy to miss)
+function drawEdgeMarks(ox,oy,ts){
+ const cw=view.cw,ch=view.ch,p=G.p;
+ for(const e of seenAwake()){
+  const l=ox+e.x*ts,t=oy+e.y*ts;
+  if(l>=0&&l+ts<=cw&&t>=0&&t+ts<=ch)continue;
+  const ex=ox+(e.x+0.5)*ts,ey=oy+(e.y+0.5)*ts,cx=cw/2,cy=ch/2,dx=ex-cx,dy=ey-cy,m=14;
+  const k=Math.min((cw/2-m)/Math.max(1e-6,Math.abs(dx)),(ch/2-m)/Math.max(1e-6,Math.abs(dy)));
+  const ax=cx+dx*k,ay=cy+dy*k,an=Math.atan2(dy,dx);
+  ctx.save();ctx.translate(ax,ay);ctx.rotate(an);ctx.lineJoin='round';
+  ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-6,-7);ctx.lineTo(-6,7);ctx.closePath();
+  ctx.fillStyle='#ff4a4a';ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle=INK;ctx.stroke();
+  ctx.restore();
  }
 }
 // targeting: enemy targets get a bracket reticle; ground abilities get their reachable area as one shape with a single outline
@@ -4496,8 +4681,9 @@ function render(){
  const now=performance.now(),p=G.p,th=themeOf(G.floor,G.variant),rm=rmo();
  let shk=false;
  if(now<shakeUntil&&!rm){const sa=shakeAmt*(shakeUntil-now)/220;ctx.translate((Math.random()*2-1)*sa,(Math.random()*2-1)*sa);ctx.fillStyle='#07070d';ctx.fillRect(-12,-12,view.cw+24,view.ch+24);shk=true;}
- const ts=Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5));
- const fox=Math.round(view.cw/2-(p.x+0.5)*ts),foy=Math.round(view.ch/2-(p.y+0.5)*ts);
+ const ts0=Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5)),cam=camPlan(ts0);
+ const ts=cam?cam.ts:ts0;
+ const fox=cam?cam.ox:Math.round(view.cw/2-(p.x+0.5)*ts),foy=cam?cam.oy:Math.round(view.ch/2-(p.y+0.5)*ts);
  if(lastPos&&lastPos.f===G.floor&&(lastPos.x!==p.x||lastPos.y!==p.y)){
   if(!rm&&Math.abs(lastPos.x-p.x)+Math.abs(lastPos.y-p.y)<=3)stepAnim={fx:visX,fy:visY,t:now};else stepAnim=null;
  }else if(!lastPos||lastPos.f!==G.floor)stepAnim=null;
@@ -4505,8 +4691,8 @@ function render(){
  let vx=p.x,vy=p.y;
  if(stepAnim){const k=(now-stepAnim.t)/110;if(k>=1)stepAnim=null;else{const ek=k*(2-k);vx=stepAnim.fx+(p.x-stepAnim.fx)*ek;vy=stepAnim.fy+(p.y-stepAnim.fy)*ek;}}
  visX=vx;visY=vy;
- const ox=Math.round(view.cw/2-(vx+0.5)*ts),oy=Math.round(view.ch/2-(vy+0.5)*ts);
- view.ts=ts;view.ox=fox;view.oy=foy;
+ const ox=cam?cam.ox:Math.round(view.cw/2-(vx+0.5)*ts),oy=cam?cam.oy:Math.round(view.ch/2-(vy+0.5)*ts);
+ view.ts=ts;view.ox=fox;view.oy=foy;view.framed=!!cam;
  const x0=Math.max(0,Math.floor(-ox/ts)),x1=Math.min(W-1,Math.ceil((view.cw-ox)/ts)),
        y0=Math.max(0,Math.floor(-oy/ts)),y1=Math.min(H-1,Math.ceil((view.ch-oy)/ts));
  let more0=stepFog(x0,x1,y0,y1,rm);
@@ -4530,7 +4716,7 @@ function render(){
   }
   const t=G.map[i],L=litD[i];
   if(t===0){
-   drawTileLayer(th,(y+1<H&&G.map[ix(x,y+1)]!==0)?'wallf':'wallt',(x+y)&1,L,px,py,ts);
+   drawTileLayer(th,(y+1<H&&G.map[ix(x,y+1)]!==0&&G.seen[ix(x,y+1)])?'wallf':'wallt',(x+y)&1,L,px,py,ts);   // a brick face only where the floor below it has been seen
   }else{
    drawTileLayer(th,(y>0&&G.map[ix(x,y-1)]===0)?'floors':'floor',floorVar(x,y),L,px,py,ts);
    if(t===3)drawSprL('door',px,py,ts,L);
@@ -4554,22 +4740,53 @@ function render(){
  // foes, in drawing order (visible ones only); the boss body goes in first so it can never hide a neighbour
  const fl=[];let boss=null,idle=false;
  for(const e of G.enemies){
-  if(!G.vis[ix(e.x,e.y)])continue;
+  const isB=!!EN[e.t].boss;
+  if(!G.vis[ix(e.x,e.y)]&&!(isB&&bossFoot(e)))continue;   // the boss is 3 tiles wide and 3 tall: it is seen while ANY tile of its body is
   const s=foePos(e,now,rm);if(s.mv)more0=true;
   if(s.dx<x0-3||s.dx>x1+3||s.dy<y0-3||s.dy>y1+3)continue;
   const o={e:e,s:s,px:ox+s.dx*ts,py:oy+s.dy*ts,boss:!!EN[e.t].boss};
   if(o.boss)boss=o;else{fl.push(o);if(!rm&&e.awake)idle=true;}
  }
  fl.sort((a,b)=>a.py-b.py);
+ const drawFoe=function(o){
+  const e=o.e,d=EN[e.t],px=o.px,py=o.py,cx=px+ts/2,S=ts*(e.elite?1.08:1),sleep=!e.awake;
+  let ox2=0,oy2=0;
+  {const lg=lunges[e.id];if(lg){const k=(now-lg.t)/150;if(k<0)more0=true;else if(k<1){const q=Math.sin(Math.PI*k)*ts*0.3;ox2=lg.dx*q;oy2=lg.dy*q;more0=true;}else delete lunges[e.id];}}
+  const fy=py+ts*0.9;
+  gshadow(cx+ox2,fy,ts*0.32,ts*0.075,0.34);
+  if(e.elite)ringE(cx,fy,ts*0.42,ts*0.16,'#ffc93c',2,0.95);
+  if(e.hunter){ctx.setLineDash([5,4]);ringE(cx,fy,ts*0.36,ts*0.13,'#ff5acd',2,0.95);ctx.setLineDash([]);}
+  const sq=(!rm&&!sleep&&!e.stun&&!e.frz)?1-0.03*(0.5+0.5*Math.sin(Math.floor(now/125)*125/1600*6.283+e.id*1.3)):1;
+  const sx=cx-S/2+ox2,sy=py+ts-S+oy2-2,mir=SIDE_VIEW[d.e]&&o.s.face>0;
+  if(d.shield&&e.face&&e.face[1]<0)drawShield(e,px,py-0.3*ts,ts,ox2,oy2);   // facing away: the shield is held behind the head, only its top shows
+  ctx.globalAlpha=sleep?0.7:1;
+  ctx.save();ctx.translate(sx+S/2,sy+S);ctx.scale(mir?-1:1,sq);drawSpr(d.e,-S/2,-S,S,'');ctx.restore();
+  ctx.globalAlpha=1;
+  {const fl2=flashes[e.id],dd=now-fl2;if(fl2&&dd<190){if(dd>=0){ctx.globalAlpha=0.8*(1-dd/190);if(mir){ctx.save();ctx.translate(sx+S,0);ctx.scale(-1,1);drawSpr(d.e,0,sy,S,'flash');ctx.restore();}else drawSpr(d.e,sx,sy,S,'flash');ctx.globalAlpha=1;}more0=true;}}
+  if(e.frz>0){ctx.globalAlpha=0.6;drawSpr('st_frz',cx-ts*0.42,py+ts*0.08,ts*0.84,'');ctx.globalAlpha=1;}
+  if(e.elite)drawSpr('crown',cx-ts*0.22,sy-ts*0.2,ts*0.44,'');
+  if(e.wind)drawSpr('st_wind',px+ts*0.68,py,ts*0.4,'');
+  if(sleep)drawSpr('st_sleep',px+ts*0.66,py+ts*0.04,ts*0.34,'');
+  if(e.stun>0){const a=rm?0:now/220;for(let i=0;i<3;i++){const q=a+i*2.09;drawSpr('st_stun',cx+Math.cos(q)*ts*0.3-ts*0.09,py+ts*0.02+Math.sin(q)*ts*0.07,ts*0.2,'');}if(!rm)more0=true;}
+  badgeRow(e,px+(e.elite?ts*0.74:2),py+4,5.5,1.1);   // small badges along the tile's top edge, after the crown on an elite, never on the face
+  if(d.shield&&e.face&&e.face[1]>=0)drawShield(e,px,py,ts,ox2,oy2);
+  if(reachOk(e)){ctx.strokeStyle='#ffe066';ctx.lineWidth=2;ctx.setLineDash([4,3]);rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;}
+ };
+ const bfx=boss?boss.e.x:-9,bfy=boss?boss.e.y:-9,inFoot=(x,y)=>boss&&x>=bfx-1&&x<=bfx+1&&y>=bfy-2&&y<=bfy;
+ const behind=boss?fl.filter(o=>inFoot(o.e.x,o.e.y)&&o.e.y<bfy):[];
+ if(!boss&&bossMem&&bossMem.g===G&&G.enemies.some(e=>EN[e.t].boss)&&G.seen[ix(bossMem.x,bossMem.y)]){   // out of sight: a faint grey memory where it was last seen
+  const bgm=bossGeom(ox+bossMem.x*ts,oy+bossMem.y*ts,ts);ctx.globalAlpha=1;bossSq=1;drawBossSpr({t:'dragon',enraged:bossMem.rage},bgm,'gray',0.35);}
+ for(const o of behind)drawFoe(o);
  let bg=null;
  if(boss){
   const e=boss.e,px=boss.px,py=boss.py,cx=px+ts/2;bg=bossGeom(px,py,ts);
-  let ox2=0,oy2=0;{const lg=lunges[e.id];if(lg){const k=(now-lg.t)/150;if(k<1){const o=Math.sin(Math.PI*k)*ts*0.3;ox2=lg.dx*o;oy2=lg.dy*o;more0=true;}else delete lunges[e.id];}}
+  let ox2=0,oy2=0;{const lg=lunges[e.id];if(lg){const k=(now-lg.t)/150;if(k<0)more0=true;else if(k<1){const o=Math.sin(Math.PI*k)*ts*0.3;ox2=lg.dx*o;oy2=lg.dy*o;more0=true;}else delete lunges[e.id];}}
   bg.sx+=ox2;bg.sy+=oy2;boss.g=bg;boss.ox=ox2;boss.oy=oy2;
   gshadow(cx,py+ts*0.93,ts*0.7,ts*0.14,0.38);ring(cx,py+ts*0.88,ts*0.6,'#ffc93c',2,0.9);
   if(e.enraged&&!rm){const pu=0.5+0.5*Math.sin(now/260);ring(cx,py+ts*0.88,ts*(0.75+0.15*pu),'#ff9a3a',3,0.5+0.4*pu);more0=true;}
+  bossMem={g:G,x:e.x,y:e.y,rage:!!e.enraged};bossSq=rm?1:1-0.03*(0.5+0.5*Math.sin(now/2400*6.283+e.id));if(!rm)idle=true;
   ord.push('dragonBody');drawBossSpr(e,bg,'',e.awake?1:0.7);
-  {const fl2=flashes[e.id],d=now-fl2;if(fl2&&d<190){if(d>=0){drawBossSpr(e,bg,'flash',0.8*(1-d/190));}more0=true;}}
+  {const fl2=flashes[e.id],d=now-fl2;if(fl2&&d<90){if(d>=0){drawBossSpr(e,bg,'flash',0.45);}more0=true;}}   // one short, soft flash: the biggest thing on screen must not strobe
   if(e.enraged&&!rm){for(let i=0;i<3;i++){const ph=((now/1000)+i/3+(e.id%7)*0.13)%1,q=bg.S*(((i*53+e.id*17)%100)/100-0.5)*0.8;disc(cx+q,bg.sy+bg.S*0.62-ph*bg.S*0.7,ts*0.07,i&1?'#ffd95a':'#ff9a3a',1-ph);}}
  }
  if(dest&&dest.tok===walkTok&&!G.over&&(dest.x!==p.x||dest.y!==p.y)){
@@ -4611,7 +4828,7 @@ function render(){
   if(m&&m.x>=x0&&m.x<=x1&&m.y>=y0&&m.y<=y1&&G.seen[ix(m.x,m.y)]){const px=ox+m.x*ts,py=oy+m.y*ts,v=fogLit[ix(m.x,m.y)]>0.5;
    disc(px+ts/2,py+ts*0.55,ts*0.46,'#46dcf5',0.22);gshadow(px+ts/2,py+ts*0.9,ts*0.3,ts*0.07,0.3);ctx.globalAlpha=v?1:0.6;drawSpr('merchant',px,py-2,ts,'');ctx.globalAlpha=1;}}
  for(const it of G.items){
-  if(it.x<x0||it.x>x1||it.y<y0||it.y>y1||!G.seen[ix(it.x,it.y)])continue;
+  if(it.x<x0||it.x>x1||it.y<y0||it.y>y1||!G.seen[ix(it.x,it.y)]||inFoot(it.x,it.y))continue;
   const px=ox+it.x*ts,py=oy+it.y*ts,v=fogLit[ix(it.x,it.y)]>0.5;
   disc(px+ts/2,py+ts*0.56,ts*0.42,'#14111d',v?0.35:0.2);disc(px+ts/2,py+ts*0.56,ts*0.42,'#ffc93c',v?0.22:0.1);
   gshadow(px+ts/2,py+ts*0.84,ts*0.24,ts*0.05,0.3);
@@ -4620,32 +4837,11 @@ function render(){
   ctx.globalAlpha=1;
  }
  ord.push('objects');
- // normal foes: ground marks, sprite, overlays
- for(const o of fl){
-  const e=o.e,d=EN[e.t],px=o.px,py=o.py,cx=px+ts/2,S=ts*(e.elite?1.08:1),sleep=!e.awake;
-  let ox2=0,oy2=0;
-  {const lg=lunges[e.id];if(lg){const k=(now-lg.t)/150;if(k<1){const q=Math.sin(Math.PI*k)*ts*0.3;ox2=lg.dx*q;oy2=lg.dy*q;more0=true;}else delete lunges[e.id];}}
-  const fy=py+ts*0.9;
-  gshadow(cx+ox2,fy,ts*0.32,ts*0.075,0.34);
-  if(e.elite)ring(cx,fy,ts*0.4,'#ffc93c',2.5,0.95);
-  if(e.hunter){ctx.setLineDash([5,4]);ring(cx,fy,ts*0.34,'#ff5acd',2,0.95);ctx.setLineDash([]);}
-  const bob=(!rm&&!sleep&&!e.stun&&!e.frz)?Math.round(Math.sin(Math.floor(now/125)*125/1600*6.283+e.id*1.3)*0.6):0;
-  const sx=cx-S/2+ox2,sy=py+ts-S+oy2-2+bob,mir=SIDE_VIEW[d.e]&&o.s.face>0;
-  ctx.globalAlpha=sleep?0.7:1;
-  if(mir){ctx.save();ctx.translate(sx+S,0);ctx.scale(-1,1);drawSpr(d.e,0,sy,S,'');ctx.restore();}else drawSpr(d.e,sx,sy,S,'');
-  ctx.globalAlpha=1;
-  {const fl2=flashes[e.id],dd=now-fl2;if(fl2&&dd<190){if(dd>=0){ctx.globalAlpha=0.8*(1-dd/190);if(mir){ctx.save();ctx.translate(sx+S,0);ctx.scale(-1,1);drawSpr(d.e,0,sy,S,'flash');ctx.restore();}else drawSpr(d.e,sx,sy,S,'flash');ctx.globalAlpha=1;}more0=true;}}
-  if(e.frz>0){ctx.globalAlpha=0.6;drawSpr('st_frz',cx-ts*0.42,py+ts*0.08,ts*0.84,'');ctx.globalAlpha=1;}
-  if(e.elite)drawSpr('crown',cx-ts*0.22,sy-ts*0.2,ts*0.44,'');
-  if(e.wind)drawSpr('st_wind',px+ts*0.68,py,ts*0.4,'');
-  if(sleep)drawSpr('st_sleep',px+ts*0.66,py+ts*0.04,ts*0.34,'');
-  if(e.stun>0){const a=rm?0:now/220;for(let i=0;i<3;i++){const q=a+i*2.09;drawSpr('st_stun',cx+Math.cos(q)*ts*0.3-ts*0.09,py+ts*0.02+Math.sin(q)*ts*0.07,ts*0.2,'');}if(!rm)more0=true;}
-  badgeRow(e,px+1,py+ts-ts*0.5,ts*0.2,1);
-  if(d.shield&&e.face)drawShield(e,px,py,ts,ox2,oy2);
-  if(reachOk(e)){ctx.strokeStyle='#ffe066';ctx.lineWidth=2;ctx.setLineDash([4,3]);rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;}
- }
+ // normal foes: ground marks, sprite, overlays (those standing behind the boss's body were drawn before it)
+ for(const o of fl)if(behind.indexOf(o)<0)drawFoe(o);
  ord.push('foes');
  // fresh kills: the foe stays until the blow lands, then pops (the boss dies slowly: flashes, scale, embers)
+ const bsq=bossSq;bossSq=1;
  ghosts=ghosts.filter(g=>now-g.t<(g.boss?900:280));
  for(const g of ghosts){
   const k=(now-g.t)/(g.boss?900:280),px=ox+g.x*ts,py=oy+g.y*ts;more0=true;
@@ -4662,17 +4858,18 @@ function render(){
   if(k<0){drawSpr(g.id,px,py+ts-ts-2,ts,'');continue;}
   ctx.globalAlpha=1-k;drawSpr(g.id,px+ts/2-S/2,py+ts-S-2,S,k<0.5?'flash':'');ctx.globalAlpha=1;
  }
+ bossSq=bsq;
  puffs=puffs.filter(q=>now-q.t<450);
  for(const q of puffs){const a=(now-q.t)/450;if(a<0){more0=true;continue;}const cx=ox+q.x*ts+ts/2,cy=oy+q.y*ts+ts/2;ctx.globalAlpha=1-a;ctx.fillStyle='#f3e9d8';for(let i=0;i<6;i++){const ang=i*1.047+q.s,r=ts*(0.15+0.5*a);ctx.beginPath();ctx.arc(cx+Math.cos(ang)*r,cy+Math.sin(ang)*r,Math.max(1.5,ts*0.12*(1-a)),0,7);ctx.fill();}ctx.globalAlpha=1;more0=true;}
  // the player
  {const px=ox+vx*ts,py=oy+vy*ts,cx=px+ts/2,cls=clsOf(p);let hx=0,hy=0;
-  {const lg=lunges.p;if(lg){const k=(now-lg.t)/150;if(k<1){const o=Math.sin(Math.PI*k)*ts*0.3;hx=lg.dx*o;hy=lg.dy*o;more0=true;}else delete lunges.p;}}
+  {const lg=lunges.p;if(lg){const k=(now-lg.t)/150;if(k<0)more0=true;else if(k<1){const o=Math.sin(Math.PI*k)*ts*0.3;hx=lg.dx*o;hy=lg.dy*o;more0=true;}else delete lunges.p;}}
   ctx.strokeStyle='#fff';ctx.globalAlpha=0.8;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx+hx,py+ts*0.9,ts*0.4,ts*0.14,0,0,7);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=1;
   gshadow(cx+hx,py+ts*0.9,ts*0.32,ts*0.075,0.34);
   if(G.vanish>0)ctx.globalAlpha=0.5;
   drawSpr(cls.e,px+hx,py-2+hy,ts,'');ctx.globalAlpha=1;
   if(G.brace){ctx.strokeStyle='#97c6ff';ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3+Math.PI/6,qx=cx+Math.cos(a)*ts*0.52,qy=py+ts*0.55+Math.sin(a)*ts*0.52;i?ctx.lineTo(qx,qy):ctx.moveTo(qx,qy);}ctx.closePath();ctx.stroke();ctx.lineWidth=1;}
-  {const fl=flashes.p;if(fl&&now-fl<190){const a=1-(now-fl)/190;ctx.globalAlpha=0.7*a;drawSpr(cls.e,px+hx,py-2+hy,ts,'flash');ctx.fillStyle='rgba(255,70,70,'+(0.4*a)+')';ctx.beginPath();ctx.arc(cx,py+ts*0.55,ts*0.44,0,7);ctx.fill();ctx.globalAlpha=1;more0=true;}}
+  {const fl=flashes.p;if(fl&&now<fl)more0=true;if(fl&&now>=fl&&now-fl<190){const a=1-(now-fl)/190;ctx.globalAlpha=0.7*a;drawSpr(cls.e,px+hx,py-2+hy,ts,'flash');ctx.fillStyle='rgba(255,70,70,'+(0.4*a)+')';ctx.beginPath();ctx.arc(cx,py+ts*0.55,ts*0.44,0,7);ctx.fill();ctx.globalAlpha=1;more0=true;}}
   if(now<pulseUntil&&!rm){const a=1-(pulseUntil-now)/700;ctx.strokeStyle='rgba(255,220,90,'+(1-a)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,py+ts/2,ts*(0.5+1.4*a),0,7);ctx.stroke();ctx.lineWidth=1;more0=true;}
   view.pl={px:px,py:py};}
  ord.push('player');
@@ -4693,14 +4890,16 @@ function render(){
  if(boss){
   const e=boss.e,g=boss.g,px=boss.px,py=boss.py,cx=px+ts/2+boss.ox,H=DRAGON_HEAD;
   ord.push('dragonHead');drawBossSpr(e,g,'',e.awake?1:0.7,true);
-  {const fl2=flashes[e.id],d2=now-fl2;if(fl2&&d2>=0&&d2<190)drawBossSpr(e,g,'flash',0.8*(1-d2/190),true);}
+  {const fl2=flashes[e.id],d2=now-fl2;if(fl2&&d2>=0&&d2<90)drawBossSpr(e,g,'flash',0.45,true);}
   const hr=[g.sx+H[0]/100*g.S,g.sy+H[1]/100*g.S,g.sx+(H[0]+H[2])/100*g.S,g.sy+(H[1]+H[3])/100*g.S];
   if(dzs&&dzs.size)drawDanger(dzs,x0,x1,y0,y1,ox,oy,ts,now,0.55,hr);
+  {const bx=g.sx+g.S*0.55,by=g.sy+g.S*0.58;
+   if(e.frz>0){const fs2=g.S*0.62;ctx.globalAlpha=0.6;drawSpr('st_frz',bx-fs2/2,by-fs2/2-g.S*0.02,fs2,'');ctx.globalAlpha=1;}}   // the ice goes on first, so the player standing inside it stays visible
+  {let n=0;for(const it of G.items){if(!inFoot(it.x,it.y)||!G.seen[ix(it.x,it.y)])continue;itemMark(it,boss.px-ts+1+n*ts*0.47,boss.py+ts*0.5,ts*0.45,1);marks.push({k:'item',x:it.x,y:it.y});n++;}}
   const pp=view.pl;
   if(pp&&pp.px+ts>g.sx&&pp.px<g.sx+g.S&&pp.py+ts>g.sy&&pp.py<g.sy+g.S&&!(pp.px+ts<=hr[0]||pp.px>=hr[2]||pp.py+ts<=hr[1]||pp.py>=hr[3])){
    drawSpr(clsOf(p).e,pp.px,pp.py-2,ts,'');ctx.strokeStyle='#fff';ctx.globalAlpha=0.85;ctx.lineWidth=2;ctx.beginPath();ctx.arc(pp.px+ts/2,pp.py+ts*0.55,ts*0.5,0,7);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=1;}
   const bx=g.sx+g.S*0.55,by=g.sy+g.S*0.58;
-  if(e.frz>0){const fs2=g.S*0.62;ctx.globalAlpha=0.6;drawSpr('st_frz',bx-fs2/2,by-fs2/2-g.S*0.02,fs2,'');ctx.globalAlpha=1;}
   if(e.wind)drawSpr('st_wind',cx+ts*0.2,g.sy+g.S*0.08,ts*0.5,'');
   if(!e.awake)drawSpr('st_sleep',g.sx+g.S*0.1,g.sy-ts*0.1,ts*0.5,'');
   if(e.stun>0){const a=rm?0:now/220,hx2=g.sx+g.S*0.2,hy2=g.sy+g.S*0.15;for(let i=0;i<3;i++){const q=a+i*2.09;drawSpr('st_stun',hx2+Math.cos(q)*g.S*0.16-g.S*0.05,hy2-g.S*0.12+Math.sin(q)*g.S*0.04,g.S*0.1,'');}if(!rm)more0=true;}
@@ -4711,7 +4910,7 @@ function render(){
  if(drawVfx(ox,oy,ts,now))more0=true;
  // soft light around the player: the far edge of the screen fades into the dark
  {const fb=fogBmp(ts);ctx.drawImage(fb,Math.round(ox+(vx+0.5)*ts-view.cw/2-ts),Math.round(oy+(vy+0.5)*ts-view.ch/2-ts),view.cw+2*ts,view.ch+2*ts);}
- drawMini(ts);
+ if(cam){view.mm=null;}else{drawEdgeMarks(ox,oy,ts);drawMini(ts);}   // framing a fight: nothing (not even the minimap) covers a tile
  // the boss bar lives in a fixed strip at the top of the map, never under a neighbour
  if(boss){
   const e=boss.e,fr=Math.max(0,Math.min(1,e.hp/e.mhp)),col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,nm0=EN[e.t].n,chipsW=($('chips').children.length?52:0);
@@ -4728,6 +4927,7 @@ function render(){
  let ci=0;   // second simultaneous callout sits one line higher
  for(const f of fx){
   if(now<f.t){more=true;continue;}
+  if(!f.c&&!G.vis[ix(f.x,f.y)]&&!(boss&&boss.e.x===f.x&&boss.e.y===f.y))continue;   // nothing is shown about a tile the player cannot see (an orphan "!" over empty floor)
   const du=f.d,a=(now-f.t)/du;let px=ox+(f.x+0.5)*ts+(f.dxo||0)*ts,py=oy+(f.y+0.2+(f.off||0))*ts-(rm?0.25:(now-f.t)/800)*ts*0.6;
   const fs=Math.round(ts*(f.c?0.46:f.sz));
   ctx.font='800 '+fs+'px system-ui,-apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
@@ -4740,7 +4940,9 @@ function render(){
   }
   const pop=rm?1:1+0.4*Math.max(0,1-a*7);
   ctx.save();ctx.translate(px,py);ctx.scale(pop,pop);ctx.globalAlpha=1-a*a;
-  ctx.lineWidth=Math.max(3,fs*0.28);ctx.strokeStyle=INK;ctx.strokeText(f.text,0,0);ctx.fillStyle=f.color;ctx.fillText(f.text,0,0);ctx.restore();ctx.globalAlpha=1;more=true;
+  ctx.lineWidth=Math.max(3,fs*0.28);ctx.strokeStyle=INK;ctx.strokeText(f.text,0,0);ctx.fillStyle=f.color;ctx.fillText(f.text,0,0);
+  if(f.n>1){const tw=ctx.measureText(f.text).width,sf=Math.round(fs*0.62);ctx.font='800 '+sf+'px system-ui,-apple-system,sans-serif';ctx.textAlign='left';ctx.globalAlpha=(1-a*a)*0.75;ctx.lineWidth=Math.max(2.5,sf*0.3);ctx.strokeText('x'+f.n,tw/2+1,fs*0.14);ctx.fillText('x'+f.n,tw/2+1,fs*0.14);}
+  ctx.restore();ctx.globalAlpha=1;more=true;
  }
  if(guard&&(now>=guard.until||guard.f!==G.floor||!perilAt(guard.k)))guard=null;
  if(guard){ // danger guard: this tile needs a second tap
@@ -4758,14 +4960,15 @@ function render(){
   const bw=ctx.measureText(bannerText).width+34,mmb=view.mm?view.mm.y+view.mm.h+3:0,by=Math.max(view.ch*0.16,mmb+10),cx=view.cw/2;
   ctx.save();ctx.globalAlpha=a*ent;ctx.translate(cx,by+21);ctx.scale(sc,sc);ctx.translate(-cx,-(by+21));
   ctx.fillStyle='rgba(8,8,18,0.82)';rrect(cx-bw/2,by,bw,42,14);ctx.fill();ctx.strokeStyle=th.wh;ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff';ctx.fillText(bannerText,cx,by+22);ctx.restore();more=true;}
- if(now<flashUntil&&!rm){
+ if(now<flashFrom&&!rm)more=true;
+ if(now>=flashFrom&&now<flashUntil&&!rm){
   const k=(flashUntil-now)/(flashFull?250:180);
   if(flashFull){ctx.fillStyle='rgba(220,30,30,'+(0.3*k)+')';ctx.fillRect(0,0,view.cw,view.ch);}
   else{const hd=Math.hypot(view.cw,view.ch)/2,g=ctx.createRadialGradient(view.cw/2,view.ch/2,hd*0.55,view.cw/2,view.ch/2,hd);g.addColorStop(0,'rgba(220,30,30,0)');g.addColorStop(1,'rgba(220,30,30,'+(flashAmt*k)+')');ctx.fillStyle=g;ctx.fillRect(0,0,view.cw,view.ch);}
   more=true;
  }
  if(more&&!rafPending){rafPending=true;requestAnimationFrame(function(){rafPending=false;render();});}
- else if(idle&&!more&&!rafPending&&!idleT){idleT=setTimeout(function(){idleT=0;if(G)render();},125);}  // foes breathe: a calm 8 fps redraw while one is awake in view
+ else if(idle&&!more&&!rafPending&&!idleT&&!document.hidden&&$('modal').style.display==='none'){idleT=setTimeout(function(){idleT=0;if(G)render();},125);}  // foes breathe: a calm 8 fps redraw while one is awake in view
 }
 
 // main.js - boot: first render, title screen, and the window.__dbg debug/test API.

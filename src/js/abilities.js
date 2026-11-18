@@ -17,7 +17,7 @@ function costOf(k){
  if(k==='blink'&&pc('phase'))mana=Math.max(0,mana-BAL.perk.phaseCost);
  return {rage:rage,mana:mana};
 }
-function costLabel(k){const c=costOf(k);return c.rage?c.rage+' rage':c.mana?c.mana+' mana':k==='knife'?'1 knife':cdFor(k)?'cd '+cdFor(k):'free';}
+function costLabel(k){const c=costOf(k);return c.rage?c.rage+' rage':c.mana?c.mana+' mana':k==='knife'?'1 knife':cdFor(k)?'ready':'free';}
 function inSmoke(x,y){const k=ix(x,y);if(G.smoke)for(const c of G.smoke)if(c.cells.indexOf(k)>=0)return true;return false;}
 function isFront(e){const p=G.p;if(!e.face)return true;return e.face[0]*(p.x-e.x)+e.face[1]*(p.y-e.y)>0;}
 function isBehind(e){const p=G.p;if(!e.face)return false;return e.face[0]*(p.x-e.x)+e.face[1]*(p.y-e.y)<0;}
@@ -85,7 +85,7 @@ function whyNot(k){
  if((k==='cleave'||k==='nova')&&!chebEnemies().length)return A.n+': no enemy next to you.';
  if(A.tg!=='self'&&!targetTiles(k).length){
   return k==='charge'?'Charge: need a foe in line, '+BAL.ability.charge.minDist+'-'+BAL.ability.charge.maxDist+' tiles.':
-   (k==='bash'||k==='backstab')?A.n+': no enemy next to you.':A.n+': no target.';
+   (k==='bash'||k==='backstab')?(chebEnemies().length?A.n+': that foe is diagonal. Straight lines only.':A.n+': no enemy next to you.'):A.n+': no target.';
  }
  return '';
 }

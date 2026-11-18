@@ -39,10 +39,10 @@ function recordRun(kind,score){
  }
  return nr;
 }
-function dailyNote(){
+function dailyNote(){   // short: it sits under the Daily button, a third of the screen wide
  const d=meta.dly[todayKey()];
  if(!d)return 'not played yet';
- return d.score?('best '+(d.won?'WON':'floor '+d.floor)+' - '+d.score+' pts'):('started'+(d.att>1?' x'+d.att:'')+', no result yet');
+ return d.score?((d.won?'WON':'floor '+d.floor)+' · '+d.score+' pts'):('in progress'+(d.att>1?' x'+d.att:''));
 }
 // ---- achievements ----
 function earn(id){
@@ -64,5 +64,6 @@ function nextToast(){
  const el=$('toast');if(!el)return;
  const t=toastQ.shift();if(!t){toastBusy=false;el.style.opacity='0';return;}
  toastBusy=true;el.textContent=t.t;el.style.opacity='1';
+ el.style.top=(performance.now()<bannerUntil&&view.mm?Math.max(56,Math.round(Math.max(view.ch*0.16,view.mm.y+view.mm.h+13)+42+8)):56)+'px';   // never touches the floor banner
  setTimeout(function(){el.style.opacity='0';setTimeout(nextToast,260);},t.ms);
 }

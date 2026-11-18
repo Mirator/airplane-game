@@ -14,7 +14,7 @@ const THEMES=ENV;
 // each depth band has a second, hand-picked look for the "other" exit (own palette and name)
 const THEMES2=[
  {n:'The Ossuary',fa:'#4f4a44',fb:'#57514a',fc:'#3d3934',fs:'#17130f',wt:'#2f2b27',wf:'#433d36',we:'#25211d',wh:'#8a7f6c',mw:'#6a6050',mf:'#b0a58e',mfd:'#5a5246',em:0},
- {n:'The Fungal Grotto',fa:'#3f5a63',fb:'#46636c',fc:'#2f4650',fs:'#0e1b20',wt:'#2a2748',wf:'#3a3763',we:'#1f1d38',wh:'#6a5ca6',mw:'#5c4f94',mf:'#8ab0bf',mfd:'#4a6670',em:0},
+ {n:'The Fungal Grotto',fa:'#3f5a63',fb:'#46636c',fc:'#2f4650',fs:'#0e1b20',wt:'#232a3a',wf:'#2f3a50',we:'#1b2130',wh:'#5a4a86',mw:'#5c4f94',mf:'#8ab0bf',mfd:'#4a6670',em:0},
  {n:'The Ashen Halls',fa:'#4a4748',fb:'#524f50',fc:'#383536',fs:'#161212',wt:'#2d2a2b',wf:'#433f40',we:'#201c1d',wh:'#c0702f',mw:'#6a5a52',mf:'#b0a8a4',mfd:'#5c5652',em:1}
 ];
 function themeOf(f,v){const i=f<=3?0:f<=6?1:2;return v===1&&f<MAXF?THEMES2[i]:THEMES[i];}
@@ -33,12 +33,12 @@ function abCost(k){const a=BAL.ability[k];return a.rage?a.rage+' rage':a.mana?a.
 function abilityDesc(k){
  const a=BAL.ability[k];
  switch(k){
-  case 'bash':return 'Stun an adjacent foe '+a.stun+' turns and push it back.';
-  case 'cleave':return 'Hit every adjacent foe for '+pct(a.mul)+'.';
+  case 'bash':return 'Stun the foe in front '+a.stun+' turns and push it back.';
+  case 'cleave':return 'Hit all 8 neighbours, diagonals too, for '+pct(a.mul)+'.';
   case 'charge':return 'Dash '+a.minDist+'-'+a.maxDist+' tiles, hit for '+pct(a.mul)+', stun '+a.stun+' turns.';
   case 'brace':return 'Halve the next '+a.hits+' hits; reflect '+pct(a.reflect)+' of melee.';
   case 'bolt':return 'Ranged hit on a visible foe, up to '+a.range+' tiles.';
-  case 'nova':return 'Freeze adjacent foes '+a.freeze+' turns and hit for '+pct(a.mul)+'.';
+  case 'nova':return 'Freeze all 8 neighbours '+a.freeze+' turns, hit for '+pct(a.mul)+'.';
   case 'blink':return 'Teleport up to '+a.range+' tiles.';
   case 'fire':return 'Blast radius '+a.radius+': '+Math.round(a.base+a.perFloor)+' damage, more deeper.';
   case 'backstab':return 'x'+a.mul+' on unaware, stunned or flanked foes; else '+pct(a.weakMul)+'.';
@@ -54,32 +54,35 @@ function classBlurb(k){return CLASS_TAG[k]||'';}
 function classDetail(k){
  const C=CLS[k],R=BAL.rage,M=BAL.mana;
  if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds as you fight.';
- if(k==='mage')return C.hp+' HP. '+C.mana+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
+ if(k==='mage')return C.hp+' HP. '+(C.mana+WP[C.start].mana)+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
  return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' on unaware foes. '+BAL.ability.knife.max+' knives, no resource bar.';
 }
-// gear rule lines (budget: <= 60 characters). noStat drops the +attack part (the comparison shows it as a number).
-function wpRule(k,noStat){
- const w=WP[k],t=[];
+// gear rule lines (budget: <= 60 characters). noStat drops the attack / defense part (the comparison shows it as a number). cls hides what means
+// nothing to that class (mana and spell power for a Warrior or Rogue, rage for a Mage or Rogue).
+function wpTerms(k,noStat,cls){
+ const w=WP[k],t=[],mage=!cls||cls==='mage';
  if(w.atk&&!noStat)t.push(sgn(w.atk)+' attack');
  if(w.sweep)t.push('hits neighbours for '+pct(w.sweep));
  if(w.reach)t.push('reach '+w.reach);
  if(w.crit)t.push(sgn(Math.round(w.crit*100))+'% crit');
  if(w.sneak)t.push('sneak +'+w.sneak);
- if(w.spell)t.push(sgn(Math.round(w.spell*100))+'% spell power');
- if(w.mana)t.push(sgn(w.mana)+' mana');
- return t.length?t.join(', '):'Balanced.';
+ if(w.spell&&mage)t.push(sgn(Math.round(w.spell*100))+'% spell power');
+ if(w.mana&&mage)t.push(sgn(w.mana)+' mana');
+ return t;
 }
-function armRule(k){
- const a=ARM[k],t=[];
- if(a.noDef)t.push('no defense');else if(a.def)t.push(sgn(a.def)+' defense');
+function wpRule(k,noStat,cls){const t=wpTerms(k,noStat,cls);return t.length?t.join(', '):'Balanced.';}
+function armTerms(k,noStat,cls){
+ const a=ARM[k],t=[],mage=!cls||cls==='mage',war=!cls||cls==='warrior';
+ if(!noStat){if(a.noDef)t.push('no defense');else if(a.def)t.push(sgn(a.def)+' defense');}
  if(a.dodge)t.push(sgn(Math.round(a.dodge*100))+'% dodge');
- if(a.spell)t.push(sgn(Math.round(a.spell*100))+'% spell power');
- if(a.manaBase)t.push('+'+a.manaBase+' mana');
- if(a.mana)t.push(sgn(a.mana)+' mana');
- if(a.manaRegenMul)t.push('mana regen '+pct(a.manaRegenMul));
- if(a.rageMul)t.push('rage gain '+pct(a.rageMul));
- return t.length?t.join(', '):'Balanced.';
+ if(a.spell&&mage)t.push(sgn(Math.round(a.spell*100))+'% spell power');
+ if(a.manaBase&&mage)t.push('+'+a.manaBase+' mana');
+ if(a.mana&&mage)t.push(sgn(a.mana)+' mana');
+ if(a.manaRegenMul&&mage)t.push('mana regen '+pct(a.manaRegenMul));
+ if(a.rageMul&&war)t.push('rage gain '+pct(a.rageMul));
+ return t;
 }
+function armRule(k,noStat,cls){const t=armTerms(k,noStat,cls);return t.length?t.join(', '):'Balanced.';}
 function offRule(k){
  const O=BAL.offhand;
  return {

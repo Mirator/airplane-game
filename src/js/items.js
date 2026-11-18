@@ -58,11 +58,18 @@ function gearDeltaHtml(it){
  return d.map(x=>'<span class="dlt '+(x[1]>0?'up':'dn')+'">'+L[x[0]]+' '+(x[1]>0?'+':'\u2212')+Math.abs(x[1])+((x[0]==='crit'||x[0]==='dodge'||x[0]==='spell')?'%':'')+'</span>').join('');
 }
 function itemDesc(it){
- const st=it.t==='weapon'?'+'+it.v+' attack':it.t==='armor'?'Defense '+armorDef(it):'';
- return [st,itemRule(it)].filter(Boolean).join(' · ')+(it.tr?'<br>'+traitLine(it.tr):'');
+ const st=it.t==='weapon'?sgn(it.v+(WP[it.k]?WP[it.k].atk:0))+' attack':it.t==='armor'?'Defense '+armorDef(it):'';
+ const r=itemRuleShort(it);
+ return [st,r==='Balanced.'?'':r].filter(Boolean).join(' · ')+(it.tr?'<br>'+traitLine(it.tr):'');
 }
 // the rule line only (no stat numbers): weapon rules without the attack offset
-function itemRuleShort(it){return it.t==='weapon'?wpRule(it.k,true):it.t==='armor'?armRule(it.k):itemRule(it);}
+function itemRuleShort(it){const c=G&&G.p?G.p.cls:undefined;return it.t==='weapon'?wpRule(it.k,true,c):it.t==='armor'?armRule(it.k,true,c):itemRule(it);}
+// the rule phrases of an item (no stat numbers, nothing the class cannot use) plus its trait: used to say what a swap gives up
+function itemTerms(it){
+ if(!it)return [];const c=G.p.cls;
+ const t=it.t==='weapon'?wpTerms(it.k,true,c):it.t==='armor'?armTerms(it.k,true,c):[itemRule(it)].filter(Boolean);
+ return it.tr&&TR[it.tr]?t.concat([TR[it.tr].n]):t;
+}
 function traitLine(tr){return tr&&TR[tr]?TR[tr].n+': '+TR[tr].d:'';}
 function applyTrait(v,tr){return tr&&TR[tr]?Math.max(1,v+TR[tr].dv):v;}
 function rollTrait(slot,f){
@@ -126,7 +133,7 @@ function pickOne(it){
    if(it.t==='off'||it.t==='charm')sellGear(it,'You already own this:');
    else if(it.v>cur.v){equipItem(it);msg('Equipped '+gearName(it)+'.');}
    else sellGear(it,'Weak');
-  }else{gearQ=it;take=false;}
+  }else{if(!it.skip)gearQ=it;take=false;}
  }
  else if(it.t==='fire'){G.inv.fire++;msg('+1 Flames.');}
  else if(it.t==='tele'){G.inv.tele++;msg('+1 Teleport.');}

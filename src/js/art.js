@@ -121,7 +121,10 @@ function tileBmp(th,kind,v,lit,ts){
   c.fillStyle=base;
   for(const q of lay){rrc(c,q[0]*ts+g,q[1]*ts+g,q[2]*ts-2*g,q[3]*ts-2*g,[ts*0.07,ts*0.07,ts*0.07,ts*0.07]);c.fill();}
   if(v===2){c.fillStyle=L(th.fc);c.beginPath();c.moveTo(ts-g,ts-g);c.lineTo(ts-g-ts*0.2,ts-g);c.lineTo(ts-g,ts-g-ts*0.17);c.closePath();c.fill();}
-  if(th.em&&v===3){c.fillStyle=lit?'#ff9a3a':L('#ff9a3a');c.globalAlpha=0.8;c.beginPath();c.arc(ts*0.3,ts*0.7,Math.max(1.1,ts*0.04),0,7);c.arc(ts*0.37,ts*0.79,Math.max(0.8,ts*0.028),0,7);c.arc(ts*0.74,ts*0.3,Math.max(0.9,ts*0.03),0,7);c.fill();c.globalAlpha=1;}
+  if(th.em&&v===3){ // a few glowing ember specks (separate dots in a soft glow: a connected shape reads as a dropped item)
+   const dot=function(x,y,r){c.beginPath();c.arc(x,y,r,0,7);c.fill();};
+   c.fillStyle=lit?'#ffcf6a':L('#ffcf6a');c.globalAlpha=0.2;dot(ts*0.33,ts*0.74,Math.max(2,ts*0.12));c.globalAlpha=0.7;c.fillStyle=lit?'#ff9a3a':L('#ff9a3a');
+   dot(ts*0.3,ts*0.72,Math.max(1.5,ts*0.045));dot(ts*0.4,ts*0.8,Math.max(1,ts*0.03));dot(ts*0.7,ts*0.3,Math.max(1,ts*0.03));c.globalAlpha=1;}
   if(kind==='floors'){c.globalAlpha=lit?0.5:0.35;c.fillStyle=L(th.fs);c.fillRect(0,0,ts,ts*0.3);c.globalAlpha=lit?0.25:0.18;c.fillRect(0,ts*0.3,ts,ts*0.12);c.globalAlpha=1;}
  }else if(kind==='water'){
   // one merged pool: v is the 4-bit mask of sides that have water next to them (1 up, 2 right, 4 down, 8 left); open sides are inset (a shore)
@@ -130,7 +133,12 @@ function tileBmp(th,kind,v,lit,ts){
   c.fillStyle=lit?'rgba(47,111,208,0.72)':'rgba(30,66,130,0.55)';rrc(c,x0,y0,x1-x0,y1-y0,cr);c.fill();
   c.strokeStyle=lit?'rgba(143,196,255,0.7)':'rgba(110,150,200,0.35)';c.lineWidth=Math.max(1.2,ts*0.05);c.lineCap='round';
   const e=c.lineWidth/2;
-  c.beginPath();if(u){c.moveTo(x0+cr[0],y0+e);c.lineTo(x1-cr[1],y0+e);}if(d){c.moveTo(x0+cr[3],y1-e);c.lineTo(x1-cr[2],y1-e);}if(l){c.moveTo(x0+e,y0+cr[0]);c.lineTo(x0+e,y1-cr[3]);}if(r){c.moveTo(x1-e,y0+cr[1]);c.lineTo(x1-e,y1-cr[2]);}c.stroke();
+  c.beginPath();if(u){c.moveTo(x0+cr[0],y0+e);c.lineTo(x1-cr[1],y0+e);}if(d){c.moveTo(x0+cr[3],y1-e);c.lineTo(x1-cr[2],y1-e);}if(l){c.moveTo(x0+e,y0+cr[0]);c.lineTo(x0+e,y1-cr[3]);}if(r){c.moveTo(x1-e,y0+cr[1]);c.lineTo(x1-e,y1-cr[2]);}
+  if(cr[0]){c.moveTo(x0+e,y0+cr[0]);c.arcTo(x0+e,y0+e,x0+cr[0],y0+e,Math.max(0.5,cr[0]-e));}   // the corners join the straight rims
+  if(cr[1]){c.moveTo(x1-cr[1],y0+e);c.arcTo(x1-e,y0+e,x1-e,y0+cr[1],Math.max(0.5,cr[1]-e));}
+  if(cr[2]){c.moveTo(x1-e,y1-cr[2]);c.arcTo(x1-e,y1-e,x1-cr[2],y1-e,Math.max(0.5,cr[2]-e));}
+  if(cr[3]){c.moveTo(x0+cr[3],y1-e);c.arcTo(x0+e,y1-e,x0+e,y1-cr[3],Math.max(0.5,cr[3]-e));}
+  c.stroke();
   c.strokeStyle=lit?'rgba(205,234,255,0.8)':'rgba(130,170,220,0.35)';c.lineWidth=Math.max(1.3,ts*0.055);c.beginPath();
   const o=(v&1)?ts*0.05:0,wl=ts*0.2,wr=ts*0.8;for(const wy of [ts*0.4,ts*0.68]){c.moveTo(wl+o,wy);c.quadraticCurveTo(wl+ts*0.15+o,wy-ts*0.1,wl+ts*0.3+o,wy);c.quadraticCurveTo(wl+ts*0.45+o,wy+ts*0.1,Math.min(wr,wl+ts*0.6+o),wy);}c.stroke();
  }else if(kind==='fogedge'){ // soft edge of the lit area: v = side (0 up, 1 right, 2 down, 3 left), drawn over a lit tile that borders a remembered one
@@ -169,7 +177,7 @@ function rockPattern(ts){
 }
 // tiny deterministic hash (no Math.random: map looks must not consume the game's random stream)
 function hash2(x,y){let h=(x*374761393+y*668265263)|0;h=(h^(h>>>13))*1274126177|0;return ((h^(h>>>16))>>>0);}
-function floorVar(x,y){const h=hash2(x,y)%100;return h<38?0:h<66?1:h<94?2:3;}
+function floorVar(x,y){const h=hash2(x,y)%100;return h<38?0:h<66?1:h<96?2:3;}
 
 // per-frame fast path for the tile loop: a numeric lookup table (no string keys per tile) resolved once per theme / size
 const TK={floor:0,floors:1,wallf:2,wallt:3,water:4,fogedge:5};

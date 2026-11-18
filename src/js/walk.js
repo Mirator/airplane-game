@@ -37,8 +37,8 @@ function startWalk(path,opts){
   const hp0=p.hp,v0=visIds(),f0=G.floor;G.stopWalk=false;
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
   if(!G||G.over||G.floor!==f0||p.hp<hp0||G.stopWalk||modalOpen()){stop();return;}
-  const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0)){stop();return;}
-  if(opts.explore&&G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){stop();return;}
+  const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0)){frameSight();stop();return;}
+  if(opts.explore&&G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){frameSight();stop();return;}
   if(path.length)setTimeout(step,70);else{stop();if(opts.done&&G&&!G.over&&!modalOpen())opts.done();}
  };
  if(path.length){const l=path[path.length-1];dest={x:l[0],y:l[1],tok:tok};}
@@ -47,11 +47,16 @@ function startWalk(path,opts){
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');render();return;}
+ if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight.');frameSight();render();return;}
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
 const tz=trapSet(),cz=crackSet();
+ // loot already seen and worth taking is a goal too (otherwise Explore says "nothing left" with gold lying in a visited room)
+ const loot=new Set();
+ for(const it of G.items){const k=ix(it.x,it.y);if(!G.seen[k]||it.skip||enemyAt(it.x,it.y))continue;
+  if((it.t==='potion'&&G.inv.pot>=G.p.potCap)||(it.t==='knife'&&(G.knives||0)>=maxKnives()))continue;
+  if(it.x===p.x&&it.y===p.y)continue;loot.add(k);}
  const sleepers=G.enemies.filter(e=>!e.awake&&G.vis[ix(e.x,e.y)]);
  const near=new Set();for(const e of sleepers)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)near.add(ix(e.x+dx,e.y+dy));
  const search=function(avoid){
@@ -60,7 +65,7 @@ const tz=trapSet(),cz=crackSet();
    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
     if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||cz.has(k)||enemyAt(nx,ny)||dz.has(k)||(avoid&&near.has(k)))continue;
     prev.set(k,ix(x,y));q.push([nx,ny]);
-    if(!G.exp[k]||G.map[k]===3){goal=k;break;}}}
+    if(!G.exp[k]||G.map[k]===3||loot.has(k)){goal=k;break;}}}
   return {prev:prev,goal:goal};
  };
  let res=search(sleepers.length>0);
@@ -73,7 +78,7 @@ const tz=trapSet(),cz=crackSet();
    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
     if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||cz.has(k)||enemyAt(nx,ny)||dz.has(k))continue;
     pv.set(k,ix(x,y));q.push([nx,ny]);
-    if(!G.exp[k]||G.map[k]===3){g2=k;break;}}}
+    if(!G.exp[k]||G.map[k]===3||loot.has(k)){g2=k;break;}}}
   if(g2>=0){
    const full=[];let k=g2;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
    const i=full.findIndex(t=>tz.has(ix(t[0],t[1])));
@@ -89,8 +94,24 @@ const tz=trapSet(),cz=crackSet();
  startWalk(path.reverse(),{explore:true});
 }
 function itemName(it){
- const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife'}[it.t];
- return base||(gearName(it)+': '+itemRuleShort(it).replace(/\.$/,''));
+ const base={gold:'Gold pile',potion:'Potion',fire:'Flames',tele:'Teleport',knife:'Knife',key:'Brass key'}[it.t];
+ return base||(gearName(it)+': '+(it.tr&&TR[it.tr]?TR[it.tr].d:itemRuleShort(it)).replace(/\.$/,''));
+}
+// Stale taps. A tap lands where a foe WAS (it died to the previous tap, or it just stepped away): that must never turn into a walk. endTurn
+// calls this: every tile a foe left or died on is "stale" for BAL.ui.staleMs, and every ignored tap on it renews the window, so a burst of
+// taps at one spot attacks while something is there and then does nothing at all. Foes on the tile NOW are always attacked normally.
+function staleTrack(){
+ const now=performance.now(),cur=new Set(G.enemies.map(e=>ix(e.x,e.y)));
+ if(staleG!==G||staleF!==G.floor){staleG=G;staleF=G.floor;staleT.clear();enemyTilesPrev=cur;return;}
+ for(const k of enemyTilesPrev)if(!cur.has(k))staleT.set(k,now+BAL.ui.staleMs);
+ enemyTilesPrev=cur;
+}
+function staleTap(tx,ty){
+ const k=ix(tx,ty),t=staleT.get(k);
+ if(t==null)return false;
+ const now=performance.now();
+ if(t<=now||enemyAt(tx,ty)){staleT.delete(k);return false;}
+ staleT.set(k,now+BAL.ui.staleMs);return true;
 }
 function onTap(tx,ty){
  walkTok++;
@@ -107,8 +128,11 @@ function onTap(tx,ty){
  if(tx===p.x&&ty===p.y){
   const sh=G.shrine;
   if(sh&&!sh.used&&sh.x===p.x&&sh.y===p.y){showShrine();return;}
+  const gi=G.items.find(i=>i.x===p.x&&i.y===p.y&&SLOTS.indexOf(i.t)>=0);
+  if(gi&&gi.skip){gi.skip=0;gearQ=gi;showGear();return;}   // tap yourself on a gear item you declined: its card again
   if(G.map[ix(tx,ty)]===2)descend();else wait();return;}
  if(!inb(tx,ty)||!G.seen[ix(tx,ty)]||G.map[ix(tx,ty)]===0){msg('Tap an explored tile.');return;}
+ if(staleTap(tx,ty)){msg('That foe is gone.');return;}
  const adj=Math.abs(tx-p.x)+Math.abs(ty-p.y)===1;
  if(merchantAt(tx,ty)){
   if(adj){showShop();return;}
@@ -144,6 +168,8 @@ function onTap(tx,ty){
  }
  if(e&&G.vis[ix(tx,ty)]){
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
+  // melee is straight only (up / down / left / right): a foe on a diagonal cannot hit you either. A tap never steps out of position for it.
+  if(cheb(e,p)===1&&!reachOk(e)){msg('Diagonal: no strike either way. Wait, or step in line.');return;}
   if(reachOk(e)){reachAttack(e);return;}
   const d=EN[e.t];   // short log line; hold the foe for the full card (trait, state)
   msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'.'+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));

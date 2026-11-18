@@ -14,7 +14,7 @@ function killEnemy(e,src){
  if(e.dead)return;
  e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
  const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');puffAdd(e.x,e.y);ghostAdd(e);
- gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));
+ calloutDelay=d.boss?900:0;gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));calloutDelay=0;
  if(d.boss){G.won=true;return;}
  if(modIs('horde')&&!G.enemies.length)earn('horde');
  if(traitOf('weapon')==='cursed')curseDrain();
@@ -40,7 +40,7 @@ function hurtEnemy(e,dmg,col,crit,kind){
   if(kind!=='melee')m=Math.min(m,BAL.weapon.shieldRanged);
   if(m<1){dmg=Math.max(1,Math.round(dmg*m));floatFx(e.x,e.y,'shield','#9ab');}
  }
- e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now()+holdAt(e.x,e.y);floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
+ e.hp-=dmg;e.awake=true;flashes[e.id]=performance.now()+holdAt(e.x,e.y)+vOff;floatFx(e.x,e.y,'-'+dmg+(crit?'!':''),col||'#ffd24a',crit);
 }
 // resolve a hit: kill if dead, else maybe execute
 function settle(e,src){
@@ -121,7 +121,7 @@ function hurtPlayer(e,dmg,melee,verb){
   floatFx(p.x,p.y,'braced','#9cf');if(--G.brace.hits<=0)G.brace=null;
  }
  p.hp-=dmg;G.killer=nm(e);floatFx(p.x,p.y,'-'+dmg,'#ff5a5a');
- msg('The '+nm(e)+' '+(verb||(melee?'hits':'blasts'))+' you for '+dmg+'.');playerHurtFx(dmg);
+ msg('The '+nm(e)+' '+(verb||(melee?'hits':'shoots'))+' you for '+dmg+'.');playerHurtFx(dmg);
  gainRage(BAL.rage.taken);
  secondWind();
  if(refl>0&&!e.dead){hurtEnemy(e,refl,'#9cf');msg('Your brace reflects '+refl+' damage.');settle(e,'Reflection');}
@@ -179,6 +179,6 @@ function endTurn(){
  if(G.vanish>0)G.vanish--;
  if(G.won){finish('win');return;}
  if(p.hp<=0){p.hp=0;msg('You have died...');finish('dead');return;}
- lowHpWatch();computeVis();save();render();
+ staleTrack();lowHpWatch();computeVis();save();render();
  afterModals();
 }

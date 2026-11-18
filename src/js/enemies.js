@@ -67,7 +67,7 @@ function resolveWind(e,d){
  }else{msg('The '+d.n+"'s attack hits empty ground.");floatFx(e.x,e.y,'miss','#ccc');}
 }
 function moveEnemy(e,x,y){
- const i=ix(x,y);
+ const i=ix(x,y);if(vOff>0)holdSet(e.x,e.y,vOff);   // the step is drawn after the player's own action
  if(waterSet().has(i))e.wade=1;
  if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
  e.face=[Math.sign(x-e.x),Math.sign(y-e.y)];e.x=x;e.y=y;
@@ -95,9 +95,12 @@ function surroundStep(e,p){
  return best;
 }
 function enemiesAct(free){
- const p=G.p,dist=bfsDist(p.x,p.y);claimed=new Set();
+ const p=G.p,dist=bfsDist(p.x,p.y);claimed=new Set();let beat=0;
+ try{
  for(const e of G.enemies.slice()){
   if(p.hp<=0)break;if(e.dead)continue;
+  // everything the enemy phase shows starts 140 ms behind the player's own action, attackers 60 ms apart (at most 300 ms): cause, then effect
+  vOff=Math.min(300,140+60*beat);if(e.awake&&G.vis[ix(e.x,e.y)])beat++;
   const d=EN[e.t];if(!free&&e.cd>0)e.cd--;if(!free&&e.hcd>0)e.hcd--;
   if(d.boss&&!free)bossPhase(e);
   if(e.stun>0||e.frz>0){e.wind=null;if(!free){if(e.stun>0)e.stun--;if(e.frz>0)e.frz--;}continue;}
@@ -147,4 +150,5 @@ function enemiesAct(free){
    if(best)moveEnemy(e,best[0],best[1]);else break;
   }
  }
+}finally{vOff=0;}
 }

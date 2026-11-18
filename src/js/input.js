@@ -12,6 +12,19 @@ cv.addEventListener('click',function(ev){
  const tx=Math.floor((ev.clientX-r.left-view.ox)/view.ts),ty=Math.floor((ev.clientY-r.top-view.oy)/view.ts);
  onTap(tx,ty);
 });
+// Escape: closes the open dialog through its own Back / Resume / Leave button (never a forced choice: perk pick, end of run), else cancels aiming
+document.addEventListener('keydown',function(ev){
+ if(ev.key!=='Escape')return;
+ const m=$('modal');
+ if(m.style.display!=='none'){
+  const box=$('modalBox'),k=box.dataset.kind;if(k==='perk'||k==='end')return;
+  const b=[...box.querySelectorAll('button')].reverse().find(x=>!x.disabled&&/^(back|resume|close|leave|got it)/i.test(x.textContent.trim()));
+  if(b){ev.preventDefault();b.click();}
+  return;
+ }
+ if(!G||G.over||$('title').style.display!=='none')return;
+ if(bigMap){bigMap=false;render();}else if(insp){clearInspect();render();}else if(armed)cancelTarget();
+});
 document.addEventListener('keydown',function(ev){
  if(!G||G.over||modalOpen()||$('title').style.display!=='none')return;
  const k=ev.key.toLowerCase();let d=null;
