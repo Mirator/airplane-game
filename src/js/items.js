@@ -24,7 +24,7 @@ function armorDef(it){if(!it)return 0;const a=ARM[it.k];if(!a||a.noDef)return 0;
 function wpK(){const w=eqi('weapon');return w?WP[w.k]:null;}
 function armK(){const a=eqi('armor');return a?ARM[a.k]:null;}
 function wv(){const w=eqi('weapon');return w?w.v:0;}
-function atkMod(){return traitOf('armor')==='spiked'?BAL.trait.spikedAtk:0;}
+function atkMod(){return (traitOf('armor')==='spiked'?BAL.trait.spikedAtk:0)+(eqKind('charm')==='frenzy'?Math.min(BAL.charm.frenzyMax,G.fz|0):0);}
 function meleeAtk(){const k=wpK();return Math.max(1,G.p.atk+wv()+(k?k.atk:0)+atkMod());}
 function spellBase(){return Math.max(1,G.p.atk+wv()+atkMod());}   // spells ignore the weapon's melee offset
 function defTotal(){return G.p.def+armorDef(eqi('armor'));}
@@ -81,18 +81,18 @@ function pickW(tbl){
  const ks=Object.keys(tbl);let tot=0;for(const k of ks)tot+=tbl[k].w||1;
  let r=rf()*tot;for(const k of ks){r-=tbl[k].w||1;if(r<0)return k;}return ks[0];
 }
-function classOffs(cls){return Object.keys(OFF).filter(k=>OFF[k].cls===cls);}
+function classOffs(cls){return Object.keys(OFF).filter(k=>OFF[k].cls===cls&&(!OFF[k].bp||bpOn(k)));}
 // a fresh piece of gear for floor f. forced = treasure room / merchant: weapon and armor always carry a trait.
 function newGear(slot,f,forced){
  if(slot==='off')return {t:'off',k:pick(classOffs(G.p.cls)),v:0,tr:null};
- if(slot==='charm')return {t:'charm',k:pick(Object.keys(CH)),v:0,tr:null};
+ if(slot==='charm')return {t:'charm',k:pick(Object.keys(CH).filter(k=>!CH[k].bp||bpOn(k))),v:0,tr:null};
  const fg=BAL.forcedGear,sp=BAL.spawn;
  let tr=null;
  if(forced){const pool=Object.keys(TR).filter(k=>TR[k].slot===slot&&TR[k].minF<=Math.max(f,fg.minTraitFloor));tr=pick(pool);}
  else tr=rollTrait(slot,f);
  if(slot==='weapon'){
   const raw=forced?rnd(fg.weaponMin,fg.weaponMax)+Math.floor(f*fg.weaponPerFloor):rnd(sp.weaponMin,sp.weaponMax)+Math.floor(f*sp.weaponPerFloor);
-  return {t:'weapon',k:pickW(WP),v:applyTrait(raw,tr),tr:tr};
+  return {t:'weapon',k:pickW(bpTable(WP)),v:applyTrait(raw,tr),tr:tr};
  }
  const raw=forced?Math.floor((f+rnd(fg.armorRandMin,fg.armorRandMax))/fg.armorDiv)+fg.armorBase:Math.floor((f+rnd(0,sp.armorRand))/sp.armorDiv)+sp.armorBase;
  return {t:'armor',k:pickW(ARM),v:applyTrait(raw,tr),tr:tr};
@@ -118,7 +118,8 @@ function sellGear(it,why){const g=Math.round((BAL.item.weakSaleBase+G.floor)*G.p
 function pickOne(it){
  const p=G.p;
  let take=true;
- if(it.t==='gold'){const g=Math.round(it.v*p.goldMul*goldMod());p.gold+=g;msg('+'+g+' gold.');checkAch();}
+ if(it.t==='gold'){const g=Math.round(it.v*p.goldMul*goldMod());p.gold+=g;msg('+'+g+' gold.');checkAch();
+  if(eqKind('charm')==='gilded'&&p.hp<p.mhp){const h=Math.min(p.mhp-p.hp,Math.floor(g/BAL.charm.gildedPer));if(h>0){p.hp+=h;floatFx(p.x,p.y,'+'+h,'#6f6');}}}
  else if(it.t==='potion'){
   if(G.inv.pot<p.potCap){G.inv.pot++;msg('+1 Potion.');}
   else{msg('Potion belt is full.');take=false;}
@@ -145,7 +146,7 @@ function drink(){
  const p=G.p;
  if(G.inv.pot<=0){msg('No potions.');return;}
  if(p.hp>=p.mhp){msg('HP is full.');return;}
- G.ppois=null;G.inv.pot--;G.stats.pots++;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(modIs('cursed'))h=Math.max(1,Math.round(h*BAL.mod.cursed.potionMul));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
+ G.ppois=null;G.inv.pot--;G.stats.pots++;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(modIs('cursed'))h=Math.max(1,Math.round(h*BAL.mod.cursed.potionMul));if(gHeat(G)>=4)h=Math.max(1,Math.round(h*BAL.heat.potionMul));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
  floatFx(p.x,p.y,'+'+h,'#6f6');msg('Potion: +'+h+' HP.');
  if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('Flask refills: no turn used.');save();render();return;}
  endTurn();

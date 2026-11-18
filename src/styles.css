@@ -166,3 +166,28 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 }
 #title{align-items:flex-start}#titleBox{margin-top:6vh}
 @media (min-height:900px){#titleBox{margin-top:10vh}}
+/* idle layer: Heat row, shop tabs, either/or pairs, expedition screens */
+.heat{display:flex;gap:6px;justify-content:center}
+.heat button{flex:1;min-width:44px;min-height:46px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+.heat button.on{border-color:#ff6a5a;background:#4a1c24;box-shadow:0 0 0 2px #ff6a5a inset}
+.heat button:disabled{opacity:.5}
+.tabs{display:flex;gap:6px}
+.tabs button{flex:1;min-height:46px;font-weight:800;font-size:14px;padding:0 6px}
+.tabs button.on,.xcls button.on{border-color:var(--gold);background:#4a3a14;box-shadow:0 0 0 2px var(--gold) inset}
+.pair{display:flex;gap:6px}
+.pair>button:first-child{flex:1;min-width:0}
+.pair .swap{padding:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1;text-align:center}
+.pair .swap small{display:block;font-size:11px}
+#titleBox .pill.rdy{background:#1d5a34;border-color:#6fe08c;color:#d6ffe3}
+.xslot{display:flex;flex-direction:column;gap:8px;border:1px solid #3a3f64;border-radius:12px;padding:8px}
+.xhead{display:flex;align-items:center;gap:10px}
+.xhead .xi{display:flex;flex-direction:column;gap:2px}
+.xhead .xt{font-size:13px;opacity:.85}
+.xbar{height:8px;border-radius:4px;background:#232845;overflow:hidden}
+.xbar i{display:block;height:100%;background:#46dcf5}
+.xslot button.go{border-color:#6fe08c;background:#1d5a34}
+.xcls{display:flex;gap:6px}
+.xcls button{flex:1;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px}
+.lockrow{display:flex;align-items:center;gap:10px;opacity:.7;padding:4px 0}
+.lockrow .ct{display:flex;flex-direction:column}
+.lockrow .ct span{font-size:13px;opacity:.85}

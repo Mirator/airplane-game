@@ -34,7 +34,7 @@ function newFloor(f,opt){
  computeVis();
 }
 function buildFloor(f){
- const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.traps=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.flask=0;G.smoke=[];G.brace=null;G.ppois=null;shrineQ=false;trapConfirm=-1;G.water=[];G.cracks=[];G.crackT=0;G.wade=0;
+ const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.traps=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.flask=0;G.smoke=[];G.brace=null;G.ppois=null;shrineQ=false;trapConfirm=-1;G.water=[];G.cracks=[];G.crackT=0;G.wade=0;G.fz=0;G.lsUsed=0;
  const MM=BAL.mod;
  G.seen=new Array(W*H).fill(false);G.exp=new Array(W*H).fill(false);
  const rooms=g.rooms,p=G.p;p.x=rooms[0].cx;p.y=rooms[0].cy;
@@ -53,6 +53,7 @@ function buildFloor(f){
  if(f===MAXF){const r=rooms[rooms.length-1];taken.add(ix(r.cx,r.cy));addEnemy('dragon',r,r.cx,r.cy);}
  let n=BAL.spawn.enemyBase+Math.floor(f*BAL.spawn.enemyPerFloor)+rnd(0,BAL.spawn.enemyExtraMax);
  n-=BAL.spawn.earlyCut[f-1]||0;
+ if(gHeat(G)>=2&&f>=2)n+=BAL.heat.extraFoes;
  if(modIs('horde'))n=Math.round(n*MM.horde.countMul);
  const pool=Object.keys(EN).filter(k=>!EN[k].boss&&EN[k].minF<=f&&(!EN[k].maxF||f<=EN[k].maxF)&&(!modIs('horde')||EN[k].hp<=MM.horde.maxHp));
  for(let i=0;i<n;i++){
@@ -86,7 +87,7 @@ function buildFloor(f){
   const cands=G.enemies.filter(e=>!EN[e.t].boss&&reach[ix(e.x,e.y)]<9999);
   if(!cands.length){G.map[ix(tre.door[0],tre.door[1])]=4;}
   else{
-   const e=pick(cands);e.elite=1;e.name=pick(ENAMES)+' '+pick(ETITLES);e.mhp=Math.round(e.mhp*BAL.enemy.eliteHpMul);e.hp=e.mhp;e.atk=Math.round(e.atk*BAL.enemy.eliteAtkMul)+BAL.enemy.eliteAtkAdd;
+   const e=pick(cands);e.elite=1;e.name=pick(ENAMES)+' '+pick(ETITLES);e.mhp=Math.round(e.mhp*BAL.enemy.eliteHpMul*(gHeat(G)>=3?BAL.heat.eliteHpMul:1));e.hp=e.mhp;e.atk=Math.round(e.atk*BAL.enemy.eliteAtkMul*(gHeat(G)>=3?BAL.heat.eliteAtkMul:1))+BAL.enemy.eliteAtkAdd;
    const g1=forcedGear(f,pick(BAL.treasure.gearSlots)),cs=shuf(tre.cells.slice());
    G.items.push({x:cs[0][0],y:cs[0][1],t:g1.t,k:g1.k,v:g1.v,tr:g1.tr});
    G.items.push({x:cs[1][0],y:cs[1][1],t:'gold',v:BAL.treasure.gold1Base+f*BAL.treasure.gold1PerFloor});
@@ -123,12 +124,13 @@ function buildFloor(f){
 function startRun(cls,opts){
  opts=opts||{};
  if(!CLS[cls]||(cls!=='warrior'&&!meta.unl[cls]))cls='warrior';const C=CLS[cls];
- const hard=!opts.daily&&hardOn(),daily=opts.daily?todayKey():null;
- const startPots=Math.max(0,1+BAL.meta.potPerLevel*Math.min(meta.pot,BAL.meta.potMaxLevel)-(hard?BAL.hard.startPotions:0));
- const p={x:0,y:0,cls:cls,hp:C.hp+BAL.meta.hpPerLevel*meta.hp,mhp:C.hp+BAL.meta.hpPerLevel*meta.hp,atk:C.atk+BAL.meta.atkPerLevel*meta.atk,def:C.def+BAL.meta.defPerLevel*meta.def,
+ const daily=opts.daily?todayKey():null,heat=daily?0:(opts.heat!=null?Math.max(0,Math.min(heatMax(),opts.heat|0)):heatSel()),hard=heat>=1;
+ const potV=upBonus('pot'),startPots=Math.max(0,1+potV-(hard?BAL.hard.startPotions:0));
+ const hpB=upBonus('hp'),p={x:0,y:0,cls:cls,hp:C.hp+hpB,mhp:C.hp+hpB,atk:C.atk+upBonus('atk'),def:C.def+upBonus('def'),
   eq:{weapon:{t:'weapon',k:C.start,v:0,tr:null},armor:null,off:null,charm:null},rage:0,mana:0,mf:0,mbase:C.mana,
-  xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,1+BAL.meta.potPerLevel*Math.min(meta.pot,BAL.meta.potMaxLevel)),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1,fireMul:1,regen:0,goldMul:1+BAL.meta.goldPerLevel*meta.goldp};
- G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0},hard:hard?1:0,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:''};
+  xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,1+potV),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1+upBonus('xpf')/100,fireMul:1,regen:0,goldMul:1+upBonus('goldp')/100,dmgMul:1};
+ G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0,ms:0,t:0},hard:hard?1:0,heat:heat,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:'',fz:0,lsUsed:0};
+ for(const q of PAIRS){const l=upLvl(q.k);if(l>0)pairVar(q).f(p,l,G);}
  for(const k of C.kit)G.cd[k]=0;
  autoReset();
  rngS=daily?{a:hashStr(daily+'|combat')}:null;
@@ -136,7 +138,7 @@ function startRun(cls,opts){
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
  if(daily){const d=meta.dly[daily]||(meta.dly[daily]={att:0});if(!d.att)meta.dlyN++;d.att++;saveMeta();checkAch();}
  noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg(C.n+' descends'+(daily?' · Daily '+daily:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
+ msg(C.n+' descends'+(daily?' · Daily '+daily:heat>1?' · Heat '+heat:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
@@ -161,23 +163,28 @@ function deathTip(){
 }
 function finish(kind){
  autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
- const won=kind==='win',dead=kind==='dead',hard=!!G.hard,aut=!!(G.auto&&G.auto.used);
- const bonus=won?BAL.run.winBonus:0,banked=Math.round((p.gold+bonus)*(hard?BAL.hard.goldMul:1)*(aut?BAL.auto.goldMul:1));
+ const won=kind==='win',dead=kind==='dead',hard=!!G.hard,heat=gHeat(G),aut=!!(G.auto&&G.auto.used);
+ // Auto: the time it played is paid at the idle rate; only the turns the player played themselves keep their share of the run gold
+ const bonus=won?BAL.run.winBonus:0,share=aut?Math.min(1,((G.auto.t|0)+(AUTO.self?Math.max(0,G.turn-AUTO.t0):0))/Math.max(1,G.turn)):0,idle=aut?autoPay(G):0;
+ const banked=Math.round(((p.gold+bonus)*(1-share)+idle)*heatGold(heat));
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
  const newRec=recordRun(kind,score);
+ const heatUp=won&&!G.daily?heatAfterWin(heat):0,bpD=bpRunDrop(won);
  if(won&&G.daily)earn('daily');
  saveMeta();checkAch();clearSave();
  computeVis();render();
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
- const tags=(G.daily?' &middot; '+ic('cal',16)+' Daily':'')+(hard?' &middot; '+ic('skull',16)+' Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const tags=(G.daily?' &middot; '+ic('cal',16)+' Daily':'')+(hard?' &middot; '+ic('skull',16)+' '+(heat>1?'Heat '+heat:'Hard'):'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<div class="portrait">'+ic(clsOf(p).e,56)+'</div><p class="recap"><b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'</p><div class="chips3"><span>Floor <b>'+G.floor+'</b></span><span><b>'+G.turn+'</b> turns</span><span><b>'+G.kills+'</b> kills</span></div>'+
-  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Hard ×'+BAL.hard.goldMul+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto run: '+autoGoldWord()+' gold banked.</p>':'')+
+  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>('+(heat>1?'Heat '+heat:'Hard')+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto run: idle pay '+idle+' gold'+(share<1?' plus your own turns':'')+'.</p>':'')+
+  (bpD?'<p class="recap" id="bpRecap">'+ic(bpIcon(bpD),20)+' Blueprint found: <b>'+bpD.n+'</b></p>':'')+
+  (heatUp?'<p class="recap" id="heatRecap">'+ic('skull',16)+' <b>Heat '+heatUp+'</b> unlocked: '+HEAT[heatUp].n+'.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (G.newAch&&G.newAch.length?'<p class="recap">'+ic('trophy',18)+' Achievement: <b>'+G.newAch.join(', ')+'</b></p>':'')+
   (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),

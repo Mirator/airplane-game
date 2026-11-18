@@ -35,10 +35,11 @@ function showHelp(back){
    r('m_dark','Modifiers','Icon at the map corner. '+MODS.map(m=>m.n).join(', ')+'.')+
    r('map','Minimap dots','You white, stairs gold, foes red, elite orange, trap pink, shrine and merchant cyan.'))+
   sec('Modes',
-   r('auto','Auto','Menu, Auto play ('+(1000/BAL.auto.tickMs)+' turns/s at 1×). Any tap takes over. Banks '+autoGoldWord()+' gold.')+
+   r('auto','Auto','Menu, Auto play ('+(1000/BAL.auto.tickMs)+' turns/s at 1×). Any tap takes over. Earns idle pay, not run gold.')+
    r('cal','Daily','Same dungeon for everyone today. Never Hard.')+
-   r('skull','Hard','Unlocked by a win. '+HARD_RULES.map(x=>x.n).join(', ')+'.')+
-   r('cart','Upgrades','Spend banked gold on the title screen.')+
+   r('skull','Heat','Win to unlock Heat 1 (Hard), then win at each Heat to unlock the next. Harder dungeon, more gold, rare blueprints.')+
+   r('map','Expeditions','Send a hero away for 30 min to 8 h. It returns with gold and blueprints.')+
+   r('cart','Upgrades','Spend gold on levels and blueprints on the title screen.')+
    r('snd','Sound','Off by default. menu or More.'));
  if(G&&!G.over){
   const C=clsOf(G.p);let k2='';

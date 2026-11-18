@@ -13,17 +13,17 @@ function recLine(r){
 function showRecords(){
  const t=screenFrame('Records'),add=(html,style)=>{const d=document.createElement('div');d.className='pl';d.innerHTML=html;if(style)d.style.cssText=style;t.appendChild(d);return d;};
  const wr=meta.runs?Math.round(100*(meta.wins/Math.max(1,meta.runs))):0;
- add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Hard <b>'+meta.hwins+'</b><br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
+ add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Heat 1+ wins <b>'+meta.hwins+'</b><br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
  for(const k of Object.keys(CLS)){
   const C=CLS[k],n=recGet(k,0),h=recGet(k,1);
-  add('<b>'+ic(C.e,22)+' '+C.n+'</b><br><small>'+recLine(n)+'</small>'+(h.runs?'<br><small>'+ic('skull',14)+' Hard: '+recLine(h)+'</small>':''),'border:1px solid #3a3f64;border-radius:10px;padding:8px');
+  add('<b>'+ic(C.e,22)+' '+C.n+'</b><br><small>'+recLine(n)+'</small>'+(h.runs?'<br><small>'+ic('skull',14)+' Heat 1+: '+recLine(h)+'</small>':''),'border:1px solid #3a3f64;border-radius:10px;padding:8px');
  }
  const days=Object.keys(meta.dly).sort().reverse().slice(0,7);
  let dh='<b>'+ic('cal',16)+' Recent dailies</b>';
  if(!days.length)dh+='<br><small>None played yet.</small>';
  for(const d of days){const r=meta.dly[d];dh+='<br><small>'+d+': '+(r.score?(CLS[r.cls]?ic(CLS[r.cls].e,16)+' ':'')+(r.won?'<b style="color:#8fe39a">WON</b>':'floor '+r.floor)+' &middot; '+r.score+' pts':'started, no result')+(r.auto?' <em class="tag act">Auto</em>':'')+(r.att>1?' &middot; '+r.att+' tries':'')+'</small>';}
  add(dh,'border:1px solid #3a3f64;border-radius:10px;padding:8px');
- add('<small>Score: floors, kills, levels, fast-win bonus. Hard x'+BAL.hard.scoreMul+'.</small>');
+ add('<small>Score: floors, kills, levels, fast-win bonus. Heat multiplies it (x'+BAL.heat.scoreMul[1]+' to x'+BAL.heat.scoreMul[BAL.heat.max]+').</small>');
  backBtn(t);
  $('title').style.display='flex';
 }

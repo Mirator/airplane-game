@@ -15,13 +15,20 @@ function showClassPicker(mode){
  const t=$('titleBox');t.innerHTML='';
  const h=document.createElement('h1');h.textContent=mode.daily?'Daily: pick a class':'Pick a class';t.appendChild(h);
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
- else if(hardUnlocked()){
-  // Hard mode lives here, next to the choice it changes
-  const on=hardOn(),hb=document.createElement('button');hb.id='hardBtn';hb.className='c'+(on?' hardon':'');
-  hb.style.minHeight='44px';hb.innerHTML=ic('skull',20)+' Hard mode: <b style="display:inline">'+(on?'ON':'OFF')+'</b>';
-  hb.addEventListener('click',function(){meta.hardOn=on?0:1;saveMeta();showClassPicker(mode);});
-  t.appendChild(hb);
-  if(on){const p=document.createElement('p');p.className='sub';p.textContent=HARD_RULES.map(r=>r.n).join(' · ');t.appendChild(p);}
+ else if(heatMax()>=1){
+  // Heat lives here, next to the choice it changes: 0 = normal, 1 = Hard, each next one adds a rule. A level opens by winning at the one below.
+  const row=document.createElement('div');row.id='heatRow';row.className='heat';
+  const hs=heatSel();
+  for(let h=0;h<=BAL.heat.max;h++){
+   const b=document.createElement('button');b.className='c'+(h===hs?' on':'');b.dataset.heat=h;b.disabled=h>heatMax();
+   b.innerHTML=h>heatMax()?ic('lock',16):'<b>'+h+'</b>';b.setAttribute('aria-label','Heat '+h+(h>heatMax()?' (locked)':''));
+   b.addEventListener('click',function(){meta.heatSel=h;saveMeta();showClassPicker(mode);});
+   row.appendChild(b);
+  }
+  t.appendChild(row);
+  const p=document.createElement('p');p.id='heatInfo';p.className='sub';
+  p.innerHTML=hs>0?'<b>Heat '+hs+' · '+HEAT[hs].n+'</b>: '+HEAT[hs].d+' Gold ×'+heatGold(hs)+'.':'<b>Heat 0</b>: the standard dungeon. Win to climb.';
+  t.appendChild(p);
  }
  for(const k of Object.keys(CLS)){
   const C=CLS[k],open=k==='warrior'||!!meta.unl[k],row=document.createElement('div');row.className='cls';
@@ -55,6 +62,9 @@ function showTitle(keep){
   fn();});};
  if(hasSave()){const b=big(add('button','Continue run','c'));b.id='btnContinue';b.addEventListener('click',continueRun);}
  const nb=big(add('button','New run','c'));nb.id='btnNew';guard(nb,'New run',function(){showClassPicker();});
+ {const nr=expReadyCount(),na=expActive();
+  const eb=big(add('button',ic('map',22)+' Expeditions'+(nr?'<i class="pill rdy">'+(nr>1?nr+' ready':'Ready')+'</i>':na?'<i class="pill">'+fmtDur(Math.min(...meta.exp.run.filter(Boolean).map(r=>r.t0+r.dur*60000-Date.now())))+'</i>':''),'c'));
+  eb.id='btnExp';eb.style.position='relative';eb.addEventListener('click',function(){showExpeditions();});}
  const g=add('div','');g.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px';
  const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.className='c';b.innerHTML=html;b.classList.add('tri');b.addEventListener('click',fn);g.appendChild(b);return b;};
  const db=cell('btnDaily',ic('cal',22)+'<span class="tl">Daily</span>'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
@@ -76,18 +86,44 @@ function showMore(){
  const sb=row('btnSound',ic('snd',20)+' '+soundLabel(),function(){toggleSound();sb.innerHTML=ic('snd',20)+' '+soundLabel();});
  const bk=add('button','Back','c');bk.addEventListener('click',function(){showTitle();});
 }
-// permanent upgrades and unlocks (bought with banked gold)
-function showUpgrades(){
- const t=$('titleBox'),st=t.scrollTop;t.innerHTML='';
+// permanent upgrades and unlocks (bought with banked gold): tab Upgrades (levels, either/or pairs, unlocks) and tab Blueprints (idleui.js)
+function shopTabs(t,tab){
+ const row=document.createElement('div');row.className='tabs';
+ const mk=(id,label,k)=>{const b=document.createElement('button');b.id=id;b.className='c'+(tab===k?' on':'');b.textContent=label;b.setAttribute('aria-pressed',tab===k?'true':'false');b.addEventListener('click',function(){showUpgrades(k);});row.appendChild(b);};
+ mk('tabUpg','Upgrades','upg');mk('tabBp','Blueprints '+bpCounts().found+'/'+BPS.length,'bp');
+ t.appendChild(row);
+}
+function showUpgrades(tab){
+ tab=tab==='bp'?'bp':'upg';
+ const t=$('titleBox'),st=t.dataset.tab===tab?t.scrollTop:0;t.innerHTML='';t.dataset.tab=tab;
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','Upgrades');
+ shopTabs(t,tab);
  add('div','You have <span class="gold">'+meta.gold+' '+ic('coin',16)+'</span>','row').style.justifyContent='center';
+ if(tab==='bp')bpTab(t,add);
+ else{
  add('h2','Boosts').style.fontSize='16px';
- for(const s of SHOP){
-  const c=cost(s),lv=meta[s.k],maxed=lv>=shopMax(s);
-  const b=add('button',cardHtml(s.k,'<b>'+s.n+' '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+'</b><span>'+s.d+' · '+(maxed?'MAX':'<span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>'),'hasic');
-  b.disabled=maxed||meta.gold<c;
-  b.addEventListener('click',function(){if(meta[s.k]>=shopMax(s)||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showUpgrades();});
+ for(const u of UPG){
+  const lv=upLvl(u.k),mx=upMax(u),c=upNext(u),maxed=lv>=mx;
+  const b=add('button',cardHtml(u.k,'<b>'+u.n+' '+lv+'/'+mx+'</b><span>'+upText(u)+(maxed?'':' · <span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>'),'hasic');
+  b.dataset.up=u.k;b.disabled=maxed||meta.gold<c;
+  b.addEventListener('click',function(){if(upBuy(u.k))showUpgrades('upg');});
+ }
+ add('h2','Either / or').style.fontSize='16px';
+ for(const q of PAIRS){
+  const lv=upLvl(q.k),mx=q.max,c=upNext(q),maxed=lv>=mx,va=pairVar(q),other=q.v[meta.pv[q.k]===1?0:1],fee=pairFee(q);
+  const row=add('div','','pair');row.dataset.pair=q.k;
+  const b=document.createElement('button');b.className='hasic';b.dataset.up=q.k;
+  b.innerHTML=cardHtml(q.k,'<b>'+q.n+': '+va.n+' '+lv+'/'+mx+'</b><span>'+upText(q)+(maxed?'':' · <span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>');
+  b.style.minHeight='64px';b.disabled=maxed||meta.gold<c;
+  b.addEventListener('click',function(){if(upBuy(q.k))showUpgrades('upg');});
+  row.appendChild(b);
+  const sw=document.createElement('button');sw.className='c swap';sw.dataset.swap=q.k;sw.disabled=meta.gold<fee;
+  sw.innerHTML=ic('reload',20)+'<small>'+other.n+'</small>'+(fee?'<small class="gold">'+fee+' '+ic('coin',11)+'</small>':'<small>free</small>');
+  sw.setAttribute('aria-label','Switch '+q.n+' to '+other.n+(fee?' for '+fee+' gold':''));
+  sw.style.width='76px';sw.style.minWidth='76px';
+  sw.addEventListener('click',function(){if(pairSwitch(q.k))showUpgrades('upg');});
+  row.appendChild(sw);
  }
  add('h2','Unlocks').style.fontSize='16px';
  for(const u of UNLOCKS){
@@ -97,9 +133,10 @@ function showUpgrades(){
   else{sub='<span class="gold">'+u.cost+' '+ic('coin',13)+'</span>';dis=meta.gold<u.cost;}
   const b=add('button',cardHtml(u.id,'<b>'+u.n+'</b><span>'+u.d+' · '+sub+'</span>'),'hasic');b.disabled=dis;
   if(have){b.style.opacity='.85';b.style.borderColor='#2a8a5a';}
-  if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showUpgrades();});
+  if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showUpgrades('upg');});
  }
- const bk=add('button','Back','c');bk.addEventListener('click',showTitle);
+ }
+ const bk=add('button','Back','c');bk.id='btnBack';bk.addEventListener('click',showTitle);
  t.scrollTop=st;
 }
 

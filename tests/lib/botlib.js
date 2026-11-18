@@ -39,7 +39,7 @@ function stepK(G,k){
  const p=G.p,x=k%W,y=(k/W)|0;
  return F().tryMove(x-p.x,y-p.y);
 }
-const PW={Vitality:8,Might:8,Bulwark:7,Vampirism:6,'Keen Eye':4,Renewal:6,Thorns:3,'Deep Pockets':4,Evasion:3,Scholar:3,Pyromancer:3,Regeneration:5,'Treasure Hunter':2,Tempo:6,Venom:7,'Chain Lightning':5,Bloodlust:4,Riposte:5,'Second Wind':8,'Glass Cannon':3,Scavenger:4,Berserk:5,Executioner:6,Warlord:9,'Phoenix Heart':9,Trapfinder:3,'Midas Touch':3,Alchemist:4,
+const PW={Vitality:8,Might:8,Bulwark:7,Vampirism:6,'Keen Eye':4,Renewal:6,Thorns:3,'Deep Pockets':4,Evasion:3,Scholar:3,Pyromancer:3,Regeneration:5,'Treasure Hunter':2,Tempo:6,Venom:7,'Chain Lightning':5,Bloodlust:4,Riposte:5,'Second Wind':8,'Glass Cannon':3,Scavenger:4,Berserk:5,Executioner:6,Warlord:9,'Phoenix Heart':9,Trapfinder:3,'Midas Touch':3,Alchemist:4,Stalker:4,Warcry:4,Frostbite:5,Lacerate:4,
  Fury:6,Retribution:6,Stampede:4,'Arcane Mastery':8,Wellspring:8,'Deep Freeze':4,'Phase Step':4,Assassin:8,Bandolier:4,'Shadow Cloak':5};
 const PKEYS=Object.keys(PW).sort((a,b)=>b.length-a.length);
 function pickPerk(G,btns){
@@ -55,10 +55,10 @@ function pickPerk(G,btns){
 }
 // ---- gear heuristic: score = rough "worth" of an item for this class; equip when clearly better ----
 const TB={cursed:-2,vamp:1.5,brutal:-0.5,keen:0.8,heavy:-2,spiked:0.5,leaden:-1.5};
-const WAFF={warrior:{sword:0.5,axe:1.5,spear:1,dagger:-1.5,staff:-4},mage:{sword:0,axe:-1,spear:-1,dagger:-2,staff:5},rogue:{sword:0,axe:-0.5,spear:0.5,dagger:3,staff:-4}};
+const WAFF={warrior:{sword:0.5,axe:1.5,spear:1,dagger:-1.5,staff:-4,maul:1.5,rapier:1,viper:1,stormrod:-4,reaper:3},mage:{sword:0,axe:-1,spear:-1,dagger:-2,staff:5,maul:-2,rapier:-1,viper:0,stormrod:7,reaper:0},rogue:{sword:0,axe:-0.5,spear:0.5,dagger:3,staff:-4,maul:0,rapier:2.5,viper:3.5,stormrod:-4,reaper:1}};
 const AAFF={warrior:{mail:0,plate:0.5,robe:0,leather:1.2},mage:{mail:0,plate:-3,robe:4,leather:0.5},rogue:{mail:0,plate:-0.5,robe:0,leather:2}};
-const OAFF={tower:3,bulwark:2.5,totem:2.5,tome:3,prism:3,lens:2.5,dagger2:4,satchel:3,quiver:3};
-const CAFF={fang:3,ward:4,eye:1,hourglass:3.5,veil:2.5,flask:3,soul:3};
+const OAFF={tower:3,bulwark:2.5,totem:2.5,tome:3,prism:3,lens:2.5,dagger2:4,satchel:3,quiver:3,garrote:3.5,focus:3,warbanner:3.5,gauntlet:3,shard:3,caltrops:3};
+const CAFF={fang:3,ward:4,eye:1,hourglass:3.5,veil:2.5,flask:3,soul:3,gilded:2,frenzy:3.5,laststand:4,aegis:5,cinder:4};
 function gscore(cls,slot,it){
  if(!it)return slot==='weapon'||slot==='armor'?0:-1;
  const T=window.__dbg.tables,tb=it.tr&&TB[it.tr]!=null?TB[it.tr]:0;
@@ -434,24 +434,34 @@ function think(G){
  if(BS.bad.size){BS.bad=new Set();BS.goal=null;click('b_wait');return;}
  BS.wait++;BS.nogoal=(BS.nogoal||0)+1;click('b_wait');
 }
+// Spending rule for the sim's "banked gold" levels: the fixed order below for the first purchases (the old shop's order: HP, attack, potions, defense, Warlord, ...), then
+// always the CHEAPEST remaining upgrade level (levels of the six boosts and the three either/or pairs; pairs use PAIR_PICK per class). Gold is only ever spent on
+// upgrades and the five unlocks in SEQ, never on blueprints. A budget of 999999 therefore means "everything maxed".
 const SEQ=['hp','atk','hp','pot','def','u:warlord','hp','atk','u:pick4','def','hp','goldp','u:shrine','u:elixir','atk','u:scroll','hp','def','pot','hp','atk','goldp','def','hp','atk','pot','def','goldp','hp','atk'];
-function spend(meta,state){
- const a=A();
- for(let guard=0;guard<200;guard++){
+const PAIR_PICK={warrior:{edge:1,vigor:0,prep:0},mage:{edge:1,vigor:0,prep:0},rogue:{edge:1,vigor:1,prep:0}};   // variant index per class: Vicious / Keen, Regrowth / Lifedrinker, Flames
+function spend(meta,state,cls){
+ const I=window.__dbg.idle,all=I.UPG.concat(I.PAIRS),pick=PAIR_PICK[cls||'warrior']||{};
+ for(const q of I.PAIRS)meta.pv[q.k]=pick[q.k]||0;
+ const buyable=it=>I.upLvl(it.k)<I.upMax(it);
+ for(let guard=0;guard<400;guard++){
   let item=state.i<SEQ.length?SEQ[state.i]:'*';
-  let cost,apply;
   if(item==='*'){
-   // cheapest shop item
-   let best=null,bc=1e9;for(const s of a.SHOP){if(meta[s.k]>=(s.max||8))continue;const c=a.cost(s);if(c<bc){bc=c;best=s;}}
-   if(!best)return;item=best.k;
+   let best=null,bc=1e18;for(const it of all){if(!buyable(it))continue;const c=I.upNext(it);if(c<bc){bc=c;best=it;}}
+   // the unlocks of SEQ are bought too once the levels are done (a maxed character has them)
+   if(!best||bc>meta.gold){
+    const un=window.__dbg.api.UNLOCKS.filter(u=>!u.ach&&!meta.unl[u.id]&&SEQ.indexOf('u:'+u.id)>=0&&u.cost<=meta.gold)[0];
+    if(un&&(!best||un.cost<=bc)){meta.gold-=un.cost;meta.unl[un.id]=1;continue;}
+    return;
+   }
+   item=best.k;
   }
   if(item.startsWith('u:')){
-   const id=item.slice(2),u=a.UNLOCKS.find(x=>x.id===id);
+   const id=item.slice(2),u=window.__dbg.api.UNLOCKS.find(x=>x.id===id);
    if(meta.unl[id]){state.i++;continue;}
    if(meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[id]=1;
   }else{
-   const s=a.SHOP.find(x=>x.k===item);if(meta[item]>=(s.max||8)){state.i++;continue;}
-   const c=a.cost(s);if(meta.gold<c)return;meta.gold-=c;meta[item]++;
+   const it=all.find(x=>x.k===item);if(!buyable(it)){state.i++;continue;}
+   if(meta.gold<I.upNext(it))return;I.upBuy(item);
   }
   if(state.i<SEQ.length)state.i++;
  }
@@ -490,7 +500,8 @@ function runOne(cls,cfg){
 }
 function resetMeta(extra){
  const m=A().meta();
- Object.assign(m,{seenHelp:1,gold:0,hp:0,atk:0,pot:0,goldp:0,def:0,wins:0,best:0,kills:0,elites:0,unl:{rogue:1,mage:1},rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0},extra||{});
+ Object.assign(m,{seenHelp:1,gold:0,up:{},pv:{},bp:{},heat:0,heatSel:0,exp:{},wins:0,best:0,kills:0,elites:0,unl:{rogue:1,mage:1},rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0},extra||{});
+ window.__dbg.idle.cleanMeta();
 }
 window.BOT={cfg:BOT_CFG,runOne,resetMeta,spend,think,handle:handleModal};
 })();

@@ -7,7 +7,9 @@
 //   --runs     runs per class per upgrade level (default 10)
 //   --levels   name=bankedGold pairs. Each run starts from a fresh meta save with that much gold spent on the permanent
 //              shop/unlocks in the bot's fixed buying order (see SEQ in tests/lib/botlib.js), so runs are independent samples.
-//   --hard     play on Hard mode (meta gets one win so the toggle is unlocked)
+//   --hard     play on Heat 1 (= the old Hard); --heat N plays on Heat N (meta gets a win and every Heat up to N unlocked)
+//   --bp all   every blueprint item is unlocked (in the loot pool) for every run
+//   --levels   a level of 'maxed=999999' buys every upgrade level and unlock the bot's SEQ names (see SEQ / spend in botlib.js)
 //   --force M  debug: every exit on floors 2-7 offers only modifier M (dark flooded cursed horde hunted rich silent unstable)
 //   --jobs     parallel browser pages (default 4)
 //   --auto     play with the in-game Auto (src/js/auto.js, via tests/lib/autolib.js) instead of the test bot; same upgrade levels and seeds
@@ -25,7 +27,9 @@ const RUNS = +arg('runs', 10);
 const CLASSES = arg('classes', 'warrior,mage,rogue').split(',');
 const LEVELS = arg('levels', 'fresh=0,mid=500,heavy=1500').split(',').map((s) => { const [n, g] = s.split('='); return { name: n, gold: +g }; });
 const JOBS = +arg('jobs', 4);
-const HARD = process.argv.includes('--hard');
+const HEAT = process.argv.includes('--hard') ? 1 : +arg('heat', 0);   // --hard = --heat 1
+const UPJSON = arg('up', null);   // JSON of upgrade levels set directly (instead of spending gold), e.g. '{"hp":8,"atk":8}'; the SEQ unlocks are given too
+const BPALL = arg('bp', null) === 'all';   // every blueprint unlocked (found and bought) at the start of every run
 const FORCE = arg('force', null);
 const SEED = arg('seed', null);
 const FILE = path.resolve(arg('file', path.join(__dirname, '..', 'index.html')));
@@ -56,18 +60,22 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
     while (next < tasks.length) {
       const t = tasks[next++];
       try {
-        const res = await page.evaluate(([cls, gold, seed, hard, force]) => {
+        const res = await page.evaluate(([cls, gold, seed, heat, force, bpall, upjson]) => {
           if (seed !== null) {
             let a = seed >>> 0;
             Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let x = a; x = Math.imul(x ^ (x >>> 15), x | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
           }
-          BOT.resetMeta(hard ? { gold, wins: 1, hardOn: 1 } : { gold });
+          BOT.resetMeta(heat ? { gold, wins: 1, heat, heatSel: heat } : { gold });
           window.__dbg.mods.setForce(force);
-          BOT.spend(window.__dbg.api.meta(), { i: 0 });
+          if (upjson) { const m = window.__dbg.api.meta(); Object.assign(m.up, JSON.parse(upjson)); for (const k of ['warlord', 'pick4', 'shrine', 'elixir', 'scroll']) m.unl[k] = 1; for (const q of window.__dbg.idle.PAIRS) m.pv[q.k] = ({ warrior: { edge: 1, vigor: 0, prep: 0 }, mage: { edge: 1, vigor: 0, prep: 0 }, rogue: { edge: 1, vigor: 1, prep: 0 } })[cls][q.k]; window.__dbg.idle.cleanMeta(); } else
+          BOT.spend(window.__dbg.api.meta(), { i: 0 }, cls);
+          if (bpall) { const m = window.__dbg.api.meta(); for (const b of window.__dbg.idle.BPS) m.bp[b.id] = 2; }
+          const pw = window.__dbg.idle ? window.__dbg.idle.upSpent() : 0;
           const r = BOT.runOne(cls, {});
+          r.pw = pw;
           if (!r.dbg || !r.auto) r.dbg = null;   // the Auto runner keeps its watchdog report
           return r;
-        }, [t.cls, t.lv.gold, SEED === null ? null : (+SEED * 100003 + t.id) >>> 0, HARD, FORCE]);
+        }, [t.cls, t.lv.gold, SEED === null ? null : (+SEED * 100003 + t.id) >>> 0, HEAT, FORCE, BPALL, UPJSON]);
         results.push({ ...res, level: t.lv.name, run: t.r });
       } catch (e) { errors.push('crash ' + t.cls + ': ' + String(e).slice(0, 100)); }
       if (++done % 10 === 0) process.stderr.write(`  ${done}/${tasks.length} runs, ${((Date.now() - t0) / 1000).toFixed(0)}s\n`);
@@ -79,8 +87,9 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
 
   if (JSONL) fs.writeFileSync(JSONL, results.map((r) => JSON.stringify(r)).join('\n') + '\n');
   for (const lv of LEVELS) {
-    console.log(`\n== ${lv.name} (${lv.gold} banked gold spent on upgrades)`);
-    console.log('class     n   win%  stall%  medTurns  winTurns  dragon%  deathFloor(1..8)  top killers');
+    const pws = results.filter((r) => r.level === lv.name).map((r) => r.pw || 0);
+    console.log(`\n== ${lv.name} (${lv.gold} banked gold spent on upgrades; upgrade power ${pws.length ? Math.round(pws.reduce((a, b) => a + b, 0) / pws.length) : 0} gold of levels)`);
+    console.log('class     n   win%  stall%  medTurns  winTurns  dragon%  deathFloor(1..8)  gold/run  gold/h  top killers');
     for (const cls of CLASSES) {
       const rows = results.filter((r) => r.level === lv.name && r.cls === cls);
       if (!rows.length) continue;
@@ -92,7 +101,7 @@ const med = (a) => { if (!a.length) return 0; a = a.slice().sort((x, y) => x - y
       const ks = Object.entries(kc).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0] + ':' + x[1]).join(' ');
       console.log(cls.padEnd(9) + String(n).padStart(3) + String((100 * won / n).toFixed(0) + '%').padStart(7) + String((100 * st / n).toFixed(0) + '%').padStart(8)
         + String(med(rows.map((r) => r.turns))).padStart(10) + String(med(rows.filter((r) => r.won).map((r) => r.turns))).padStart(10)
-        + String(((r8) => r8.length ? (100 * r8.filter((r) => r.won).length / r8.length).toFixed(0) + '%(' + r8.length + ')' : '-')(rows.filter((r) => r.floor === 8))).padStart(11) + '  ' + fl.slice(1).join(',').padEnd(17) + ks);
+        + String(((r8) => r8.length ? (100 * r8.filter((r) => r.won).length / r8.length).toFixed(0) + '%(' + r8.length + ')' : '-')(rows.filter((r) => r.floor === 8))).padStart(11) + '  ' + fl.slice(1).join(',').padEnd(17) + String(Math.round(rows.reduce((a, r) => a + r.gold, 0) / n)).padStart(9) + String(Math.round((rows.reduce((a, r) => a + r.gold, 0) / n) / (Math.max(1, rows.reduce((a, r) => a + r.turns, 0) / n) * 1.2 / 3600))).padStart(8) + '  ' + ks);
     }
   }
   if (AUTO) for (const r of results.filter((x) => x.stall && x.dbg)) console.log('  watchdog: ' + r.level + ' ' + r.cls + ' floor ' + r.dbg.floor + ' turn ' + r.dbg.turn + ' [' + r.dbg.cause + '] ' + r.stall + ' | mod ' + r.dbg.mod + ' hp ' + r.dbg.hp + ' | in sight: ' + r.dbg.vis.join(',') + ' | trail: ' + r.dbg.tr.slice(-3).join(' / ') + ' | log: ' + r.dbg.log.join(' / '));

@@ -4,7 +4,8 @@
 const AUTO_SPEED_KEY='dcr_auto_speed',RANGED=['cultist','archer','warlock'];
 const AUTO={on:false,tm:null,pick:null,speed:1,self:false,uiKey:'',ignore:new Set(),shopped:{},bad:new Set(),uses:{},uses8:{},ticks:0,modals:0,idle:0,mrun:0,hold:0,lastProg:0,pf:0,pexp:0,hp:1e9,kills:0,err:null,lastStop:''};
 try{const s=+localStorage.getItem(AUTO_SPEED_KEY);if(BAL.auto.speeds.indexOf(s)>=0)AUTO.speed=s;}catch(e){}
-function autoGoldWord(){return BAL.auto.goldMul===0.5?'half':Math.round(BAL.auto.goldMul*100)+'%';}
+// what the player is told about Auto's pay: gold per hour (the 30-minute expedition rate at the current upgrade power, times Heat)
+function autoRateText(){const c=G&&G.p?G.p.cls:'warrior';return '~'+Math.round(autoRate(c)*heatGold(gHeat(G)))+' gold/h';}
 function autoDelay(flash){return Math.max(15,(flash?BAL.auto.flashMs:BAL.auto.tickMs)/AUTO.speed);}
 // exactly one pending timer, ever: scheduling always cancels the previous one
 function autoSchedule(ms){if(AUTO.tm)clearTimeout(AUTO.tm);AUTO.tm=setTimeout(autoTick,ms);}
@@ -16,7 +17,8 @@ function autoStart(sync){
  if(!G||G.over||!G.auto||$('title').style.display!=='none')return false;
  walkTok++;armed=null;
  G.auto.on=1;AUTO.on=true;AUTO.pick=null;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=G.kills;AUTO.pf=G.floor;AUTO.pexp=-1;AUTO.lastProg=G.turn;AUTO.lastStop='';AUTO.err=null;
- if(!G.auto.noticed){G.auto.noticed=1;const t='Auto runs bank '+autoGoldWord()+' gold.';msg(t);toast(t,4200);}
+ if(!G.auto.noticed){G.auto.noticed=1;const t='Auto earns idle pay, '+autoRateText()+'.';msg(t);toast(t,4200);}
+ AUTO.lastT=performance.now();
  msg('Auto on.');
  save();render();
  if(!sync)autoSchedule(autoDelay(false));
@@ -72,6 +74,7 @@ function autoTick(){
  if(!G||G.over||!G.auto||!G.auto.on){autoStop(null,true);return;}
  if(document.hidden){autoStop('Page hidden: Auto paused.');return;}
  let r='off';
+ {const now=performance.now();if(G.auto)G.auto.ms=(G.auto.ms|0)+Math.round(Math.min(now-(AUTO.lastT||now),4*BAL.auto.flashMs));AUTO.lastT=now;}   // real time played, one slow tick (a throttled page) never counts more than 4 flash delays
  try{r=autoStep(false);}catch(e){AUTO.err=String(e&&e.stack||e);autoStop('Auto stopped: internal error.');return;}
  if(AUTO.on)autoSchedule(autoDelay(r==='flash'));
 }
@@ -82,8 +85,12 @@ function autoStep(sync){
  AUTO.self=true;
  try{
   G.auto.used=1;AUTO.ticks++;
-  if($('modal').style.display!=='none')return autoModal(sync);
-  return autoAct();
+  if(sync)G.auto.ms=(G.auto.ms|0)+Math.round(autoDelay(false));   // simulator / tests: virtual time, as if the timer ran at the current speed
+  const t0=AUTO.t0=G.turn;
+  try{
+   if($('modal').style.display!=='none')return autoModal(sync);
+   return autoAct();
+  }finally{if(G&&G.auto)G.auto.t=(G.auto.t|0)+Math.max(0,G.turn-t0);}
  }finally{AUTO.self=false;}
 }
 

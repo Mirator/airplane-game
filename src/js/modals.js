@@ -35,7 +35,7 @@ function perkTags(pk){
  return t;
 }
 // leading icon chip for choice cards (perks / upgrades): a few specific icons, the rest share the generic perk mark
-const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',trapper:'trap_spike',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
+const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',trapper:'trap_spike',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',xpf:'tome',edge:'lens',vigor:'heart',prep:'fire',stalker:'p_stalker',warcry:'p_warcry',frostbite:'p_frostbite',lacerate:'p_lacerate',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
 // perk categories tint the icon chip: offence orange, defence blue, utility violet
 const PERK_CAT={might:'o',vamp:'o',keen:'o',venom:'o',chain:'o',blood:'o',berserk:'o',exec:'o',glass:'o',fury:'o',stampede:'o',assassin:'o',arcana:'o',deepfreeze:'o',pyro:'o',warlord:'o',riposte:'o',
  vit:'d',bul:'d',thorns:'d',evade:'d',second:'d',phoenix:'d',renew:'d',regen:'d',retrib:'d',shadow:'d'};
@@ -103,7 +103,7 @@ function showMenu(){
   {html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
   {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(el){
    // the cost is stated BEFORE the first activation: the first tap only says it, the second starts (no alert / confirm)
-   if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' '+autoGoldWord()+' gold this run. Tap again';return;}
+   if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' Idle pay '+autoRateText()+', not run gold. Tap again';return;}
    closeModal();autoStart();}},
   {html:ic('perk',20)+' Perks',c:1,fn:function(){showPerks(showMenu);}},
   {html:ic('info',20)+' Controls',c:1,fn:function(){showHelp(showMenu);}},

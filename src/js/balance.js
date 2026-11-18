@@ -72,7 +72,8 @@ const BAL = {
     riposteChance: 0.2, phoenixFrac: 0.5,
     furyMul: 0.4, retribHits: 2, retribReflect: 1, stampedeCost: 10,
     arcanaSpell: 0.25, wellMana: 10, wellKill: 2, freezeExtra: 2, phaseCost: 3, tempoCut: 1, pyroFire: 0.4,
-    assassinMul: 0.5, assassinCd: 2, bandoMax: 3, shadowCd: 3, shadowTurns: 2, bloodRageMul: 2
+    assassinMul: 0.5, assassinCd: 2, bandoMax: 3, shadowCd: 3, shadowTurns: 2, bloodRageMul: 2,
+    stalkerMul: 0.4, warcryStun: 1, frostbiteMul: 0.5, lacerateBase: 2, lacerateTurns: 3
   },
   player: { regenEvery: 5, baseRegenEvery: 16, potCap: 3 },
   xp: { base: 12, perLevel: 11 },           // XP to next level = base + perLevel * level
@@ -115,10 +116,16 @@ const BAL = {
     lensPierce: 2,                        // Lens: Bolt also hits this many extra enemies behind the target in line
     dagger2Frac: 0.6,                     // Second dagger: Backstab strikes twice, the second hit at this fraction
     satchelRadius: 1, satchelTurns: 2,    // Alchemist satchel: Smoke Bomb radius + and turns +
-    quiverKnives: 3                       // Quiver: +knives
+    quiverKnives: 3,                      // Quiver: +knives
+    bannerFrac: 0.6,                      // War Banner: Cleave strikes twice, the second hit at this fraction
+    gauntletRange: 2,                     // Ram Gauntlet: Charge reaches this much further (and slams the foe back)
+    shardMul: 0.5,                        // Mirror Shard: Blink scorches foes next to where you stood, this share of Fireball damage
+    focusMul: 2,                          // Focus Crystal: Bolt damage vs stunned or frozen foes
+    caltropStun: 2                        // Caltrops: Smoke stuns foes inside this many turns
   },
-  charm: { fangHeal: 3, fangFloorDiv: 2, veilSight: 3, soulRage: 12, soulMana: 5, hourglassEvery: 2 },
-  weapon: { shieldFront: 0.4, shieldRanged: 0.5 },   // shielded enemies: damage multipliers (front melee / any ranged hit); stunned or frozen = no guard
+  charm: { fangHeal: 3, fangFloorDiv: 2, veilSight: 3, soulRage: 12, soulMana: 5, hourglassEvery: 2,
+           gildedPer: 4, frenzyMax: 4, lastBelow: 0.3, lastHeal: 0.35, aegisCap: 0.3, cinderBase: 3, cinderFloorDiv: 2 },
+  weapon: { shieldFront: 0.4, shieldRanged: 0.5, viperDmg: 2, viperTurns: 3, rapierCounter: 0.25 },   // shielded enemies: damage multipliers (front melee / any ranged hit); stunned or frozen = no guard
   // --- floor features (features.js) ---
   merchant: {
     floors: [3, 6], gearSlots: ['weapon', 'weapon', 'armor', 'armor', 'off', 'charm'], elixirHp: 10,   // gearSlots: one stocked per visit, drawn from this list (repeat = likelier)
@@ -126,15 +133,15 @@ const BAL = {
   },
   shrine: { healBase: 0.6, healBetter: 0.75, lossBase: 0.25, lossBetter: 0.15, sacrificeGold: 30, pactHp: 8, pactMinHp: 10, pactAtk: 3, blessHeal: 0.3 },
   // --- permanent progression (save.js, run.js) ---
-  meta: {
-    hpPerLevel: 8, atkPerLevel: 1, defPerLevel: 1, potPerLevel: 1, potMaxLevel: 4, goldPerLevel: 0.15,
-    costGrowth: 0.3,                 // shop price = base * (level+1) * (1 + level * costGrowth)
-    startScrollFireChance: 0.5
-  },
+  meta: { startScrollFireChance: 0.5 },
+  // --- permanent upgrades (UPG / PAIRS below, idle.js). price of level l+1 (l owned) = base*(l+1)*(1+l*rise), the old shop curve. A pair's variant can be swapped for switchFee once the pair has a level.
+  // legacy = what one level of each of the old flat boosts gave (migration keeps an old save's stats exactly, see save.js).
+  upg: { rise: 0.3, switchFee: 50, legacy: { hp: 8, atk: 1, def: 1, pot: 1, goldp: 15 } },
   run: { winBonus: 150 },
   // --- Auto (autopilot, auto.js). Deliberately a simple player: no kiting, no retreating to regenerate ---
   auto: {
-    goldMul: 0.5,                 // a run in which Auto played any turn banks this share of its gold (Hard multiplies on top)
+    // Auto no longer banks run gold: the time it plays (real ms, or virtual ms in the simulator) is paid at the 30-minute expedition rate (BAL.exp, EXP_TABLE).
+    // A run that was only partly Auto keeps its manual share of the run gold. Heat multiplies both.
     tickMs: 250,                  // 1x = one decision per tick = 4 turns per second; speeds below divide this
     speeds: [1, 2, 4],
     flashMs: 400,                 // an Auto-resolved dialog stays on screen this long at 1x so a watcher sees the choice
@@ -170,19 +177,47 @@ const BAL = {
   score: { floor: 100, kill: 2, level: 15, win: 600, par: 1500, perTurn: 0.3 },   // + win bonus and 'perTurn' for every turn under 'par'
   // --- Hard mode (unlocked by the first win): a stack of named rules, see HARD_RULES ---
   hard: { hpMul: 1.25, atkMul: 1.2, bossAtkMul: 1.1, startPotions: 1, bonusPotion: 0, dropPotionMul: 0.5, extraSummonAt: 0.9, enrageFrac: 0.6, goldMul: 1.5, scoreMul: 1.5 },
+  // --- Heat 0-5 (HEAT below). Heat 1 is exactly Hard (BAL.hard); each further level adds one rule. gold / score multipliers per level ---
+  heat: { max: 5, goldMul: [1, 1.5, 1.75, 2, 2.25, 2.5], scoreMul: [1, 1.5, 1.75, 2, 2.25, 2.5],
+          extraFoes: 2,                  // Heat 2: more foes on every floor
+          eliteHpMul: 1.6, eliteAtkMul: 1.3,   // Heat 3: the key-carrying elite
+          potionMul: 0.7,                // Heat 4: potions heal this fraction
+          enrageFrac: 0.8, breathCut: 1 },     // Heat 5: the dragon enrages at this HP share and its breath comes this many turns sooner
+  // --- expeditions (idle.js): the hero is away up to capMin minutes; every delveMin minutes it makes one delve whose outcome is drawn from EXP_TABLE.
+  // rate = share of the manual gold per hour (bot play at the same upgrade power, ~turnSec per human turn) the expedition pays; 30 min is the best rate, 8 h the best total.
+  exp: { capMin: 480, delveMin: 10, turnSec: 1.2, secondSlot: 500, bpChance: 0.04, bpMinFloor: 3,
+         durs: [{ min: 30, n: '30 min', rate: 0.33, hint: 'Best rate' }, { min: 120, n: '2 hours', rate: 0.30, hint: '' }, { min: 480, n: '8 hours', rate: 0.25, hint: 'Best total' }] },
+  // --- blueprints (idle.js): found in expeditions (tier c), deep manual runs (r, floor deepFrom+), the dragon / Heat 1+ runs (b); then bought with gold
+  bp: { cost: { c: 80, r: 200, b: 450 }, deepFrom: 5, deepChance: 0.3, bestWin: 0.5, bestHeat: 0.15, bestHeatWin: 0.9 },
   ach: { kills: 200, elites: 10, streak: 3, dailyDays: 3, hoard: 200, fastTurns: 1000, noArmorFloor: 5 }
 };
 
 // ===== Tables: enemies, perks, synergies, classes, gear traits, traps, shop, unlocks =====
-const SHOP=[
- {k:'hp',n:'Hardy',d:'+'+BAL.meta.hpPerLevel+' starting HP',base:30},
- {k:'atk',n:'Sharpened',d:'+'+BAL.meta.atkPerLevel+' starting attack',base:55},
- {k:'pot',n:'Supplies',d:'+'+BAL.meta.potPerLevel+' starting potion and belt space',base:40,max:BAL.meta.potMaxLevel},
- {k:'goldp',n:'Greed',d:'+'+Math.round(BAL.meta.goldPerLevel*100)+'% gold',base:50},
- {k:'def',n:'Padded',d:'+'+BAL.meta.defPerLevel+' starting defense',base:70}
+// ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
+// the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give much less (diminishing returns); int = whole numbers (half levels round). pct = a percentage. =====
+const UPG=[
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,1.5]],int:1},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1],[1,0.5]],int:1},
+ {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1],[1,0.5]],int:1},
+ {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
+ {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1},
+ {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,2]],pct:1}
 ];
-const SHOPMAX=8;
-function shopMax(s){return s.max||SHOPMAX;}   // per-item level cap (Supplies is capped lower: potions are limited by belt space)
+function upMax(u){return u.max||u.steps.reduce((a,s)=>a+s[0],0);}
+function upVal(u,l){let v=0,r=l;for(const s of u.steps){const t=Math.min(r,s[0]);v+=t*s[1];r-=t;if(r<=0)break;}return v;}
+function upCost(u,l){return Math.round(u.base*(l+1)*(1+l*BAL.upg.rise));}
+// either / or pairs: one shared level counter, the chosen variant decides what each level gives. f(p, l, G) applies it at the start of a run.
+const PAIRS=[
+ {k:'edge',n:'Edge',base:60,max:3,v:[
+  {id:'keen',n:'Keen',d:l=>'+'+l+'% crit',f:(p,l)=>{p.crit+=0.01*l;}},
+  {id:'vicious',n:'Vicious',d:l=>'+'+(1.5*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.015*l;}}]},
+ {k:'vigor',n:'Vigor',base:60,max:3,v:[
+  {id:'regrow',n:'Regrowth',d:l=>'heal '+(1.5*l)+'% HP on each new floor',f:(p,l)=>{p.renew+=0.015*l;}},
+  {id:'drink',n:'Lifedrinker',d:l=>'heal '+l+'% of damage dealt',f:(p,l)=>{p.life+=0.01*l;}}]},
+ {k:'prep',n:'Scrolls',base:70,max:1,v:[
+  {id:'flames',n:'Flames',d:l=>'+'+l+' starting Flames',f:(p,l,g)=>{g.inv.fire+=l;}},
+  {id:'tele',n:'Teleport',d:l=>'+'+l+' starting Teleport',f:(p,l,g)=>{g.inv.tele+=l;}}]}
+];
 const UNLOCKS=[
  {id:'rogue',n:'Rogue class',d:'Backstab, Vanish, Knife, Smoke. Cooldown based.',cost:150},
  {id:'mage',n:'Mage class',d:'Bolt, Nova, Blink, Fireball. Runs on mana.',cost:200},
@@ -253,7 +288,12 @@ const PERKS=[
  {id:'phoenix',n:'Phoenix Heart',lock:'phoenix',beh:1,d:'Once per run, a lethal hit revives you at half HP'},
  {id:'trapper',n:'Trapfinder',lock:'trapper',beh:1,d:'See traps from 3 tiles; half trap damage'},
  {id:'midas',n:'Midas Touch',lock:'midas',beh:1,d:'Every kill drops some gold'},
- {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more per level'}
+ {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more per level'},
+ // blueprint perks (bp = tier): only offered at level-up once found and bought
+ {id:'stalker',bp:'c',n:'Stalker',beh:1,d:'+'+Math.round(BAL.perk.stalkerMul*100)+'% damage to unaware foes'},
+ {id:'warcry',bp:'r',cls:'warrior',n:'Warcry',beh:1,d:'Cleave also stuns each foe it hits '+BAL.perk.warcryStun+' turn'},
+ {id:'frostbite',bp:'r',cls:'mage',n:'Frostbite',beh:1,d:'Frozen foes take +'+Math.round(BAL.perk.frostbiteMul*100)+'% damage'},
+ {id:'lacerate',bp:'r',cls:'rogue',n:'Lacerate',beh:1,d:'Sneak hits and Backstab leave foes bleeding'}
 ];
 PERKS.forEach(p=>{if(!p.max)p.max=p.beh?1:5;});
 const SYN=[
@@ -277,7 +317,13 @@ const WP={
  axe:{n:'Axe',e:'axe',w:2,atk:-1,sweep:0.5},
  spear:{n:'Spear',e:'spear',w:2,atk:-1,reach:2},
  dagger:{n:'Dagger',e:'dagger',w:2,atk:-2,crit:0.12,sneak:1},
- staff:{n:'Staff',e:'staff',w:2,atk:-3,spell:0.25,mana:4}
+ staff:{n:'Staff',e:'staff',w:2,atk:-3,spell:0.25,mana:4},
+ // blueprint weapons (bp = tier c / r / b): only in the loot pool once found and bought
+ maul:{n:'Maul',e:'maul',w:2,atk:1,knock:1,bp:'c'},
+ rapier:{n:'Rapier',e:'rapier',w:2,atk:-1,crit:0.1,riposte:BAL.weapon.rapierCounter,bp:'c'},
+ viper:{n:'Viperblade',e:'viper',w:2,atk:-2,pois:1,bp:'c'},
+ stormrod:{n:'Storm Rod',e:'stormrod',w:2,atk:-4,spell:0.2,mana:6,chain:1,bp:'b'},
+ reaper:{n:'Reaper',e:'reaper',w:2,atk:-1,sweep:1,bp:'b'}
 };
 // armor kinds: def = defense offset on top of its tier value; noDef = no defense at all; mana/spell/dodge/manaRegenMul/rageMul = resource trade-offs
 const ARM={
@@ -307,7 +353,12 @@ const CH={
  hourglass:{n:'Hourglass',e:'hourglass'},
  veil:{n:'Shadow Veil',e:'veil'},
  flask:{n:'Bottomless Flask',e:'flask'},
- soul:{n:'Soulstone',e:'soul'}
+ soul:{n:'Soulstone',e:'soul'},
+ gilded:{n:'Gilded Coin',e:'gilded',bp:'c'},
+ frenzy:{n:'Blood Brand',e:'frenzy',bp:'c'},
+ laststand:{n:'Last Stand',e:'laststand',bp:'r'},
+ aegis:{n:'Stone Heart',e:'aegis',bp:'b'},
+ cinder:{n:'Cinder Charm',e:'cinder',bp:'b'}
 };
 const TR={
  cursed:{slot:'weapon',n:'Cursed',dv:3,minF:2},
@@ -354,6 +405,31 @@ const HARD_RULES=(function(){
   {n:'Spoils',d:'Banked gold and score x'+H.goldMul+'.'}
  ];
 })();
+// ===== Expedition outcome table: per class, per upgrade power (gold spent on boosts), measured with the bot (tests/sim.js). Regenerate with `node tests/calibrate.js`. =====
+// reach[f-1] = share of runs that ended on floor f (index 8 = won); gold / kills = mean per run ending there; turns = mean turns per run; gph = manual gold per hour (turns x BAL.exp.turnSec)
+// BEGIN EXP_TABLE
+const EXP_TABLE={warrior:[{pw:0,reach:[.1,.1,.1,.1,.1,.2,.1,.1,.1],gold:[20,40,60,80,100,120,140,160,300],kills:[5,10,15,20,25,30,35,40,60],turns:700,gph:500}],mage:[{pw:0,reach:[.1,.1,.1,.1,.1,.2,.1,.1,.1],gold:[20,40,60,80,100,120,140,160,300],kills:[5,10,15,20,25,30,35,40,60],turns:700,gph:500}],rogue:[{pw:0,reach:[.1,.1,.1,.1,.1,.2,.1,.1,.1],gold:[20,40,60,80,100,120,140,160,300],kills:[5,10,15,20,25,30,35,40,60],turns:700,gph:500}]};
+// END EXP_TABLE
+// ===== Heat 0-5. HEAT[h] = the rule added at that level (Heat 1 is Hard: HARD_RULES lists its parts). Numbers: BAL.heat / BAL.hard =====
+const HEAT=(function(){
+ const T=BAL.heat,p=x=>Math.round(x*100)+'%';
+ return [
+  {n:'Normal',d:'The standard dungeon.'},
+  {n:'Hard',d:'Tougher foes, scarce potions, a brood mother.'},
+  {n:'Reinforced',d:'+'+T.extraFoes+' foes on every floor.'},
+  {n:'Iron elites',d:'Key elites get +'+p(T.eliteHpMul-1)+' HP, +'+p(T.eliteAtkMul-1)+' attack.'},
+  {n:'Weak potions',d:'Potions heal '+p(1-T.potionMul)+' less.'},
+  {n:'Fury',d:'The dragon enrages at '+p(T.enrageFrac)+' HP, breathes sooner.'}
+ ];
+})();
+// ===== Blueprints: every item / perk carrying a bp tier (c = expeditions, r = deep manual runs, b = the dragon or Heat 1+ runs). Found = 1, unlocked (bought) = 2 in meta.bp =====
+const BPS=(function(){
+ const o=[];
+ for(const x of [['weapon',WP],['off',OFF],['charm',CH]])for(const k in x[1])if(x[1][k].bp)o.push({id:k,t:x[0],tier:x[1][k].bp,n:x[1][k].n,e:x[1][k].e});
+ for(const pk of PERKS)if(pk.bp)o.push({id:pk.id,t:'perk',tier:pk.bp,n:pk.n,e:'p_'+pk.id});
+ return o;
+})();
+const BP_SRC={c:'Expeditions',r:'Deep runs, floor '+BAL.bp.deepFrom+'+',b:'The dragon, or Heat 1+ runs'};
 // ===== Achievements. chk = state-derived check (run at kills, floor changes, run end); no chk = granted directly by the event in code.
 // gold = one-time reward added to the permanent wallet. prog = progress text for countable goals. =====
 const ACH=[

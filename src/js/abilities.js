@@ -32,7 +32,7 @@ function enemyShots(range){return G.enemies.filter(e=>!e.dead&&G.vis[ix(e.x,e.y)
 function chargeLines(){
  const p=G.p,a=BAL.ability.charge,out=[];
  for(const [dx,dy] of DIRS){
-  for(let k=1;k<=a.maxDist;k++){
+  for(let k=1;k<=a.maxDist+(eqKind('off')==='gauntlet'?BAL.offhand.gauntletRange:0);k++){
    const x=p.x+dx*k,y=p.y+dy*k;
    if(!inb(x,y)||!walkable(x,y)||G.map[ix(x,y)]===3)break;
    const e=enemyAt(x,y);
@@ -120,11 +120,16 @@ const DO={
  cleave:function(){
   const a=BAL.ability.cleave,tg=chebEnemies();spend('cleave');breakVanish();
   msg('Cleave!');vfxAdd('cleave',G.p.x,G.p.y);
+  const strikes=eqKind('off')==='warbanner'?[1,BAL.offhand.bannerFrac]:[1];
   for(const e of tg){
-   const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
-   hurtEnemy(e,dmg,'#ffb04a',false,'melee');lifeSteal(dmg);poison(e);
-   gainRage(BAL.rage.dealt/2);if(eqKind('off')==='totem')gainRage(BAL.offhand.totemRage,true);
-   settle(e);
+   for(const f of strikes){
+    if(e.dead||e.hp<=0)break;
+    const dmg=Math.max(1,Math.round(playerDmg()*a.mul*f));
+    hurtEnemy(e,dmg,'#ffb04a',false,'melee');lifeSteal(dmg);poison(e);
+    gainRage(BAL.rage.dealt/2);if(eqKind('off')==='totem')gainRage(BAL.offhand.totemRage,true);
+    settle(e);
+   }
+   if(pc('warcry')&&!e.dead&&e.hp>0)stunEnemy(e,BAL.perk.warcryStun,BAL.perk.warcryStun);
   }
   endTurn();
  },
@@ -135,6 +140,7 @@ const DO={
   const e=c.e,dmg=Math.max(1,Math.round(playerDmg()*a.mul));
   hurtEnemy(e,dmg,'#ffb04a',false,'melee');msg('Charge hits the '+nm(e)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
   if(!e.dead&&e.hp>0)stunEnemy(e,a.stun,a.stunBoss);
+  if(eqKind('off')==='gauntlet'&&!e.dead&&e.hp>0)knock(e,c.dx,c.dy);
   if(pc('stampede'))for(const o of G.enemies)if(o!==e&&!o.dead&&cheb(o,p)<=1)stunEnemy(o,a.stun,a.stunBoss);
   settle(e);
   pickup();endTurn();
@@ -159,7 +165,7 @@ const DO={
    }
   }
   for(const v of hit){vfxAdd('bolt',p.x,p.y,v.x,v.y);
-   const dmg=Math.max(1,Math.round((playerDmg(true)*a.mul+a.add)*spellMul()));
+   const dmg=Math.max(1,Math.round((playerDmg(true)*a.mul+a.add)*spellMul()*(eqKind('off')==='focus'&&(v.stun>0||v.frz>0)?BAL.offhand.focusMul:1)));
    hurtEnemy(v,dmg,'#b48cff',false,'ranged');msg('Bolt hits the '+nm(v)+' for '+dmg+'.');
    poison(v);settle(v);
   }
@@ -182,6 +188,10 @@ const DO={
  },
  blink:function(tx,ty){
   const p=G.p;spend('blink');walkTok++;
+  if(eqKind('off')==='shard'){
+   const dmg=Math.max(1,Math.round((BAL.ability.fire.base+BAL.ability.fire.perFloor*G.floor)*p.fireMul*spellMul()*BAL.offhand.shardMul));
+   for(const o of G.enemies.slice())if(!o.dead&&cheb(o,p)<=1){hurtEnemy(o,dmg,'#ff7a2a',false,'magic');settle(o,'Shards');}
+  }
   vfxAdd('blink',p.x,p.y,tx,ty);floatFx(p.x,p.y,'blink','#d9c6ff');p.x=tx;p.y=ty;msg('You blink away.');
   pickup();if(G.map[ix(tx,ty)]===2)msg('On the stairs.');
   endTurn();
@@ -207,8 +217,9 @@ const DO={
    const crit=rf()<critChance();let dmg=Math.max(1,Math.round(playerDmg()*mul*f*(crit?BAL.combat.critMul:1)));
    hurtEnemy(e,dmg,cond?'#ff5a8a':'#ffd24a',crit,'melee');
    msg((cond?'Backstab! ':'Clumsy stab. ')+'You hit the '+nm(e)+' for '+dmg+'.');sfx(cond?'crit':'hit');if(cond)shake(4);
-   lifeSteal(dmg);poison(e);settle(e);
+   lifeSteal(dmg);poison(e);if(cond)bleed(e);settle(e);
   }
+  if(e.dead&&eqKind('off')==='garrote'){G.cd.backstab=0;msg('Garrote: Backstab is ready again.');}
   endTurn();
  },
  vanish:function(){
@@ -223,10 +234,11 @@ const DO={
   let dmg=Math.round(playerDmg()*a.mul)+a.add;
   const sn=(p.cls==='rogue'?BAL.combat.sneakMul:1)+(wpK()&&wpK().sneak||0);
   if(crit)dmg*=BAL.combat.critMul;
-  if(!e.awake&&sn>1){dmg*=sn;msg('Sneak attack!');}
+  const unaware=!e.awake&&sn>1;
+  if(unaware){dmg*=sn;msg('Sneak attack!');}
   dmg=Math.max(1,dmg);
   hurtEnemy(e,dmg,crit?'#ff8a3a':'#ffd24a',crit,'ranged');msg('Your knife hits the '+nm(e)+' for '+dmg+'.');
-  lifeSteal(dmg);poison(e);settle(e);
+  lifeSteal(dmg);poison(e);if(unaware)bleed(e);settle(e);
   if(e.dead&&G.syn.sd){G.knives=Math.min(maxKnives(),G.knives+1);msg('Silent Death: the knife returns to your hand.');}
   else dropAt(tx,ty,{t:'knife',v:0});
   endTurn();
@@ -240,7 +252,7 @@ const DO={
   vfxAdd('smoke',G.p.x,G.p.y,tx,ty,R);floatFx(tx,ty,'SMOKE','#ccd',true);msg('Smoke: foes inside are blinded.');
   for(const e of G.enemies){
    if(cells.indexOf(ix(e.x,e.y))<0)continue;
-   e.blind=a.blindTurns;e.wind=null;if(!EN[e.t].boss)e.awake=false;
+   e.blind=a.blindTurns;e.wind=null;if(eqKind('off')==='caltrops')stunEnemy(e,BAL.offhand.caltropStun,1);if(!EN[e.t].boss)e.awake=false;
   }
   endTurn();
  }

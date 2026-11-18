@@ -1,7 +1,9 @@
 // records.js - run score, personal records, streaks, daily results, achievement checking and the toast that announces them.
 
-function hardUnlocked(){return meta.wins>=1;}
-function hardOn(){return hardUnlocked()&&!!meta.hardOn;}
+// Heat (idle.js heatMax / heatSel): Heat 1 is the old Hard. A run's Heat is G.heat; G.hard (= Heat 1 or more) keeps driving the Hard rules.
+function hardUnlocked(){return heatMax()>=1;}
+function hardOn(){return heatSel()>=1;}
+function gHeat(g){return g&&g.heat>0?g.heat|0:(g&&g.hard?1:0);}
 function recOf(cls,hard){
  const t=meta.rec[hard?'h':'n'];
  if(!t[cls]||typeof t[cls]!=='object')t[cls]={};
@@ -14,10 +16,10 @@ function recWins(cls){return recGet(cls,0).wins+recGet(cls,1).wins;}
 function modsDone(){return Object.keys(meta.mods||{}).length;}
 function statWin(){return !!G&&!!G.stats&&!!G.stats.win&&!G.stats.legacy;}
 function scoreOf(g,won){
- const S=BAL.score,hard=!!g.hard;
+ const S=BAL.score;
  let s=g.floor*S.floor+g.kills*S.kill+g.p.lvl*S.level;
  if(won)s+=S.win+Math.max(0,S.par-g.turn)*S.perTurn;
- return Math.round(s*(hard?BAL.hard.scoreMul:1));
+ return Math.round(s*heatScore(gHeat(g)));
 }
 function todayKey(){const d=new Date(),z=n=>(n<10?'0':'')+n;return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());}
 // update every record for the run that just ended; returns the list of new-record labels shown on the recap

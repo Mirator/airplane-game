@@ -19,6 +19,13 @@ function killEnemy(e,src){
  if(modIs('horde')&&!G.enemies.length)earn('horde');
  if(traitOf('weapon')==='cursed')curseDrain();
  {const p=G.p,ch=eqKind('charm');
+  if(ch==='frenzy')G.fz=Math.min(BAL.charm.frenzyMax,(G.fz|0)+1);
+  if(ch==='cinder'&&!inChain){
+   inChain=true;
+   try{const dmg=BAL.charm.cinderBase+Math.floor(G.floor/BAL.charm.cinderFloorDiv);
+    for(const o of G.enemies.slice())if(!o.dead&&cheb(o,e)<=1){hurtEnemy(o,dmg,'#ff9a3a',false,'magic');settle(o,'Cinders');}}
+   finally{inChain=false;}
+  }
   if(ch==='fang'){const h=BAL.charm.fangHeal+Math.floor(G.floor/BAL.charm.fangFloorDiv);p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');}
   if(ch==='soul'){if(p.cls==='warrior')gainRage(BAL.charm.soulRage,true);else if(p.cls==='mage')p.mana=Math.min(mmax(),p.mana+BAL.charm.soulMana);else for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;}
   if(p.cls==='mage'){let m=BAL.mana.perKill+(pc('well')?BAL.perk.wellKill:0);if(G.syn.ow)m*=2;p.mana=Math.min(mmax(),p.mana+m);}}
@@ -29,11 +36,13 @@ function killEnemy(e,src){
  if(pc('midas'))dropAt(e.x,e.y,{t:'gold',v:rnd(BAL.drops.midasMin,BAL.drops.midasMax)+G.floor*BAL.drops.midasPerFloor});
  if(pc('scav')&&!itemAt(e.x,e.y)&&rf()<BAL.drops.scavChance*pc('scav'))G.items.push({x:e.x,y:e.y,t:'potion',v:0});
  if(pc('blood'))G.bl=1;
- if(pc('chain')&&!inChain)chainZap(e);
+ if((pc('chain')||(wpK()&&wpK().chain))&&!inChain)chainZap(e);
 }
 // kind: 'melee' | 'ranged' | 'magic' (shields care), undefined = poison / traps / impact (never reduced)
 function hurtEnemy(e,dmg,col,crit,kind){
  if(e.dead)return;
+ if(kind&&!e.awake&&pc('stalker'))dmg=Math.max(1,Math.round(dmg*(1+BAL.perk.stalkerMul)));
+ if(pc('frostbite')&&e.frz>0)dmg=Math.max(1,Math.round(dmg*(1+BAL.perk.frostbiteMul)));
  if(kind&&EN[e.t].shield&&!(e.stun>0||e.frz>0)){
   let m=1;
   if(isFront(e))m=BAL.weapon.shieldFront;
@@ -50,9 +59,15 @@ function settle(e,src){
  if(e.hp/e.mhp<(pc('blood')?BAL.perk.execBlood:BAL.perk.execBase)){floatFx(e.x,e.y,'EXECUTE','#f55');msg('Executed the '+nm(e)+'!');killEnemy(e);}
 }
 function poison(e){
- const s=pc('venom');if(!s||e.dead||e.hp<=0)return;
- let d=BAL.perk.venomBase+s;if(EN[e.t].boss)d=Math.max(1,Math.floor(d/2));
- e.pois={t:BAL.perk.venomTurns,d:d};floatFx(e.x,e.y,'poison','#7be04b');
+ const s=pc('venom'),vp=!!(wpK()&&wpK().pois);if((!s&&!vp)||e.dead||e.hp<=0)return;
+ let d=Math.max(s?BAL.perk.venomBase+s:0,vp?BAL.weapon.viperDmg:0);if(EN[e.t].boss)d=Math.max(1,Math.floor(d/2));
+ e.pois={t:s?BAL.perk.venomTurns:BAL.weapon.viperTurns,d:d};floatFx(e.x,e.y,'poison','#7be04b');
+}
+// Lacerate: sneak hits and Backstab leave a bleed (same effect as poison, own numbers)
+function bleed(e){
+ if(!pc('lacerate')||e.dead||e.hp<=0)return;
+ let d=BAL.perk.lacerateBase+Math.floor(G.floor/4);if(EN[e.t].boss)d=Math.max(1,Math.floor(d/2));
+ e.pois={t:BAL.perk.lacerateTurns,d:d};floatFx(e.x,e.y,'bleed','#ff5a5a');
 }
 function tickPoison(){
  for(const e of G.enemies.slice()){
@@ -74,7 +89,7 @@ function chainZap(from){
  }finally{inChain=false;}
 }
 function playerDmg(spell){
- const p=G.p;let d=Math.max(1,(spell?spellBase():meleeAtk())+rnd(-BAL.combat.dmgVar,BAL.combat.dmgVar));
+ const p=G.p;let d=Math.max(1,(spell?spellBase():meleeAtk())+rnd(-BAL.combat.dmgVar,BAL.combat.dmgVar))*(p.dmgMul||1);
  if(pc('berserk'))d*=1+BAL.perk.berserkMax*(1-Math.max(0,p.hp)/p.mhp);
  return Math.max(1,Math.round(d));
 }
@@ -89,7 +104,8 @@ function playerAttack(e){
  const p=G.p,wk=wpK();lunge('p',e.x-p.x,e.y-p.y);let dmg=playerDmg(),crit=rf()<critChance();
  if(crit)dmg*=BAL.combat.critMul;
  const sn=sneakMul();
- if(sn>1&&!e.awake){dmg*=sn;msg('Sneak attack!');}
+ const unaware=!e.awake;
+ if(sn>1&&unaware){dmg*=sn;msg('Sneak attack!');}
  if(G.vanish>0){G.vanish=0;msg('You step out of the shadows.');}
  if(G.bl){dmg=Math.round(dmg*BAL.perk.bloodlustMul);G.bl=0;msg('Bloodlust! Your strike is empowered.');}
  dmg=Math.max(1,Math.round(dmg));
@@ -97,8 +113,9 @@ function playerAttack(e){
  sfx(crit?'crit':'hit');if(crit||dmg>=Math.max(8,e.mhp*0.5))shake(crit?5:3);
  msg((crit?'Critical! ':'')+'You hit the '+nm(e)+' for '+dmg+'.');
  lifeSteal(dmg);gainRage(BAL.rage.dealt);
- poison(e);
+ poison(e);if(sn>1&&unaware)bleed(e);
  settle(e);
+ if(wk&&wk.knock&&!e.dead&&e.hp>0)knock(e,Math.sign(e.x-p.x),Math.sign(e.y-p.y));
  if(wk&&wk.sweep){
   const half=Math.max(1,Math.floor(dmg*wk.sweep));
   for(const o of G.enemies.slice()){
@@ -115,6 +132,7 @@ function hurtPlayer(e,dmg,melee,verb){
  if(eqKind('charm')==='ward'&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Your Ward Sigil negates the '+nm(e)+"'s hit.");return false;}
  dmg=Math.max(1,Math.round(dmg*BAL.combat.armorK/(BAL.combat.armorK+defTotal()))+rnd(-BAL.combat.enemyDmgVar,BAL.combat.enemyDmgVar));
  if(dmg<1)dmg=1;
+ if(eqKind('charm')==='aegis')dmg=Math.min(dmg,Math.max(1,Math.ceil(p.mhp*BAL.charm.aegisCap)));
  const raw=dmg;let refl=0;
  if(G.brace){
   dmg=Math.max(1,Math.round(dmg*BAL.ability.brace.reduce));refl=melee?Math.round(raw*G.brace.reflect):0;
@@ -124,9 +142,11 @@ function hurtPlayer(e,dmg,melee,verb){
  msg('The '+nm(e)+' '+(verb||(melee?'hits':'shoots'))+' you for '+dmg+'.');playerHurtFx(dmg);
  gainRage(BAL.rage.taken);
  secondWind();
+ if(p.hp>0&&p.hp<p.mhp*BAL.charm.lastBelow&&eqKind('charm')==='laststand'&&!G.lsUsed){G.lsUsed=1;const h=Math.round(p.mhp*BAL.charm.lastHeal);p.hp=Math.min(p.mhp,p.hp+h);floatFx(p.x,p.y,'+'+h,'#6f6');msg('Last Stand! You rally for '+h+' HP.');}
  if(refl>0&&!e.dead){hurtEnemy(e,refl,'#9cf');msg('Your brace reflects '+refl+' damage.');settle(e,'Reflection');}
  if(melee&&thornsDmg()>0&&!e.dead){hurtEnemy(e,thornsDmg(),'#8f8');settle(e,'Thorns');}
- if(melee&&!e.dead&&p.hp>0&&pc('riposte')&&rf()<BAL.perk.riposteChance*pc('riposte')){
+ const rip=BAL.perk.riposteChance*pc('riposte')+(wpK()&&wpK().riposte||0);
+ if(melee&&!e.dead&&p.hp>0&&rip>0&&rf()<rip){
   const d2=playerDmg();hurtEnemy(e,d2,'#fff',false,'melee');msg('Riposte! You counter for '+d2+'.');settle(e);}
  return true;
 }

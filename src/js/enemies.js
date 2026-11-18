@@ -57,7 +57,7 @@ function bossPhase(e){
  while((e.sm||0)<at.length&&e.hp<e.mhp*at[e.sm||0]){e.sm=(e.sm||0)+1;summonWhelps(e);}
 }
 function resolveWind(e,d){
- const w=e.wind,p=G.p;e.wind=null;e.cd=w.k==='smash'?BAL.enemyAi.smashCooldown:w.k==='sweep'?BAL.enemyAi.sweepCd:(e.enraged?BAL.enemyAi.enrageBreathCd:BAL.enemyAi.breathCooldown);
+ const w=e.wind,p=G.p;e.wind=null;e.cd=w.k==='smash'?BAL.enemyAi.smashCooldown:w.k==='sweep'?BAL.enemyAi.sweepCd:Math.max(1,(e.enraged?BAL.enemyAi.enrageBreathCd:BAL.enemyAi.breathCooldown)-(d.boss&&gHeat(G)>=5?BAL.heat.breathCut:0));
  if(w.tiles.some(t=>t[0]===p.x&&t[1]===p.y)){
   if(d.boss&&w.k!=='smash')G.stats.dragonHit=1;
   const dmg=Math.round(e.atk*(w.k==='sweep'?BAL.enemyAi.sweepMul:(d.windMul||BAL.enemyAi.defaultWindMul)));
@@ -117,7 +117,7 @@ function enemiesAct(free){
   if(!e.awake)continue;
   if(!see&&!e.alarm&&dist[ix(e.x,e.y)]>BAL.enemyAi.loseTrackDist){e.awake=false;continue;}
   if(d.slowAct){if(e.rest){e.rest=0;continue;}e.rest=1;}
-  if(d.boss&&!e.enraged&&e.hp<e.mhp*(G.hard?BAL.hard.enrageFrac:BAL.enemyAi.enrageFrac)){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');callout(e.x,e.y,'ENRAGED','#f55');}
+  if(d.boss&&!e.enraged&&e.hp<e.mhp*(gHeat(G)>=5?BAL.heat.enrageFrac:G.hard?BAL.hard.enrageFrac:BAL.enemyAi.enrageFrac)){e.enraged=1;e.atk=Math.round(e.atk*BAL.enemyAi.enrageAtkMul);msg('The '+d.n+' roars in fury!');callout(e.x,e.y,'ENRAGED','#f55');}
   if(d.heal&&!free&&!(e.hcd>0)){
    let tg=null,bf=BAL.enemyAi.healBelow;
    for(const o of G.enemies){if(o===e||o.dead)continue;const fr=o.hp/o.mhp;

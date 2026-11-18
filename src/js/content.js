@@ -68,6 +68,10 @@ function wpTerms(k,noStat,cls){
  if(w.sneak)t.push('sneak +'+w.sneak);
  if(w.spell&&mage)t.push(sgn(Math.round(w.spell*100))+'% spell power');
  if(w.mana&&mage)t.push(sgn(w.mana)+' mana');
+ if(w.knock)t.push('knocks foes back');
+ if(w.riposte)t.push(pct(w.riposte)+' counter');
+ if(w.pois)t.push('hits poison');
+ if(w.chain)t.push('kills zap a foe');
  return t;
 }
 function wpRule(k,noStat,cls){const t=wpTerms(k,noStat,cls);return t.length?t.join(', '):'Balanced.';}
@@ -94,7 +98,13 @@ function offRule(k){
   lens:'Bolt pierces '+O.lensPierce+' more foes in line.',
   dagger2:'Backstab strikes twice (2nd at '+pct(O.dagger2Frac)+').',
   satchel:'Smoke: radius +'+O.satchelRadius+', '+O.satchelTurns+' turns longer.',
-  quiver:'+'+O.quiverKnives+' knives carried.'
+  quiver:'+'+O.quiverKnives+' knives carried.',
+  garrote:'A Backstab kill resets its cooldown.',
+  focus:'Bolt hits stunned or frozen foes for x'+O.focusMul+'.',
+  warbanner:'Cleave strikes twice (2nd at '+pct(O.bannerFrac)+').',
+  gauntlet:'Charge +'+O.gauntletRange+' range and slams the foe back.',
+  shard:'Blink scorches foes next to where you stood.',
+  caltrops:'Smoke also stuns foes inside '+O.caltropStun+' turns.'
  }[k]||'';
 }
 function charmRule(k){
@@ -106,6 +116,11 @@ function charmRule(k){
   hourglass:'Cooldowns tick +1 every '+C.hourglassEvery+' turns.',
   veil:'Foes notice you '+C.veilSight+' tiles later.',
   flask:'First potion each floor takes no turn.',
-  soul:'Kills refund '+C.soulRage+' rage / '+C.soulMana+' mana / 1 cooldown.'
+  soul:'Kills refund '+C.soulRage+' rage / '+C.soulMana+' mana / 1 cooldown.',
+  gilded:'Gold heals 1 HP per '+C.gildedPer+' gold picked up.',
+  frenzy:'Kills give +1 attack this floor (max '+C.frenzyMax+').',
+  laststand:'Once a floor, below '+pct(C.lastBelow)+' HP: heal '+pct(C.lastHeal)+'.',
+  aegis:'No hit takes more than '+pct(C.aegisCap)+' of max HP.',
+  cinder:'Kills burn neighbours for '+C.cinderBase+'+ damage.'
  }[k]||'';
 }
