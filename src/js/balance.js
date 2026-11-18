@@ -182,8 +182,8 @@ const SHOP=[
 const SHOPMAX=8;
 function shopMax(s){return s.max||SHOPMAX;}   // per-item level cap (Supplies is capped lower: potions are limited by belt space)
 const UNLOCKS=[
- {id:'rogue',n:'🗡 Rogue class',d:'Backstab, Vanish, Knife, Smoke. Cooldown based.',cost:150},
- {id:'mage',n:'🧙 Mage class',d:'Bolt, Nova, Blink, Fireball. Runs on mana.',cost:200},
+ {id:'rogue',n:'Rogue class',d:'Backstab, Vanish, Knife, Smoke. Cooldown based.',cost:150},
+ {id:'mage',n:'Mage class',d:'Bolt, Nova, Blink, Fireball. Runs on mana.',cost:200},
  {id:'warlord',n:'Perk: Warlord',d:'Adds Warlord to level-ups.',cost:180},
  {id:'elixir',n:'Merchant: Elixir',d:'Merchants sell an Elixir (+'+BAL.merchant.elixirHp+' max HP, full heal).',cost:110},
  {id:'scroll',n:'Starting scroll',d:'Start each run with a random scroll.',cost:90},
@@ -195,19 +195,19 @@ const UNLOCKS=[
  {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist to level-ups.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
 ];
 const EN={
- rat:{n:'Rat',e:'🐀',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
- goblin:{n:'Goblin',e:'👺',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
- archer:{n:'Archer',e:'🏹',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
- hound:{n:'Hound',e:'🐺',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
- guard:{n:'Guard',e:'🤺',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield takes '+Math.round(BAL.weapon.shieldFront*100)+'% from front, '+Math.round(BAL.weapon.shieldRanged*100)+'% ranged. Flank it.'},
- skeleton:{n:'Skeleton',e:'💀',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
- ogre:{n:'Ogre',e:'👹',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
- troll:{n:'Troll',e:'🧌',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},
- cultist:{n:'Cultist',e:'🧛',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
- bat:{n:'Bat',e:'🦇',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
- warlock:{n:'Warlock',e:'🦹',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
- whelp:{n:'Whelp',e:'🦎',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
- dragon:{n:'Dragon',e:'🐉',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
+ rat:{n:'Rat',e:'rat',hp:6,atk:2,speed:2,pack:true,group:[3,4],w:2,maxF:BAL.spawn.ratLastFloor,xp:3,minF:1,tr:'Packs of fast biters. Area attacks shred them.'},
+ goblin:{n:'Goblin',e:'goblin',hp:10,atk:3,lunge:true,xp:5,minF:1,tr:'Plain brute; lunges to keep up with you.'},
+ archer:{n:'Archer',e:'archer',hp:8,atk:4,range:6,cdmax:2,kite:true,xp:6,minF:2,tr:'Shoots from 6 tiles with a clear line; keeps away.'},
+ hound:{n:'Hound',e:'hound',hp:12,atk:4,speed:2,xp:7,minF:3,tr:'Moves twice per turn. Fight it in melee or stun it.'},
+ guard:{n:'Guard',e:'guard',hp:20,atk:5,shield:true,xp:10,minF:4,tr:'Shield takes '+Math.round(BAL.weapon.shieldFront*100)+'% from front, '+Math.round(BAL.weapon.shieldRanged*100)+'% ranged. Flank it.'},
+ skeleton:{n:'Skeleton',e:'skeleton',hp:15,atk:5,lunge:true,xp:8,minF:3,tr:'Tough melee fighter; lunges like the goblin.'},
+ ogre:{n:'Ogre',e:'ogre',hp:26,atk:8,slowAct:true,xp:13,minF:3,tr:'Acts every other turn, hits hard. Hourglass: resting.'},
+ troll:{n:'Troll',e:'troll',hp:34,atk:7,slow:true,wind:true,windMul:2,windMsg:'The Troll raises its club!',xp:16,minF:4,tr:'Slow and sturdy. Winds up a smash (red tiles).'},
+ cultist:{n:'Cultist',e:'cultist',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
+ bat:{n:'Bat',e:'bat',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
+ warlock:{n:'Warlock',e:'warlock',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
+ whelp:{n:'Whelp',e:'whelp',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
+ dragon:{n:'Dragon',e:'dragon',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
@@ -264,48 +264,48 @@ const SYN=[
 ];
 // kit = the four ability keys (defs in content.js ABIL); start = starting weapon kind; mana = base mana pool (0 = none)
 const CLS={
- warrior:{n:'Warrior',e:'🛡',hp:46,atk:4,def:3,crit:0.05,fire:1,mana:0,kit:['bash','cleave','charge','brace'],start:'sword',res:'Rage'},
- mage:{n:'Mage',e:'🧙',hp:28,atk:4,def:0,crit:0.05,fire:2,mana:28,kit:['bolt','nova','blink','fire'],start:'staff',res:'Mana'},
- rogue:{n:'Rogue',e:'🗡',hp:32,atk:4,def:0,crit:0.12,fire:1,mana:0,kit:['backstab','vanish','knife','smoke'],start:'dagger',res:'Knives'}
+ warrior:{n:'Warrior',e:'warrior',hp:46,atk:4,def:3,crit:0.05,fire:1,mana:0,kit:['bash','cleave','charge','brace'],start:'sword',res:'Rage'},
+ mage:{n:'Mage',e:'mage',hp:28,atk:4,def:0,crit:0.05,fire:2,mana:28,kit:['bolt','nova','blink','fire'],start:'staff',res:'Mana'},
+ rogue:{n:'Rogue',e:'rogue',hp:32,atk:4,def:0,crit:0.12,fire:1,mana:0,kit:['backstab','vanish','knife','smoke'],start:'dagger',res:'Knives'}
 };
 const LG={warrior:{hp:4,atkE:4},mage:{hp:5,atkE:3},rogue:{hp:3,atkE:2}};
 // weapon kinds: atk = melee attack offset (spells ignore it); crit/sneak/spell/mana = extras; sweep = splash fraction; reach = attack distance
 const WP={
- sword:{n:'Sword',e:'⚔️',w:3,atk:0},
- axe:{n:'Axe',e:'🪓',w:2,atk:-1,sweep:0.5},
- spear:{n:'Spear',e:'🔱',w:2,atk:-1,reach:2},
- dagger:{n:'Dagger',e:'🗡',w:2,atk:-2,crit:0.12,sneak:1},
- staff:{n:'Staff',e:'🪄',w:2,atk:-3,spell:0.25,mana:4}
+ sword:{n:'Sword',e:'sword',w:3,atk:0},
+ axe:{n:'Axe',e:'axe',w:2,atk:-1,sweep:0.5},
+ spear:{n:'Spear',e:'spear',w:2,atk:-1,reach:2},
+ dagger:{n:'Dagger',e:'dagger',w:2,atk:-2,crit:0.12,sneak:1},
+ staff:{n:'Staff',e:'staff',w:2,atk:-3,spell:0.25,mana:4}
 };
 // armor kinds: def = defense offset on top of its tier value; noDef = no defense at all; mana/spell/dodge/manaRegenMul/rageMul = resource trade-offs
 const ARM={
- mail:{n:'Mail',e:'🛡',w:3,def:0},
- plate:{n:'Plate',e:'🛡',w:2,def:2,manaRegenMul:0.5,rageMul:0.75,mana:-6},
- robe:{n:'Robe',e:'👘',w:2,noDef:1,spell:0.15,manaBase:6,manaPerV:2},
- leather:{n:'Leather',e:'🥋',w:2,def:-1,dodge:0.1}
+ mail:{n:'Mail',e:'mail',w:3,def:0},
+ plate:{n:'Plate',e:'plate',w:2,def:2,manaRegenMul:0.5,rageMul:0.75,mana:-6},
+ robe:{n:'Robe',e:'robe',w:2,noDef:1,spell:0.15,manaBase:6,manaPerV:2},
+ leather:{n:'Leather',e:'leather',w:2,def:-1,dodge:0.1}
 };
 const TIERS=['Old','Plain','Fine','Steel','Runed','Dragon'];
 // class-locked off-hands, each modifies one ability (numbers: BAL.offhand)
 const OFF={
- tower:{cls:'warrior',n:'Tower Shield',e:'🛡',ab:'bash'},
- bulwark:{cls:'warrior',n:'Iron Bulwark',e:'🧱',ab:'brace'},
- totem:{cls:'warrior',n:'Blood Totem',e:'🩸',ab:'cleave'},
- tome:{cls:'mage',n:'Ember Tome',e:'📖',ab:'nova'},
- prism:{cls:'mage',n:'Fire Prism',e:'💎',ab:'fire'},
- lens:{cls:'mage',n:'Piercing Lens',e:'🔭',ab:'bolt'},
- dagger2:{cls:'rogue',n:'Second Dagger',e:'🗡',ab:'backstab'},
- satchel:{cls:'rogue',n:"Smoker's Satchel",e:'🎒',ab:'smoke'},
- quiver:{cls:'rogue',n:'Deep Quiver',e:'🎯',ab:'knife'}
+ tower:{cls:'warrior',n:'Tower Shield',e:'tower',ab:'bash'},
+ bulwark:{cls:'warrior',n:'Iron Bulwark',e:'bulwark',ab:'brace'},
+ totem:{cls:'warrior',n:'Blood Totem',e:'totem',ab:'cleave'},
+ tome:{cls:'mage',n:'Ember Tome',e:'tome',ab:'nova'},
+ prism:{cls:'mage',n:'Fire Prism',e:'prism',ab:'fire'},
+ lens:{cls:'mage',n:'Piercing Lens',e:'lens',ab:'bolt'},
+ dagger2:{cls:'rogue',n:'Second Dagger',e:'dagger2',ab:'backstab'},
+ satchel:{cls:'rogue',n:"Smoker's Satchel",e:'satchel',ab:'smoke'},
+ quiver:{cls:'rogue',n:'Deep Quiver',e:'quiver',ab:'knife'}
 };
 // charms: one passive rule each (numbers: BAL.charm)
 const CH={
- fang:{n:'Vampire Fang',e:'🦷'},
- ward:{n:'Ward Sigil',e:'🔰'},
- eye:{n:'Seer Eye',e:'👁'},
- hourglass:{n:'Hourglass',e:'⏳'},
- veil:{n:'Shadow Veil',e:'🌑'},
- flask:{n:'Bottomless Flask',e:'⚗️'},
- soul:{n:'Soulstone',e:'🔮'}
+ fang:{n:'Vampire Fang',e:'fang'},
+ ward:{n:'Ward Sigil',e:'ward'},
+ eye:{n:'Seer Eye',e:'eye'},
+ hourglass:{n:'Hourglass',e:'hourglass'},
+ veil:{n:'Shadow Veil',e:'veil'},
+ flask:{n:'Bottomless Flask',e:'flask'},
+ soul:{n:'Soulstone',e:'soul'}
 };
 const TR={
  cursed:{slot:'weapon',n:'Cursed',dv:3,minF:2},
@@ -331,14 +331,14 @@ const MODS=(function(){
  const M=BAL.mod,p=x=>Math.round(x*100)+'%';
  // tip = one line for the chip; r / g = a few words of risk and reward for the path choice
  return [
-  {id:'dark',tip:'Sight '+M.dark.sight+' tiles, more loot.',e:'🌑',n:'Dark',minF:2,r:'See only '+M.dark.sight+' tiles',g:'More loot'},
-  {id:'flooded',tip:'Water slows you; foes in it lose a move.',e:'🌊',n:'Flooded',minF:2,r:'Water slows you',g:'Water slows foes; +gold'},
-  {id:'cursed',tip:'No regen, weaker potions, a safe shrine.',e:'☠️',n:'Cursed ground',minF:2,r:'No regen, potions '+p(M.cursed.potionMul),g:'Safe shrine'},
-  {id:'horde',tip:'Many weak foes, no treasure room.',e:'🐀',n:'Horde',minF:2,r:p(M.horde.countMul-1)+' more foes, no vault',g:'Weaker foes, more gold'},
-  {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'🎯',n:'Hunted',minF:M.hunted.minFloor,r:'A stalker hunts you',g:'Slay it for loot'},
-  {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'💰',n:'Rich vein',minF:2,r:'Foes +'+p(M.rich.hpMul-1)+' HP',g:'Gold x'+M.rich.goldMul},
-  {id:'silent',tip:'More traps and alarms; easy sneak attacks.',e:'🤫',n:'Silent',minF:2,r:'Twice the traps',g:'Easy sneak attacks'},
-  {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'🕳️',n:'Unstable',minF:2,r:'Floor collapses',g:'Extra gear and gold'}
+  {id:'dark',tip:'Sight '+M.dark.sight+' tiles, more loot.',e:'m_dark',n:'Dark',minF:2,r:'See only '+M.dark.sight+' tiles',g:'More loot'},
+  {id:'flooded',tip:'Water slows you; foes in it lose a move.',e:'m_flooded',n:'Flooded',minF:2,r:'Water slows you',g:'Water slows foes; +gold'},
+  {id:'cursed',tip:'No regen, weaker potions, a safe shrine.',e:'m_cursed',n:'Cursed ground',minF:2,r:'No regen, potions '+p(M.cursed.potionMul),g:'Safe shrine'},
+  {id:'horde',tip:'Many weak foes, no treasure room.',e:'m_horde',n:'Horde',minF:2,r:p(M.horde.countMul-1)+' more foes, no vault',g:'Weaker foes, more gold'},
+  {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'m_hunted',n:'Hunted',minF:M.hunted.minFloor,r:'A stalker hunts you',g:'Slay it for loot'},
+  {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'m_rich',n:'Rich vein',minF:2,r:'Foes +'+p(M.rich.hpMul-1)+' HP',g:'Gold x'+M.rich.goldMul},
+  {id:'silent',tip:'More traps and alarms; easy sneak attacks.',e:'m_silent',n:'Silent',minF:2,r:'Twice the traps',g:'Easy sneak attacks'},
+  {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'m_unstable',n:'Unstable',minF:2,r:'Floor collapses',g:'Extra gear and gold'}
  ];
 })();
 function modOf(id){return MODS.find(m=>m.id===id)||null;}

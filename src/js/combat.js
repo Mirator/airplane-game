@@ -13,7 +13,7 @@ function curseDrain(){
 function killEnemy(e,src){
  if(e.dead)return;
  e.dead=true;G.enemies=G.enemies.filter(o=>o!==e);G.kills++;meta.kills++;if(e.elite)meta.elites++;metaDirty=true;checkAch();
- const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');if(!rmo())puffs.push({x:e.x,y:e.y,t:performance.now(),s:Math.random()*6});
+ const d=EN[e.t];msg((src||'You')+' slew the '+nm(e)+'.');if(!rmo())puffs.push({x:e.x,y:e.y,t:performance.now(),s:Math.random()*6});ghostAdd(e);
  gainXp(Math.round((d.xp+G.floor)*(modIs('horde')?BAL.mod.horde.xpMul:1)*(e.hunter?BAL.mod.hunted.xpMul:1)));
  if(d.boss){G.won=true;return;}
  if(modIs('horde')&&!G.enemies.length)earn('horde');
@@ -86,7 +86,7 @@ function lifeSteal(dmg){
 }
 function sneakMul(){const wk=wpK();let b=G.p.cls==='rogue'?BAL.combat.sneakMul:1;if(modIs('silent'))b=Math.max(b,BAL.mod.silent.sneakMul);return b+(wk&&wk.sneak||0);}
 function playerAttack(e){
- const p=G.p,wk=wpK();let dmg=playerDmg(),crit=rf()<critChance();
+ const p=G.p,wk=wpK();lunge('p',e.x-p.x,e.y-p.y);let dmg=playerDmg(),crit=rf()<critChance();
  if(crit)dmg*=BAL.combat.critMul;
  const sn=sneakMul();
  if(sn>1&&!e.awake){dmg*=sn;msg('Sneak attack!');}
@@ -109,7 +109,7 @@ function playerAttack(e){
 }
 function hurtPlayer(e,dmg,melee,verb){
  const p=G.p;
- if(e&&e.x!=null){e.face=[Math.sign(p.x-e.x),Math.sign(p.y-e.y)];}
+ if(e&&e.x!=null){e.face=[Math.sign(p.x-e.x),Math.sign(p.y-e.y)];lunge(e.id,p.x-e.x,p.y-e.y);}
  if(e&&e.blind>0&&rf()<BAL.ability.smoke.miss){floatFx(e.x,e.y,'miss','#ccc');msg('The blinded '+nm(e)+' swings wildly and misses.');return false;}
  if(rf()<dodgeChance()){floatFx(p.x,p.y,'dodge','#9cf');msg('You dodge the '+nm(e)+'.');return false;}
  if(eqKind('charm')==='ward'&&!G.ssUsed){G.ssUsed=1;floatFx(p.x,p.y,'blocked','#bbb');msg('Your Ward Sigil negates the '+nm(e)+"'s hit.");return false;}

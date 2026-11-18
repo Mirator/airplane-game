@@ -21,7 +21,7 @@ function sfx(k){
  }catch(e){}
 }
 function buzz(ms){try{if(meta.sound&&navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
-function soundLabel(){return meta.sound?'🔊 Sound: ON':'🔇 Sound: OFF';}
+function soundLabel(){return meta.sound?'Sound: ON':'Sound: OFF';}
 function toggleSound(){
  meta.sound=meta.sound?0:1;saveMeta();
  if(meta.sound){ac();sfx('pickup');buzz(25);}

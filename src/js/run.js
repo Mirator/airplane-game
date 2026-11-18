@@ -28,7 +28,7 @@ function newFloor(f,opt){
  if(G.daily)withStream(hashStr(G.daily+'|F'+f+'|'+G.variant+'|'+(G.mod||'-')),function(){buildFloor(f);});else buildFloor(f);
  const th=themeOf(f,G.variant),m=G.mod?modOf(G.mod):null;
  bannerText='Floor '+f+' - '+th.n;bannerUntil=performance.now()+1800;
- if(m){bannerText+=' '+m.e+' '+m.n;msg(m.e+' '+m.n+': '+m.tip);}
+ if(m){bannerText+=' - '+m.n;msg(m.n+': '+m.tip);}
  G.opts=null;
  if(f+1<MAXF)G.opts=rollOpts(f+1);
  computeVis();
@@ -135,7 +135,7 @@ function startRun(cls,opts){
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
  if(daily){const d=meta.dly[daily]||(meta.dly[daily]={att:0});if(!d.att)meta.dlyN++;d.att++;saveMeta();checkAch();}
  noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg(C.e+' '+C.n+' descends'+(daily?' · Daily '+daily:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
+ msg(C.n+' descends'+(daily?' · Daily '+daily:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
@@ -170,14 +170,14 @@ function finish(kind){
  computeVis();render();
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
- const tags=(G.daily?' &middot; 📅 Daily':'')+(hard?' &middot; 💀 Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const tags=(G.daily?' &middot; '+ic('cal',16)+' Daily':'')+(hard?' &middot; '+ic('skull',16)+' Hard':'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
-  '<p class="recap">'+clsOf(p).e+' <b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'<br>Floor <b>'+G.floor+'</b> &middot; <b>'+G.turn+'</b> turns &middot; <b>'+G.kills+'</b> kills</p>'+
+  '<p class="recap">'+ic(clsOf(p).e,26)+' <b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'<br>Floor <b>'+G.floor+'</b> &middot; <b>'+G.turn+'</b> turns &middot; <b>'+G.kills+'</b> kills</p>'+
   '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Hard ×'+BAL.hard.goldMul+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">🤖 Auto run: '+autoGoldWord()+' gold banked.</p>':'')+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto run: '+autoGoldWord()+' gold banked.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
-  (G.newAch&&G.newAch.length?'<p class="recap">🏆 Achievement: <b>'+G.newAch.join(', ')+'</b></p>':'')+
+  (G.newAch&&G.newAch.length?'<p class="recap">'+ic('trophy',18)+' Achievement: <b>'+G.newAch.join(', ')+'</b></p>':'')+
   (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),
   [{label:'Back to title',c:1,big:1,fn:function(){closeModal();G=null;rngS=null;showTitle();}}]);
 }

@@ -103,9 +103,9 @@ function rollOpts(nf){
 }
 function optHtml(nf,o){
  const m=o.mod?modOf(o.mod):null,th=themeOf(nf,o.v);
- return '<b>'+th.n+' &middot; '+(m?m.e+' '+m.n:'Plain floor')+'</b><span>'+
+ return '<b>'+th.n+' &middot; '+(m?ic(m.e,18)+' '+m.n:'Plain floor')+'</b><span>'+
   (m?'<i style="color:#ff9a8a;font-style:normal">Risk:</i> '+m.r+'<br><i style="color:#8fe39a;font-style:normal">Gain:</i> '+m.g:'No surprises, no extra loot.')+
-  (BAL.merchant.floors.includes(nf)?'<br>🧔 Merchant':'')+'</span>';
+  (BAL.merchant.floors.includes(nf)?'<br>'+ic('merchant',18)+' Merchant':'')+'</span>';
 }
 function showBranch(){
  if(!G||G.over)return;walkTok++;
@@ -117,10 +117,10 @@ function showBranch(){
 // the one map chip: the floor modifier as a small icon; tap it for a one-line reminder (Daily / Hard show in the top bar)
 function modChipHtml(){
  const m=G.mod?modOf(G.mod):null;
- return m?'<button class="chip mod" data-chip="mod" aria-label="'+m.n+'">'+m.e+'</button>':'';
+ return m?'<button class="chip mod" data-chip="mod" aria-label="'+m.n+'">'+ic(m.e,28)+'</button>':'';
 }
 function chipText(k){
- if(k==='mod'){const m=modOf(G.mod);return m?m.e+' '+m.n+': '+m.tip:'';}
+ if(k==='mod'){const m=modOf(G.mod);return m?m.n+': '+m.tip:'';}
  return '';
 }
 $('chips').addEventListener('click',function(ev){

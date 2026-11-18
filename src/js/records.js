@@ -48,7 +48,7 @@ function dailyNote(){
 function earn(id){
  const a=ACH.find(x=>x.id===id);if(!a||meta.ach[id])return false;
  meta.ach[id]=1;if(a.gold)meta.gold+=a.gold;saveMeta();
- if(G){(G.newAch=G.newAch||[]).push(a.n+(a.gold?' (+'+a.gold+' 💰)':''));toast('🏆 '+a.n+(a.gold?'  +'+a.gold+' 💰':''));}
+ if(G){(G.newAch=G.newAch||[]).push(a.n+(a.gold?' (+'+a.gold+' gold)':''));toast('Achievement: '+a.n+(a.gold?'  +'+a.gold+' gold':''));}
  return true;
 }
 function checkAchievements(){

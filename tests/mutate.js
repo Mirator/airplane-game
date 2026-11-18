@@ -33,6 +33,17 @@ const TESTS_DIR = process.argv.includes('--tests') ? path.resolve(process.argv[p
 // ---------------------------------------------------------------------------------------------------------------------------
 const M = (id, area, desc, file, find, repl, extra) => Object.assign({ id, area, desc, file, find, repl }, extra);
 const MUTATIONS = [
+  // ---- art: sprites, icons, effects
+  M('MA0', 'art', 'the Rat has no sprite (a table id points at a missing picture)', 'sprites.js', "def('rat',", "def('rat_x',"),
+  M('MA1', 'art', 'two foes share one picture (Troll drawn as the Ogre)', 'balance.js', "e:'troll'", "e:'ogre'"),
+  M('MA2', 'art', 'an ability button shows the wrong icon (Bolt uses the Nova picture)', 'content.js', "bolt:{e:'ab_bolt'", "bolt:{e:'ab_nova'"),
+  M('MA3', 'art', 'the stats row shows no gold icon', 'hud.js', "ic('coin',16)+' '+p.gold", "p.gold"),
+  M('MA4', 'art', 'effects ignore prefers-reduced-motion', 'effects.js', "function vfxAdd(k,x,y,x2,y2,r){if(rmo())return;", "function vfxAdd(k,x,y,x2,y2,r){"),
+  M('MA5', 'art', 'the renderer silently draws nothing for a missing sprite instead of reporting it', 'art.js', "if(artMissing.indexOf(id)<0)artMissing.push(id);const c=b.getContext('2d');", "const c=b.getContext('2d');"),
+  M('MA6', 'art', 'the Guard\'s shield is not drawn', 'render.js', "if(d.shield&&e.face){", "if(false&&d.shield&&e.face){"),
+  M('MA7', 'art', 'the dragon is drawn at tile size (no boss scale)', 'render.js', "S=boss?ts*1.9:", "S=boss?ts*1.0:"),
+  M('MA8', 'art', 'the sprite bitmap cache never hits (every frame re-draws the paths)', 'art.js', "let b=cache[key];if(b)return b;", "let b=null;"),
+  M('MA9', 'art', 'the emoji-free log: a message gets an emoji prefix again', 'run.js', "msg(C.n+' descends", "msg('\u{1F5E1} '+C.n+' descends"),
   // ---- damage, crit, defense
   M('M01', 'combat', 'enemy hits ignore the player\'s defense', 'combat.js', 'dmg*BAL.combat.armorK/(BAL.combat.armorK+defTotal())', 'dmg*BAL.combat.armorK/(BAL.combat.armorK+0)'),
   M('M02', 'combat', 'melee crits do no extra damage', 'combat.js', 'if(crit)dmg*=BAL.combat.critMul;\n const sn=sneakMul();', 'const sn=sneakMul();'),
@@ -137,8 +148,8 @@ const MUTATIONS = [
   M('M91', 'auto', 'Auto equips another class\'s off-hand', 'auto.js', "(it.t!=='off'||(OFF[it.k]&&OFF[it.k].cls===p.cls))&&autoGearScore(it.t,it)", 'autoGearScore(it.t,it)'),
   // ---- HUD
   M('M92', 'hud', 'ability button is not disabled without mana', 'hud.js', "if(c.mana&&(p.mana||0)<c.mana)return {dis:1,sub:c.mana+' mana'};", ''),
-  M('M93', 'hud', 'Stairs button is enabled away from the stairs', 'hud.js', "bset('b_down','⬇️','Stairs','',!onS);", "bset('b_down','⬇️','Stairs','',false);"),
-  M('M94', 'hud', 'Potion button is not disabled with 0 potions', 'hud.js', "bset('b_pot','🧪','Potion','×'+inv.pot,inv.pot<=0);", "bset('b_pot','🧪','Potion','×'+inv.pot,false);"),
+  M('M93', 'hud', 'Stairs button is enabled away from the stairs', 'hud.js', "bset('b_down','down','Stairs','',!onS);", "bset('b_down','down','Stairs','',false);"),
+  M('M94', 'hud', 'Potion button is not disabled with 0 potions', 'hud.js', "bset('b_pot','potion','Potion','×'+inv.pot,inv.pot<=0);", "bset('b_pot','potion','Potion','×'+inv.pot,false);"),
   // ---- declutter pass: Items tray, menu, class pick, gear compare
   M('M98', 'ui', 'Items opens an empty tray instead of saying there is nothing', 'hud.js', "if(n<=0){msg('No items.');render();return;}", ''),
   M('M99', 'ui', 'the Items tray stays open after an item is used', 'hud.js', "el.addEventListener('click',function(){setTray(false);b.fn();});", "el.addEventListener('click',function(){b.fn();});"),
@@ -146,11 +157,11 @@ const MUTATIONS = [
   M('M101', 'ui', 'Items while an ability is armed does not cancel the aim', 'hud.js', 'armed=null;setTray(true);render();}}', 'setTray(true);render();}}'),
   M('M102', 'ui', 'the Items tray is drawn over the map', 'src/styles.css', '#tray{position:absolute;inset:0;', '#tray{position:absolute;left:0;right:0;bottom:0;height:260px;'),
   M('M103', 'ui', 'a tap elsewhere does not close the Items tray', 'hud.js', 'if(!trayOpen())return;const t=ev.target;', 'return;const t=ev.target;'),
-  M('M104', 'ui', 'the Items button shows no count', 'hud.js', "bset('b_items','🎒','Items',n>0?n:'',n<=0);", "bset('b_items','🎒','Items','',n<=0);"),
+  M('M104', 'ui', 'the Items button shows no count', 'hud.js', "bset('b_items','bag','Items',n>0?n:'',n<=0);", "bset('b_items','bag','Items','',n<=0);"),
   M('M105', 'ui', 'the Flames tray button drinks a potion instead', 'hud.js', '{id:\'b_fire\',fn:act(fireball)}', '{id:\'b_fire\',fn:act(drink)}'),
   M('M106', 'ui', 'a class tagline grows into a paragraph', 'content.js', "warrior:'Tough brawler. Wades into packs.'", "warrior:'Tough brawler. Wades into the middle of a pack and builds rage as it hits and is hit, which it spends on its abilities.'"),
   M('M107', 'ui', 'the Hard toggle on the class pick is not saved', 'title.js', 'meta.hardOn=on?0:1;saveMeta();showClassPicker(mode);', 'meta.hardOn=on?0:1;showClassPicker(mode);'),
-  M('M108', 'ui', 'the menu has no Auto play button', 'modals.js', "  {k:'auto',label:'🤖 Auto play',c:1,fn:function(){closeModal();autoStart();}},\n", ''),
+  M('M108', 'ui', 'the menu has no Auto play button', 'modals.js', "  {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(){closeModal();autoStart();}},\n", ''),
   M('M109', 'ui', 'gear compare colours a gain red and a loss green', 'items.js', "(x[1]>0?'up':'dn')", "(x[1]>0?'dn':'up')"),
   M('M110', 'ui', 'the Details button on a class card starts the run at once', 'title.js', "d.addEventListener('click',function(){showClassDetails(k,mode);});", "d.addEventListener('click',function(){startRun(k,mode);});"),
   // ---- UX pass 2: inspect, ability reasons, danger guard, callouts, banner, help
@@ -166,7 +177,7 @@ const MUTATIONS = [
   M('M120', 'ui', 'the Guard card line is over the 55 character budget', 'balance.js', "% ranged. Flank it.'", "% ranged. Flank it by stepping behind it.'"),
   M('M121', 'hud', 'a foe in sight but out of range still says no target', 'hud.js', "return {dis:1,sub:!vis.length?'no target':vis.some(e=>manh(e,p)<=R)?'no line':'too far'};}", "return {dis:1,sub:'no target'};}"),
   M('M122', 'hud', 'melee abilities with a distant foe say no target instead of too far', 'hud.js', "advEnemies(true):chebEnemies()).length)return {dis:1,sub:G.enemies.some(e=>G.vis[ix(e.x,e.y)])?'too far':'no target'};", "advEnemies(true):chebEnemies()).length)return {dis:1,sub:'no target'};"),
-  M('M123', 'hud', 'a cooldown shows no turns left', 'hud.js', "return {dis:1,sub:'⏳ '+G.cd[k]};", "return {dis:1,sub:'⏳'};"),
+  M('M123', 'hud', 'a cooldown shows no turns left', 'hud.js', "return {dis:1,sub:ic('hourglass',11)+' '+G.cd[k]};", "return {dis:1,sub:ic('hourglass',11)};"),
   M('M124', 'hud', 'Charge off the line says no target', 'hud.js', "sub:G.enemies.some(e=>G.vis[ix(e.x,e.y)])?'no line':'no target'}", "sub:'no target'}"),
   M('M125', 'guard', 'the first tap on a trap walks onto it', 'walk.js', "if(!(guard&&guard.k===ix(tx,ty)&&guard.f===G.floor&&now<guard.until)){", "if(false){"),
   M('M126', 'guard', 'the danger mark never expires', 'balance.js', 'guardMs:4000', 'guardMs:4e9'),

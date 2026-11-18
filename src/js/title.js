@@ -4,21 +4,21 @@
 function showClassDetails(k,mode){
  const C=CLS[k];
  let h='<p class="sub">'+classDetail(k)+'</p>';
- for(const a of C.kit)h+='<div class="pl"><b>'+ABIL[a].e+' '+ABIL[a].n+'</b> <small>('+abCost(a)+')<br>'+abilityDesc(a)+'</small></div>';
- showModal(C.e+' '+C.n,h,[
+ for(const a of C.kit)h+='<div class="pl"><b>'+ic(ABIL[a].e,22)+' '+ABIL[a].n+'</b> <small>('+abCost(a)+')<br>'+abilityDesc(a)+'</small></div>';
+ showModal(C.n,h,[
   {k:'pick',label:'Play '+C.n,c:1,big:1,fn:function(){closeModal();startRun(k,mode);}},
   {label:'Back',c:1,fn:closeModal}
- ],'classinfo');
+ ],'classinfo',ic(C.e,34));
 }
 function showClassPicker(mode){
  mode=mode||{};
  const t=$('titleBox');t.innerHTML='';
- const h=document.createElement('h1');h.textContent=mode.daily?'📅 Daily: pick a class':'Pick a class';t.appendChild(h);
+ const h=document.createElement('h1');h.textContent=mode.daily?'Daily: pick a class':'Pick a class';t.appendChild(h);
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
  else if(hardUnlocked()){
   // Hard mode lives here, next to the choice it changes
   const on=hardOn(),hb=document.createElement('button');hb.id='hardBtn';hb.className='c'+(on?' hardon':'');
-  hb.style.minHeight='44px';hb.innerHTML='💀 Hard mode: <b style="display:inline">'+(on?'ON':'OFF')+'</b>';
+  hb.style.minHeight='44px';hb.innerHTML=ic('skull',20)+' Hard mode: <b style="display:inline">'+(on?'ON':'OFF')+'</b>';
   hb.addEventListener('click',function(){meta.hardOn=on?0:1;saveMeta();showClassPicker(mode);});
   t.appendChild(hb);
   if(on){const p=document.createElement('p');p.className='sub';p.textContent=HARD_RULES.map(r=>r.n).join(' · ');t.appendChild(p);}
@@ -27,14 +27,14 @@ function showClassPicker(mode){
   const C=CLS[k],open=k==='warrior'||!!meta.unl[k],row=document.createElement('div');row.className='cls';
   const b=document.createElement('button');b.className='clsmain';
   if(open){
-   b.innerHTML='<b>'+C.e+' '+C.n+'</b><span>'+classBlurb(k)+'</span><span class="ab">'+C.kit.map(a=>'<i>'+ABIL[a].e+'<em>'+ABIL[a].n+'</em></i>').join('')+'</span>';
+   b.innerHTML='<span class="hero">'+ic(C.e,52)+'</span><b>'+C.n+'</b><span>'+classBlurb(k)+'</span><span class="ab">'+C.kit.map(a=>'<i>'+ic(ABIL[a].e,26)+'<em>'+ABIL[a].n+'</em></i>').join('')+'</span>';
    b.addEventListener('click',function(){startRun(k,mode);});
    row.appendChild(b);
-   const d=document.createElement('button');d.className='clsinfo c';d.innerHTML='ⓘ<small>Details</small>';d.setAttribute('aria-label',C.n+' details');
+   const d=document.createElement('button');d.className='clsinfo c';d.innerHTML=ic('info',22)+'<small>Details</small>';d.setAttribute('aria-label',C.n+' details');
    d.addEventListener('click',function(){showClassDetails(k,mode);});row.appendChild(d);
   }else{
    const u=UNLOCKS.find(x=>x.id===k);b.disabled=true;
-   b.innerHTML='<b>🔒 '+C.e+' '+C.n+'</b><span>Unlock in Upgrades: <span class="gold">'+(u?u.cost:'?')+' 💰</span> (you have '+meta.gold+')</span>';row.appendChild(b);
+   b.innerHTML='<b>'+ic('lock',18)+' '+C.n+'</b><span>Unlock in Upgrades: <span class="gold">'+(u?u.cost:'?')+' '+ic('coin',14)+'</span> (you have '+meta.gold+')</span>';row.appendChild(b);
   }
   t.appendChild(row);
  }
@@ -45,7 +45,7 @@ function hideTitle(){$('title').style.display='none';}
 function showTitle(keep){
  const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
- add('h1','🗡 Depths of Emberfall');
+ add('div',titleLogo(),'logo');add('h1','Depths of Emberfall');
  add('p','Descend '+MAXF+' floors. Slay the dragon.','sub');
  if(noticeOld)add('p','An old run save could not be loaded. Gold and upgrades are safe.','sub').style.color='#ffd24a';
  const big=b=>{b.style.minHeight='60px';b.style.fontSize='18px';return b;};
@@ -57,9 +57,9 @@ function showTitle(keep){
  const nb=big(add('button','New run','c'));nb.id='btnNew';guard(nb,'New run',function(){showClassPicker();});
  const g=add('div','');g.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px';
  const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.className='c';b.innerHTML=html;b.style.minHeight='56px';b.style.padding='6px 4px';b.style.whiteSpace='nowrap';b.addEventListener('click',fn);g.appendChild(b);return b;};
- const db=cell('btnDaily','📅 Daily'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
+ const db=cell('btnDaily','<span class="cl">'+ic('cal',20)+' Daily</span>'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
  guard(db,'Daily',function(){showClassPicker({daily:true});});
- cell('btnUpg','🛒 Upgrades<small style="display:block;font-size:11px" class="gold">'+meta.gold+' 💰</small>',function(){showUpgrades();});
+ cell('btnUpg','<span class="cl">'+ic('cart',20)+' Upgrades</span><small style="display:block;font-size:11px" class="gold">'+meta.gold+' '+ic('coin',12)+'</small>',function(){showUpgrades();});
  cell('btnMore','More',function(){showMore();});
  $('title').style.display='flex';
  if(keep)t.scrollTop=st;
@@ -70,8 +70,8 @@ function showMore(){
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','More');
  const row=(id,html,fn)=>{const b=add('button',html,'c');b.id=id;b.addEventListener('click',fn);return b;};
- row('btnRecords','🏅 Records',function(){showRecords();});
- row('btnAch','🏆 Achievements <small>'+ACH.filter(a=>meta.ach[a.id]).length+'/'+ACH.length+'</small>',function(){showAchievements();});
+ row('btnRecords',ic('medal',20)+' Records',function(){showRecords();});
+ row('btnAch',ic('trophy',20)+' Achievements <small>'+ACH.filter(a=>meta.ach[a.id]).length+'/'+ACH.length+'</small>',function(){showAchievements();});
  row('btnControls','Controls',function(){showHelp(closeModal);});
  const sb=row('btnSound',soundLabel(),function(){toggleSound();sb.textContent=soundLabel();});
  const bk=add('button','Back','c');bk.addEventListener('click',function(){showTitle();});
@@ -80,25 +80,38 @@ function showMore(){
 function showUpgrades(){
  const t=$('titleBox'),st=t.scrollTop;t.innerHTML='';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
- add('h1','🛒 Upgrades');
- add('div','You have <span class="gold">'+meta.gold+' 💰</span>','row').style.justifyContent='center';
+ add('h1','Upgrades');
+ add('div','You have <span class="gold">'+meta.gold+' '+ic('coin',16)+'</span>','row').style.justifyContent='center';
  add('h2','Boosts').style.fontSize='16px';
  for(const s of SHOP){
   const c=cost(s),lv=meta[s.k],maxed=lv>=shopMax(s);
-  const b=add('button','<b>'+s.n+' '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+'</b><span>'+s.d+' · '+(maxed?'MAX':'<span class="gold">'+c+' 💰</span>')+'</span>');
+  const b=add('button','<b>'+s.n+' '+Math.min(lv,shopMax(s))+'/'+shopMax(s)+'</b><span>'+s.d+' · '+(maxed?'MAX':'<span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>');
   b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(meta[s.k]>=shopMax(s)||meta.gold<cost(s))return;meta.gold-=cost(s);meta[s.k]++;saveMeta();showUpgrades();});
  }
  add('h2','Unlocks').style.fontSize='16px';
  for(const u of UNLOCKS){
   const have=!!meta.unl[u.id];let sub,dis=true;
-  if(have)sub='<span style="color:#6fd08c">✓ Unlocked</span>';
-  else if(u.ach)sub='🔒 '+u.ach+' ('+u.prog()+')';
-  else{sub='<span class="gold">'+u.cost+' 💰</span>';dis=meta.gold<u.cost;}
+  if(have)sub='<span style="color:#6fd08c">Unlocked</span>';
+  else if(u.ach)sub=ic('lock',13)+' '+u.ach+' ('+u.prog()+')';
+  else{sub='<span class="gold">'+u.cost+' '+ic('coin',13)+'</span>';dis=meta.gold<u.cost;}
   const b=add('button','<b>'+u.n+'</b><span>'+u.d+' · '+sub+'</span>');b.disabled=dis;
   if(have){b.style.opacity='.85';b.style.borderColor='#2a8a5a';}
   if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showUpgrades();});
  }
  const bk=add('button','Back','c');bk.addEventListener('click',showTitle);
  t.scrollTop=st;
+}
+
+// title scene: flat vector night sky, moon, tower on the hill, a dragon over it and rising embers (no image files)
+function titleLogo(){
+ const em=[[30,96,2.4],[58,70,1.8],[92,104,2.2],[268,92,2.6],[296,70,1.8],[250,112,2],[170,64,1.6],[130,88,1.8],[214,100,2.2]].map(a=>'<circle cx="'+a[0]+'" cy="'+a[1]+'" r="'+a[2]+'" fill="#ff9a3a" opacity=".85"/>').join('');
+ return '<svg class="scene" viewBox="0 0 320 150" aria-hidden="true" focusable="false">'+
+  '<circle cx="232" cy="46" r="44" fill="#ff9a3a" opacity=".1"/><circle cx="232" cy="46" r="26" fill="#efe8d2"/><circle cx="224" cy="40" r="5" fill="#d9d0b4"/><circle cx="241" cy="55" r="3.4" fill="#d9d0b4"/>'+
+  '<path d="M0 110 L40 80 L74 100 L118 62 L160 96 L206 70 L252 98 L292 76 L320 94 L320 150 L0 150z" fill="#23284d"/>'+
+  '<path d="M0 124 L50 106 L110 120 L170 100 L240 118 L320 104 L320 150 L0 150z" fill="#161a36"/>'+
+  '<g fill="#0c0e1f"><rect x="136" y="64" width="48" height="62"/><rect x="128" y="52" width="16" height="74"/><rect x="176" y="48" width="16" height="78"/><path d="M126 52 L136 34 L146 52z"/><path d="M174 48 L184 28 L194 48z"/><rect x="136" y="58" width="6" height="8"/><rect x="148" y="58" width="6" height="8"/><rect x="160" y="58" width="6" height="8"/><rect x="172" y="58" width="6" height="8"/></g>'+
+  '<g fill="#ffc93c"><rect x="133" y="76" width="6" height="10" rx="3"/><rect x="181" y="72" width="6" height="10" rx="3"/><rect x="154" y="98" width="12" height="16" rx="6"/><rect x="156" y="82" width="8" height="8" rx="2"/></g>'+
+  '<path d="M0 134 Q80 122 160 136 Q240 124 320 134 L320 150 L0 150z" fill="#0a0b18"/>'+
+  '<g transform="translate(44 6) scale(0.56)">'+svgInner('dragon')+'</g>'+em+'</svg>';
 }

@@ -16,7 +16,7 @@ function autoStart(sync){
  if(!G||G.over||!G.auto||$('title').style.display!=='none')return false;
  walkTok++;armed=null;
  G.auto.on=1;AUTO.on=true;AUTO.pick=null;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=G.kills;AUTO.pf=G.floor;AUTO.pexp=-1;AUTO.lastProg=G.turn;AUTO.lastStop='';AUTO.err=null;
- if(!G.auto.noticed){G.auto.noticed=1;const t='Auto runs bank '+autoGoldWord()+' gold.';msg(t);toast('🤖 '+t,4200);}
+ if(!G.auto.noticed){G.auto.noticed=1;const t='Auto runs bank '+autoGoldWord()+' gold.';msg(t);toast(t,4200);}
  msg('Auto on.');
  save();render();
  if(!sync)autoSchedule(autoDelay(false));
@@ -137,7 +137,7 @@ function autoChoose(kind,box){
  }
  if(kind==='shop'){
   const bi=autoShopBest(),m=G.merchant;
-  if(bi>=0&&m&&autoBtn(box,'buy'+bi))return {btn:autoBtn(box,'buy'+bi),why:'buys '+m.stock[bi].n.replace(/^\S+ /,'')+'.'};
+  if(bi>=0&&m&&autoBtn(box,'buy'+bi))return {btn:autoBtn(box,'buy'+bi),why:'buys '+m.stock[bi].n+'.'};
   return {btn:autoBtn(box,'leave'),why:'leaves the merchant.'};
  }
  const b=btns.find(x=>/^(got it|back|leave|resume|close|ok|continue)/i.test(x.textContent.trim()));

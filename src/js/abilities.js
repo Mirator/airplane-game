@@ -109,7 +109,7 @@ const DO={
   const victims=[e];
   if(eqKind('off')==='tower'){for(let k=2;k<=BAL.offhand.towerLine;k++){const x=p.x+dx*k,y=p.y+dy*k;if(!inb(x,y)||G.map[ix(x,y)]===0||G.map[ix(x,y)]===3||G.map[ix(x,y)]===5)break;const o=enemyAt(x,y);if(o)victims.push(o);}}
   spend('bash');breakVanish();
-  for(const v of victims){
+  for(const v of victims){vfxAdd('bash',v.x,v.y,p.x,p.y);
    const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
    hurtEnemy(v,dmg,'#ffb04a',false,'melee');msg('Bash hits the '+nm(v)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
    if(!v.dead&&v.hp>0){stunEnemy(v,a.stun,a.stunBoss);msg('The '+nm(v)+' is stunned.');if(v===e&&v.hp>0)knock(v,dx,dy);}
@@ -119,7 +119,7 @@ const DO={
  },
  cleave:function(){
   const a=BAL.ability.cleave,tg=chebEnemies();spend('cleave');breakVanish();
-  msg('Cleave!');
+  msg('Cleave!');vfxAdd('cleave',G.p.x,G.p.y);
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg()*a.mul));
    hurtEnemy(e,dmg,'#ffb04a',false,'melee');lifeSteal(dmg);poison(e);
@@ -131,7 +131,7 @@ const DO={
  charge:function(tx,ty){
   const c=chargeLines().find(l=>l.e.x===tx&&l.e.y===ty),a=BAL.ability.charge,p=G.p;
   spend('charge');breakVanish();walkTok++;
-  p.x=c.lx;p.y=c.ly;msg('You charge!');
+  vfxAdd('charge',p.x,p.y,c.e.x,c.e.y);p.x=c.lx;p.y=c.ly;msg('You charge!');
   const e=c.e,dmg=Math.max(1,Math.round(playerDmg()*a.mul));
   hurtEnemy(e,dmg,'#ffb04a',false,'melee');msg('Charge hits the '+nm(e)+' for '+dmg+'.');lifeSteal(dmg);gainRage(BAL.rage.dealt);
   if(!e.dead&&e.hp>0)stunEnemy(e,a.stun,a.stunBoss);
@@ -144,7 +144,7 @@ const DO={
   const bulwark=eqKind('off')==='bulwark',retrib=pc('retrib');
   spend('brace');
   G.brace={hits:a.hits+(bulwark?O.bulwarkHits:0)+(retrib?BAL.perk.retribHits:0),t:a.turns,reflect:Math.max(a.reflect,bulwark?O.bulwarkReflect:0,retrib?BAL.perk.retribReflect:0)};
-  floatFx(G.p.x,G.p.y,'BRACE','#9cf');msg('Braced: next '+G.brace.hits+' hits halved.');
+  vfxAdd('brace',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'BRACE','#9cf');msg('Braced: next '+G.brace.hits+' hits halved.');
   endTurn();
  },
  bolt:function(tx,ty){
@@ -158,7 +158,7 @@ const DO={
     const o=enemyAt(x,y);if(o&&hit.indexOf(o)<0)hit.push(o);
    }
   }
-  for(const v of hit){
+  for(const v of hit){vfxAdd('bolt',p.x,p.y,v.x,v.y);
    const dmg=Math.max(1,Math.round((playerDmg(true)*a.mul+a.add)*spellMul()));
    hurtEnemy(v,dmg,'#b48cff',false,'ranged');msg('Bolt hits the '+nm(v)+' for '+dmg+'.');
    poison(v);settle(v);
@@ -167,7 +167,7 @@ const DO={
  },
  nova:function(){
   const a=BAL.ability.nova,tg=chebEnemies();spend('nova');breakVanish();
-  floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('Nova!');
+  vfxAdd('nova',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('Nova!');
   const burn=BAL.offhand.tomeBurnBase+Math.floor(G.floor/BAL.offhand.tomeBurnFloorDiv);
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg(true)*a.mul*spellMul()));
@@ -182,7 +182,7 @@ const DO={
  },
  blink:function(tx,ty){
   const p=G.p;spend('blink');walkTok++;
-  floatFx(p.x,p.y,'blink','#d9c6ff');p.x=tx;p.y=ty;msg('You blink away.');
+  vfxAdd('blink',p.x,p.y,tx,ty);floatFx(p.x,p.y,'blink','#d9c6ff');p.x=tx;p.y=ty;msg('You blink away.');
   pickup();if(G.map[ix(tx,ty)]===2)msg('On the stairs.');
   endTurn();
  },
@@ -191,7 +191,7 @@ const DO={
   spend('fire');breakVanish();
   const R=a.radius+(prism?O.prismRadius:0);
   const dmg=Math.max(1,Math.round((a.base+a.perFloor*G.floor)*G.p.fireMul*spellMul()*(prism?O.prismMul:1)));
-  floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball: '+dmg+' damage.');
+  vfxAdd('fire',G.p.x,G.p.y,tx,ty,R);floatFx(tx,ty,'BOOM','#ff9a3a',true);msg('Fireball: '+dmg+' damage.');
   if(!rmo())puffs.push({x:tx,y:ty,t:performance.now(),s:Math.random()*6});
   for(const e of G.enemies.slice())if(!e.dead&&Math.max(Math.abs(e.x-tx),Math.abs(e.y-ty))<=R){hurtEnemy(e,dmg,'#ff7a2a',false,'magic');settle(e);}
   endTurn();
@@ -199,7 +199,7 @@ const DO={
  backstab:function(tx,ty){
   const e=enemyAt(tx,ty),a=BAL.ability.backstab,p=G.p;
   const cond=!e.awake||e.stun>0||e.frz>0||e.blind>0||isBehind(e);
-  spend('backstab');breakVanish();
+  spend('backstab');breakVanish();vfxAdd('backstab',e.x,e.y);
   let mul=cond?a.mul*(1+(pc('assassin')?BAL.perk.assassinMul:0))+(wpK()&&wpK().sneak||0):a.weakMul;
   const strikes=eqKind('off')==='dagger2'?[1,BAL.offhand.dagger2Frac]:[1];
   for(const f of strikes){
@@ -214,10 +214,11 @@ const DO={
  vanish:function(){
   spend('vanish');walkTok++;G.vanish=BAL.ability.vanish.turns+(pc('shadow')?BAL.perk.shadowTurns:0);
   for(const e of G.enemies)e.awake=false;
-  floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish.');endTurn();
+  vfxAdd('vanish',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish.');endTurn();
  },
  knife:function(tx,ty){
   const e=enemyAt(tx,ty),a=BAL.ability.knife,p=G.p;spend('knife');breakVanish();
+  vfxAdd('knife',p.x,p.y,tx,ty);
   const crit=rf()<critChance();
   let dmg=Math.round(playerDmg()*a.mul)+a.add;
   const sn=(p.cls==='rogue'?BAL.combat.sneakMul:1)+(wpK()&&wpK().sneak||0);
@@ -236,7 +237,7 @@ const DO={
   spend('smoke');breakVanish();
   for(let y=ty-R;y<=ty+R;y++)for(let x=tx-R;x<=tx+R;x++)if(inb(x,y)&&G.map[ix(x,y)]!==0&&G.map[ix(x,y)]!==5)cells.push(ix(x,y));
   (G.smoke=G.smoke||[]).push({cells:cells,t:a.turns+(sat?O.satchelTurns:0)});
-  floatFx(tx,ty,'SMOKE','#ccd',true);msg('Smoke: foes inside are blinded.');
+  vfxAdd('smoke',G.p.x,G.p.y,tx,ty,R);floatFx(tx,ty,'SMOKE','#ccd',true);msg('Smoke: foes inside are blinded.');
   for(const e of G.enemies){
    if(cells.indexOf(ix(e.x,e.y))<0)continue;
    e.blind=a.blindTurns;e.wind=null;if(!EN[e.t].boss)e.awake=false;

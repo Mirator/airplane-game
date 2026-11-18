@@ -407,14 +407,14 @@ describe('auto', { concurrency: CONC }, () => {
       await page.waitForFunction(() => document.getElementById('autoTag').offsetParent !== null && document.querySelectorAll('#chips .chip').length === 1);
       const L = await page.evaluate(() => {
         const r = (e) => { const b = (typeof e === 'string' ? document.querySelector(e) : e).getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
-        return { btn: r('#autoBtn'), spd: r('#autoSpd'), tag: r('#autoTag'), chip: r('#chips .chip'), hud: r('#hud'), log: r('#log'), cv: r('#cv'), stats: document.getElementById('stats').textContent,
+        return { btn: r('#autoBtn'), spd: r('#autoSpd'), tag: r('#autoTag'), chip: r('#chips .chip'), hud: r('#hud'), log: r('#log'), cv: r('#cv'), stats: document.getElementById('stats').textContent, statIcons: [...document.querySelectorAll('#stats [data-ic]')].map((e) => e.dataset.ic),
           onMap: document.querySelectorAll('#cv button').length, scroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight] };
       });
       assert.ok(L.btn.h >= 44 && L.btn.w >= 44 && L.spd.h >= 44 && L.spd.w >= 44 && L.chip.h >= 44 && L.chip.w >= 44);
       assert.ok(L.btn.b <= L.hud.b + 0.5 && L.spd.b <= L.hud.b + 0.5 && L.hud.b <= L.cv.t + 0.5, 'the Auto strip is in the top bar, above the map');
       assert.ok(L.btn.r <= 391 && L.spd.l >= L.tag.r, 'indicator, speed and stop fit side by side');
       assert.equal(L.onMap, 1, 'the map carries one button: the modifier icon');
-      assert.match(L.stats, /📅/); assert.match(L.stats, /💀/);   // Daily / Hard moved to the top bar
+      assert.ok(L.statIcons.includes('cal') && L.statIcons.includes('skull'));   // Daily / Hard moved to the top bar
       assert.ok(L.cv.b <= L.log.t + 0.5 && L.cv.r <= 391);
       assert.deepEqual(L.scroll, [390, 844]);
     } finally { await ctx.close(); }

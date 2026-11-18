@@ -119,10 +119,10 @@ describe('ui', { concurrency: CONC }, () => {
       assert.ok(chips[0].t.length <= 3, 'icon only: ' + chips[0].t);
       // the top bar: HP, resource, gear, menu; floor, level, gold, tags
       const stats = await page.locator('#stats').textContent();
-      assert.match(stats, /🏰/); assert.match(stats, /💰/); assert.doesNotMatch(stats, /⚔️|🛡/, 'attack / defense moved to the gear screen');
+      assert.match(stats, /1\/8/); assert.equal(await page.locator('#stats [data-ic="keep"]').count(), 1); assert.equal(await page.locator('#stats [data-ic="coin"]').count(), 1); assert.equal(await page.locator('#stats [data-ic="sword"], #stats [data-ic="mail"]').count(), 0, 'attack / defense moved to the gear screen');
       await page.click('#gearBtn');
       const eq = await page.locator('#modalBox .stripe').textContent();
-      assert.match(eq, /⚔️ \d+/); assert.match(eq, /🛡 \d+/); assert.match(eq, /Lv \d+/);
+      assert.match(eq, /\d+/); assert.equal(await page.locator('#modalBox .stripe [data-ic="sword"]').count(), 1); assert.equal(await page.locator('#modalBox .stripe [data-ic="mail"]').count(), 1); assert.match(eq, /Lv \d+/);
       await page.locator('#modalBox button', { hasText: /^Back$/ }).click();
       // the menu has Controls (one tap deeper than the old ? button)
       await page.click('#menuBtn');

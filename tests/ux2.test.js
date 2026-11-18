@@ -79,7 +79,7 @@ describe('inspect (long-press / right-click)', { concurrency: CONC }, () => {
       assert.match(me, /You.*HP/); assert.match(me, /Poisoned 3 turns/); assert.match(me, /Unseen 2 turns/); assert.match(me, /Brace: 2 hits/);
       assert.match((await lines(1, 0)).join(' '), /Spike trap/); assert.match((await lines(2, 0)).join(' '), /Potion/);
       await page.evaluate(() => { const G = window.__dbg(); G.ppois = null; G.vanish = 0; G.brace = null; });
-      assert.deepEqual(await lines(0, 0), ['🛡 You  HP ' + await page.evaluate(() => { const p = window.__dbg().p; return p.hp + '/' + p.mhp; }), 'No effects.']);
+      assert.deepEqual(await lines(0, 0), ['You  HP ' + await page.evaluate(() => { const p = window.__dbg().p; return p.hp + '/' + p.mhp; }), 'No effects.']);
       // a real long-press on the trap tile and on yourself
       await quiet(page);
       const s0 = await st(page);
@@ -225,7 +225,7 @@ describe('ability button reasons', { concurrency: CONC }, () => {
       // cooldown and missing mana
       await page.evaluate(() => { const G = window.__dbg(); G.cd.blink = 3; G.p.mana = 0; window.__dbg.fn.computeVis(); window.__dbg.fn.endTurn(); });
       s = await subs(page);
-      assert.match(s[2].sub, /^⏳ \d$/, 'blink on cooldown: ' + s[2].sub);
+      assert.match(s[2].sub, /^\s*\d$/, 'blink on cooldown: ' + s[2].sub);
       assert.match(s[0].sub, /^\d+ mana$/, 'bolt: missing cost ' + s[0].sub);
       for (const x of s) assert.ok(x.sub.split(' ').length <= 2, 'at most two words: ' + x.sub);
       // tapping a disabled button logs the reason

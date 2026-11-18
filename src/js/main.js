@@ -26,3 +26,5 @@ window.__dbg.spawnGear=function(slot,k,tr,v){
 };
 // player-facing text generators, for the text-budget tests
 window.__dbg.text={abilityDesc:abilityDesc,classBlurb:classBlurb,classDetail:classDetail,wpRule:wpRule,armRule:armRule,offRule:offRule,charmRule:charmRule,inspectLines:inspectLines,itemRule:itemRule,deathTip:deathTip,optHtml:optHtml,CLASS_TAG:CLASS_TAG};
+// art API for the contact sheet and the sprite tests: every sprite id, the bitmap cache, and the list of ids that were asked for but do not exist (must stay empty)
+window.__dbg.art={SPR:SPR,spriteBmp:spriteBmp,tileBmp:tileBmp,ic:ic,ENV:ENV,PAL:PAL,missing:function(){return artMissing.slice();},ids:function(){return Object.keys(SPR);},floorVar:floorVar,dimc:dimc,fxCount:function(){return vfx.length+ghosts.length;}};

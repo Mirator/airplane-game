@@ -6,7 +6,8 @@ function eqi(slot){return G.p.eq[slot]||null;}
 function eqKind(slot){const i=eqi(slot);return i?i.k:null;}
 function traitOf(slot){const i=eqi(slot);return i&&i.tr?i.tr:null;}
 function kindTable(slot){return slot==='weapon'?WP:slot==='armor'?ARM:slot==='off'?OFF:CH;}
-function itemIcon(it){const t=it&&kindTable(it.t)[it.k];return t?t.e:'❔';}
+function itemSprite(it){return kindTable(it.t)&&it.k&&kindTable(it.t)[it.k]?itemIcon(it):(it.t==='gold'||it.t==='potion'||it.t==='fire'||it.t==='tele'||it.t==='key'||it.t==='knife'?it.t:'perk');}
+function itemIcon(it){const t=it&&kindTable(it.t)[it.k];return t?t.e:'perk';}
 function gearName(it){
  if(!it)return 'Nothing';
  const kt=kindTable(it.t)[it.k];if(!kt)return 'Strange item';

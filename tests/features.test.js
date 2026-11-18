@@ -420,7 +420,7 @@ describe('features', { concurrency: CONC }, () => {
       await b.page.locator('#title button', { hasText: /Warrior/ }).first().click(); await dbgReady(b.page); await closeModal(b.page);
       const h = await b.page.evaluate(() => { const G = window.__dbg(), F = window.__dbg.fn; const e = F.makeEnemy('goblin', 1, 1, 3); const hp = e.hp; G.hard = 0; const e2 = F.makeEnemy('goblin', 1, 1, 3); G.hard = 1; return { hard: G.hard, hp, hp0: e2.hp, pots: G.inv.pot }; });
       assert.equal(h.hard, 1); assert.ok(h.hp > h.hp0, 'hard enemies are tougher'); assert.equal(h.pots, 0, 'one fewer starting potion');
-      assert.match(await b.page.locator('#stats').textContent(), /💀/, 'Hard shows in the top bar');
+      assert.equal(await b.page.locator('#stats [data-ic="skull"]').count(), 1, 'Hard shows in the top bar');
       // Daily ignores the toggle
       await b.page.evaluate(() => { window.__dbg.api.finish('abandon'); });
       await b.page.locator('#modalBox button').click();

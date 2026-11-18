@@ -3,9 +3,9 @@
 function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
 // kind + button.k are plain labels (data attributes) so Auto can tell dialogs and choices apart without parsing text
-function showModal(title,html,buttons,kind){
+function showModal(title,html,buttons,kind,icon){
  armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';
- const h=document.createElement('h2');h.textContent=title;b.appendChild(h);
+ const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
   const el=document.createElement('button');if(bt.c)el.className='c';if(bt.k)el.dataset.k=bt.k;
@@ -44,11 +44,11 @@ function slotLines(sl){
 }
 function statStrip(){
  const p=G.p;
- return '<div class="stripe"><span>⚔️ '+meleeAtk()+'</span><span>🛡 '+defTotal()+'</span><span>Lv '+p.lvl+' <small>'+p.xp+'/'+needXp(p.lvl)+' XP</small></span></div>';
+ return '<div class="stripe"><span>'+ic('sword',20)+' '+meleeAtk()+'</span><span>'+ic('mail',20)+' '+defTotal()+'</span><span>Lv '+p.lvl+' <small>'+p.xp+'/'+needXp(p.lvl)+' XP</small></span></div>';
 }
 function gearHtml(){
  let h=statStrip();
- for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?itemIcon(it)+' '+gearName(it):'None')+'</b>'+(it?'<br>'+slotLines(sl):'')+'</div>';}
+ for(const sl of SLOTS){const it=G.p.eq[sl];h+='<div class="pl"><small>'+SLOT_LABEL[sl].toUpperCase()+'</small> <b>'+(it?ic(itemIcon(it),22)+' '+gearName(it):'None')+'</b>'+(it?'<br>'+slotLines(sl):'')+'</div>';}
  return h;
 }
 function showEquip(back){
@@ -61,8 +61,8 @@ function showEquip(back){
 }
 function showAbilities(back){
  const C=clsOf(G.p);
- let h='';for(const k of C.kit){const a=ABIL[k];h+='<div class="pl"><b>'+a.e+' '+a.n+'</b> <small>('+abCost(k)+')<br>'+abilityDesc(k)+'</small></div>';}
- showModal(C.e+' '+C.n,h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+ let h='';for(const k of C.kit){const a=ABIL[k];h+='<div class="pl"><b>'+ic(a.e,22)+' '+a.n+'</b> <small>('+abCost(k)+')<br>'+abilityDesc(k)+'</small></div>';}
+ showModal(C.n,h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'',ic(C.e,30));
 }
 function showPerks(back){
  let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
@@ -80,7 +80,7 @@ function showMenu(){
  const arm={v:false};
  showModal('Menu','',[
   {label:'Resume',c:1,big:1,fn:closeModal},
-  {k:'auto',label:'🤖 Auto play',c:1,fn:function(){closeModal();autoStart();}},
+  {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(){closeModal();autoStart();}},
   {label:'Perks',c:1,fn:function(){showPerks(showMenu);}},
   {label:'Controls',c:1,fn:function(){showHelp(showMenu);}},
   {label:soundLabel(),c:1,fn:function(el){toggleSound();el.textContent=soundLabel();}},
@@ -96,7 +96,7 @@ function showGear(){
  const p=G.p,sl=it.t,cur=p.eq[sl],nn=gearName(it);
  // found item, what it replaces, green / red stat changes, then at most two short rule lines
  const rule=itemRuleShort(it),rules=(rule&&rule!=='Balanced.'?'<div class="rl">'+rule+'</div>':'')+(it.tr?'<div class="rl"><b>'+TR[it.tr].n+'</b>: '+TR[it.tr].d+'</div>':'');
- const html='<div class="found"><b>'+itemIcon(it)+' '+nn+'</b><small>replaces '+(cur?itemIcon(cur)+' '+gearName(cur):'nothing')+'</small></div>'+
+ const html='<div class="found"><b>'+ic(itemIcon(it),28)+' '+nn+'</b><small>replaces '+(cur?ic(itemIcon(cur),16)+' '+gearName(cur):'nothing')+'</small></div>'+
   '<div class="dl">'+gearDeltaHtml(it)+'</div>'+rules;
  showModal(SLOT_LABEL[sl]+' found',html,[
   {k:'equip',label:'Equip',c:1,big:1,fn:function(){

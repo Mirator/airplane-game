@@ -10,11 +10,7 @@ const SFX={
  death:[[300,.16,'sawtooth',.09,200],[200,.2,'sawtooth',.09,110],[110,.45,'sawtooth',.09,40]],
  win:[[523,.12,'triangle',.09],[659,.12,'triangle',.09],[784,.12,'triangle',.09],[1047,.35,'triangle',.09]]
 };
-const THEMES=[
- {n:'The Crypt',wl:'#3d4678',wt:'#6d7ab8',we:'#252b52',wld:'#171a2e',wtd:'#272c4a',wed:'#0d0f1c',fa:'#a8996f',fb:'#b2a37a',fda:'#35322a',fdb:'#38352d',mw:'#3a4270',mf:'#cbbd90',mfd:'#8a8060'},
- {n:'The Caverns',wl:'#2d4a45',wt:'#5f9484',we:'#173029',wld:'#13211e',wtd:'#1f3631',wed:'#0a1411',fa:'#8a9a78',fb:'#94a482',fda:'#2b3328',fdb:'#2e362b',mw:'#2f5a50',mf:'#a8b890',mfd:'#6a7a5a'},
- {n:'The Embers',wl:'#5a2a22',wt:'#b0482e',we:'#2e100c',wld:'#241210',wtd:'#3a1b15',wed:'#140807',fa:'#a8704a',fb:'#b47a52',fda:'#3a2619',fdb:'#3e291c',mw:'#7a3224',mf:'#d08a58',mfd:'#7a5030'}
-];
+const THEMES=ENV;
 // each depth band has a second look for the "other" exit: same colours rotated in hue, with its own name
 function tintTheme(t,name,deg){
  const f=c=>{
@@ -34,9 +30,9 @@ const ENAMES=['Gorak','Vexa','Morn','Sable','Thrain','Ilsa','Brakk','Nyx'],ETITL
 // Ability button defs per key: icon, short name, targeting (adj = adjacent enemy, line = enemy in a straight line,
 // enemy = visible enemy, tile = visible tile, self = no target). The class kit order lives in CLS[cls].kit.
 const ABIL={
- bash:{e:'🛡',n:'Bash',tg:'adj'},cleave:{e:'💢',n:'Cleave',tg:'self'},charge:{e:'⚡',n:'Charge',tg:'line'},brace:{e:'🧱',n:'Brace',tg:'self'},
- bolt:{e:'🔮',n:'Bolt',tg:'enemy'},nova:{e:'❄️',n:'Nova',tg:'self'},blink:{e:'✨',n:'Blink',tg:'tile'},fire:{e:'🔥',n:'Fireball',tg:'tile'},
- backstab:{e:'🗡',n:'Backstab',tg:'adj'},vanish:{e:'👻',n:'Vanish',tg:'self'},knife:{e:'🔪',n:'Knife',tg:'enemy'},smoke:{e:'🌫',n:'Smoke',tg:'tile'}
+ bash:{e:'ab_bash',n:'Bash',tg:'adj'},cleave:{e:'ab_cleave',n:'Cleave',tg:'self'},charge:{e:'ab_charge',n:'Charge',tg:'line'},brace:{e:'ab_brace',n:'Brace',tg:'self'},
+ bolt:{e:'ab_bolt',n:'Bolt',tg:'enemy'},nova:{e:'ab_nova',n:'Nova',tg:'self'},blink:{e:'ab_blink',n:'Blink',tg:'tile'},fire:{e:'ab_fire',n:'Fireball',tg:'tile'},
+ backstab:{e:'ab_backstab',n:'Backstab',tg:'adj'},vanish:{e:'ab_vanish',n:'Vanish',tg:'self'},knife:{e:'ab_knife',n:'Knife',tg:'enemy'},smoke:{e:'ab_smoke',n:'Smoke',tg:'tile'}
 };
 // ---- descriptive text: every number below is read from BAL / the tables, never hand-copied ----
 const pct=x=>Math.round(x*100)+'%',sgn=n=>(n>=0?'+':'')+n;
