@@ -419,7 +419,7 @@ const UPG=[
  {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1],[1,0.5]],int:1},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
  {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1},
- {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,2]],pct:1}
+ {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,1.5]],pct:1}
 ];
 function upMax(u){return u.max||u.steps.reduce((a,s)=>a+s[0],0);}
 function upVal(u,l){let v=0,r=l;for(const s of u.steps){const t=Math.min(r,s[0]);v+=t*s[1];r-=t;if(r<=0)break;}return v;}
@@ -428,7 +428,7 @@ function upCost(u,l){return Math.round(u.base*(l+1)*(1+l*BAL.upg.rise));}
 const PAIRS=[
  {k:'edge',n:'Edge',base:60,max:3,v:[
   {id:'keen',n:'Keen',d:l=>'+'+l+'% crit',f:(p,l)=>{p.crit+=0.01*l;}},
-  {id:'vicious',n:'Vicious',d:l=>'+'+(1.5*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.015*l;}}]},
+  {id:'vicious',n:'Vicious',d:l=>'+'+(1.2*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.012*l;}}]},
  {k:'vigor',n:'Vigor',base:60,max:3,v:[
   {id:'regrow',n:'Regrowth',d:l=>'heal '+(1.5*l)+'% HP on each new floor',f:(p,l)=>{p.renew+=0.015*l;}},
   {id:'drink',n:'Lifedrinker',d:l=>'heal '+l+'% of damage dealt',f:(p,l)=>{p.life+=0.01*l;}}]},
