@@ -92,6 +92,8 @@ button.armed{background:#6b4f12;border-color:var(--gold);box-shadow:0 0 0 2px va
 .row{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .gold{color:var(--gold);font-weight:800}
 .gold .ic{vertical-align:-0.25em}
+.gold{white-space:nowrap}
+.box button.hasic .ct span.bpk{display:block;font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#9fb4ff;opacity:1}
 #toast{position:absolute;left:12px;top:56px;max-width:calc(100% - 130px);z-index:11;padding:7px 16px;border-radius:18px;background:rgba(20,22,40,.94);border:1px solid var(--gold);color:#ffe9a8;font-size:13px;font-weight:800;text-align:center;line-height:1.3;opacity:0;transition:opacity .25s;pointer-events:none}
 #chips{position:absolute;left:6px;top:6px;z-index:3;display:flex;gap:6px;align-items:flex-start}
 .chip{min-height:46px;min-width:46px;padding:0 8px;border-radius:23px;background:rgba(20,22,40,.84);border:1px solid var(--line);font-size:14px;font-weight:800;color:var(--text);display:flex;align-items:center;justify-content:center}
@@ -171,17 +173,21 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
  #rot b{font-size:20px;color:#ffd36a}
  #rot span{font-size:14px;color:var(--dim)}
 }
-#title{align-items:flex-start}#titleBox{margin-top:6vh}
-@media (min-height:900px){#titleBox{margin-top:10vh}}
+/* the box + its top margin must fit the overlay (or its sticky Back button ends up below the screen edge) */
+#title{align-items:flex-start}#titleBox{margin-top:6vh;max-height:calc(100% - 6vh)}
+@media (min-height:900px){#titleBox{margin-top:10vh;max-height:calc(100% - 10vh)}}
 /* idle layer: Heat row, shop tabs, either/or pairs, expedition screens */
 .heat{display:flex;gap:6px;justify-content:center}
 .heat button{flex:1;min-width:44px;min-height:46px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px}
 .heat button.on{border-color:#ff6a5a;background:#4a1c24;box-shadow:0 0 0 2px #ff6a5a inset}
-.heat button:disabled{opacity:.5}
+.heat button:disabled,.heat button.locked{opacity:.5}
+#heatInfo{font-size:12.5px;line-height:1.35;text-align:left}
+#heatLbl{margin-bottom:-4px}
 .tabs{display:flex;gap:6px}
 .tabs button{flex:1;min-height:46px;font-weight:800;font-size:14px;padding:0 6px}
 .tabs button.on,.xcls button.on{border-color:var(--gold);background:#4a3a14;box-shadow:0 0 0 2px var(--gold) inset}
-.pair{display:flex;gap:6px}
+.pair{display:flex;gap:6px;flex-wrap:wrap}
+.pair .pdesc{flex-basis:100%;font-size:12px;opacity:.75;margin:-2px 0 2px 4px}
 .pair>button:first-child{flex:1;min-width:0}
 .pair .swap{padding:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1;text-align:center}
 .pair .swap small{display:block;font-size:11px}
@@ -299,7 +305,7 @@ const BAL = {
   enemyAi: {
     sightRange: 9, loseTrackDist: 14,
     smashCooldown: 2, breathCooldown: 2, defaultWindMul: 2, breathRange: 7, breathLength: 8,
-    fleeSteps: 2, tiredTurns: 3,
+    fleeSteps: 1, tiredTurns: 3,
     healEvery: 3, healFrac: 0.35, healBelow: 0.75, healRange: 8,   // Cultist: heals a hurt ally instead of attacking
     lungeEvery: 3,                 // goblins/skeletons (EN lunge:true) take an extra step every Nth turn while chasing: a kiter cannot back away forever
     enrageFrac: 0.5, enrageAtkMul: 1.5, enrageBreathCd: 2,  // boss below this HP fraction: hits harder, breathes more often
@@ -307,22 +313,22 @@ const BAL = {
     summonAt: [0.75, 0.5, 0.25], summonN: 4                      // dragon calls whelps when its HP first drops below each fraction
   },
   // --- resources (combat.js endTurn) ---
-  rage: { max: 100, dealt: 8, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
-  mana: { regen: 1.25, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
+  rage: { max: 100, dealt: 10, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
+  mana: { regen: 1.1, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
   // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
-    bash:     { cd: 6, stun: 2, stunBoss: 1, mul: 1.0 },
+    bash:     { cd: 5, stun: 2, stunBoss: 1, mul: 1.0 },
     cleave:   { rage: 30, mul: 1.0, cd: 0 },
-    charge:   { rage: 15, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
-    brace:    { rage: 35, cd: 0, hits: 3, turns: 6, reduce: 0.5, reflect: 0.5 },
+    charge:   { rage: 10, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
+    brace:    { rage: 30, cd: 0, hits: 4, turns: 6, reduce: 0.5, reflect: 0.5 },
     bolt:     { mana: 7, cd: 0, mul: 1.3, add: 1, range: 8 },
     nova:     { mana: 7, cd: 2, freeze: 3, freezeBoss: 1, mul: 0.6 },
     blink:    { mana: 4, cd: 2, range: 5 },
     fire:     { mana: 13, cd: 0, base: 10, perFloor: 3, range: 7, radius: 1 },
     backstab: { cd: 5, mul: 2.4, weakMul: 0.5 },
-    vanish:   { cd: 10, turns: 3 },
+    vanish:   { cd: 8, turns: 3 },
     knife:    { cd: 0, max: 4, mul: 0.7, add: 1, range: 6 },
-    smoke:    { cd: 14, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 }   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
+    smoke:    { cd: 11, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 }   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
   },
   // --- off-hand and charm numbers (items.js, abilities.js) ---
   offhand: {
@@ -358,7 +364,7 @@ const BAL = {
   run: { winBonus: 150 },
   // --- Auto (autopilot, auto.js). Deliberately a simple player: no kiting, no retreating to regenerate ---
   auto: {
-    // Auto no longer banks run gold: the time it plays (real ms, or virtual ms in the simulator) is paid at the 30-minute expedition rate (BAL.exp, EXP_TABLE).
+    // Auto does not bank run gold: every TURN it plays is paid at the 30-minute expedition rate for the player's best manual floor (BAL.exp), so 1x / 2x / 4x pay the same.
     // A run that was only partly Auto keeps its manual share of the run gold (Heat multiplies that share, not the idle pay).
     tickMs: 250,                  // 1x = one decision per tick = 4 turns per second; speeds below divide this
     speeds: [1, 2, 4],
@@ -401,10 +407,15 @@ const BAL = {
           eliteHpMul: 1.6, eliteAtkMul: 1.3,   // Heat 3: the key-carrying elite
           potionMul: 0.7,                // Heat 4: potions heal this fraction
           enrageFrac: 0.8, breathCut: 1 },     // Heat 5: the dragon enrages at this HP share and its breath comes this many turns sooner
-  // --- expeditions (idle.js): the hero is away up to capMin minutes; every delveMin minutes it makes one delve whose outcome is drawn from EXP_TABLE.
-  // rate = share of the manual gold per hour (bot play at the same upgrade power, ~turnSec per human turn) the expedition pays; 30 min is the best rate, 8 h the best total.
+  // --- expeditions (idle.js): the hero is away up to capMin minutes; every delveMin minutes it makes one delve whose outcome is drawn from EXP_TABLE (its shape only).
+  // INCOME IS GATED BY THE PLAYER: a hero cannot go deeper than the deepest floor the player reached in MANUAL play (meta.bestM, min 1). Gold per hour of an 8 h trip =
+  // gph[bestFloor-1] x (1 + boost(upgrade power)); a shorter trip pays 'rate' times that per hour (30 min the best rate, 8 h the best total). Auto pays the 30 min rate per turn played.
+  // Targets per 8 h: best floor 1-2 fresh ~70-100; floor 4 with ~800 gold of upgrades ~500; dragon reached + 3000 ~1200; everything maxed ~1750.
   exp: { capMin: 480, delveMin: 10, turnSec: 1.2, secondSlot: 500, bpChance: 0.04, bpMinFloor: 3,
-         durs: [{ min: 30, n: '30 min', rate: 0.33, hint: 'Best rate' }, { min: 120, n: '2 hours', rate: 0.30, hint: '' }, { min: 480, n: '8 hours', rate: 0.25, hint: 'Best total' }] },
+         gph: [8, 10.5, 22, 40, 48, 60, 70, 79],                       // gold per hour (8 h rate, no upgrades) by best manual floor 1..8
+         boost: [[0, 0], [800, 0.38], [3000, 0.67], [16554, 1.44]],   // [upgrade power (gold put into levels), extra income]: linear between points
+         flat: 0.6,                                                   // share of a delve's pay that does not depend on the floor it ended on (less luck, same average)
+         durs: [{ min: 30, n: '30 min', rate: 1.25, hint: 'Best rate' }, { min: 120, n: '2 hours', rate: 1.12, hint: '' }, { min: 480, n: '8 hours', rate: 1, hint: 'Best total' }] },
   // --- blueprints (idle.js): found in expeditions (tier c), deep manual runs (r, floor deepFrom+), the dragon / Heat 1+ runs (b); then bought with gold
   bp: { cost: { c: 80, r: 200, b: 450 }, deepFrom: 5, deepChance: 0.3, bestWin: 0.5, bestHeat: 0.15, bestHeatWin: 0.9 },
   ach: { kills: 200, elites: 10, streak: 3, dailyDays: 3, hoard: 200, fastTurns: 1000, noArmorFloor: 5 }
@@ -412,14 +423,14 @@ const BAL = {
 
 // ===== Tables: enemies, perks, synergies, classes, gear traits, traps, shop, unlocks =====
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
-// the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give much less (diminishing returns); int = whole numbers (half levels round). pct = a percentage. =====
+// the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give less (diminishing returns) but always a whole, honest step: what a card says for the next level is what it gives; int = whole numbers. pct = a percentage. =====
 const UPG=[
- {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,1.5]],int:1,late:5},
- {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1],[1,0.5]],int:1,late:3},
- {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1],[1,0.5]],int:1,late:3},
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,5]],int:1,late:5},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[4,1]],int:1,late:3},
+ {k:'def',n:'Padded',base:70,u:' defense',steps:[[4,1]],int:1,late:3},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
  {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1,late:4},
- {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,1.5]],pct:1,late:0}
+ {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,3]],pct:1,late:0}
 ];
 function upMax(u){return u.max||u.steps.reduce((a,s)=>a+s[0],0);}
 function upVal(u,l){let v=0,r=l;for(const s of u.steps){const t=Math.min(r,s[0]);v+=t*s[1];r-=t;if(r<=0)break;}return v;}
@@ -429,8 +440,8 @@ function upCost(u,l){const f=u.base*(l+1)*(1+l*BAL.upg.rise);return Math.round(u
 const r1=x=>Math.round(x*10)/10;
 const PAIRS=[
  {k:'edge',n:'Edge',base:60,max:3,late:0,v:[
-  {id:'keen',n:'Keen',d:l=>'+'+r1(l)+'% crit',f:(p,l)=>{p.crit+=0.01*l;}},
-  {id:'vicious',n:'Vicious',d:l=>'+'+r1(1.2*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.012*l;}}]},
+  {id:'keen',n:'Keen',d:l=>'+'+r1(2*l)+'% crit',f:(p,l)=>{p.crit+=0.02*l;}},
+  {id:'vicious',n:'Vicious',d:l=>'+'+r1(2*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.02*l;}}]},
  {k:'vigor',n:'Vigor',base:60,max:3,late:0,v:[
   {id:'regrow',n:'Regrowth',d:l=>r1(1.5*l)+'% HP healed per floor',f:(p,l)=>{p.renew+=0.015*l;}},
   {id:'drink',n:'Lifedrinker',d:l=>r1(l)+'% of damage healed',f:(p,l)=>{p.life+=0.01*l;}}]},
@@ -527,7 +538,7 @@ const SYN=[
 // kit = the four ability keys (defs in content.js ABIL); start = starting weapon kind; mana = base mana pool (0 = none)
 const CLS={
  warrior:{n:'Warrior',e:'warrior',hp:46,atk:4,def:3,crit:0.05,fire:1,mana:0,kit:['bash','cleave','charge','brace'],start:'sword',res:'Rage'},
- mage:{n:'Mage',e:'mage',hp:28,atk:4,def:0,crit:0.05,fire:2,mana:28,kit:['bolt','nova','blink','fire'],start:'staff',res:'Mana'},
+ mage:{n:'Mage',e:'mage',hp:28,atk:4,def:0,crit:0.05,fire:2,mana:24,kit:['bolt','nova','blink','fire'],start:'staff',res:'Mana'},
  rogue:{n:'Rogue',e:'rogue',hp:32,atk:4,def:0,crit:0.12,fire:1,mana:0,kit:['backstab','vanish','knife','smoke'],start:'dagger',res:'Knives'}
 };
 const LG={warrior:{hp:4,atkE:4},mage:{hp:5,atkE:3},rogue:{hp:3,atkE:2}};
@@ -1743,7 +1754,7 @@ let meta={seenHelp:0,gold:0,wins:0,best:0,unl:{}};
 // meta fields added with floor modifiers / daily / records / achievements / Hard / idle layer: every one gets a safe default when an older save lacks it.
 // mv = meta version: 1 (no field) had the flat shop (hp atk pot goldp def) and the Hard toggle, 2 has meta.up / pv (upgrade levels, pair variants), bp (blueprints),
 // heat / heatSel, exp (expeditions).
-const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0,aruns:0,up:{},pv:{},bp:{},leg:{},heat:0,heatSel:0,exp:{}});
+const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0,aruns:0,up:{},pv:{},bp:{},leg:{},heat:0,heatSel:0,bestM:0,exp:{}});
 let metaRaw=null,metaDirty=false;
 try{metaRaw=JSON.parse(localStorage.getItem(META_KEY));}catch(e){}
 const hadMeta=!!(metaRaw&&typeof metaRaw==='object'&&!Array.isArray(metaRaw));
@@ -1772,6 +1783,7 @@ if(hadMeta&&!(+metaRaw.mv>=2)){
  migrated=true;
 }
 meta.mv=2;
+if(hadMeta&&metaRaw.bestM===undefined)meta.bestM=+meta.best||0;   // a save from before the gate: the deepest floor it ever reached counts (Auto runs included, we cannot tell)
 // every field of the idle layer is checked on every boot: anything missing or damaged is replaced by a safe value, never an exception
 function expRecOk(r){return !!r&&typeof r==='object'&&!!CLS[r.cls]&&BAL.exp.durs.some(d=>d.min===+r.dur)&&isFinite(+r.t0)&&isFinite(+r.seed)&&isFinite(+r.pw)&&+r.pw>=0;}
 function expRepOk(r){return !!r&&typeof r==='object'&&!!CLS[r.cls]&&['dur','el','delves','floor','kills','deaths','gold'].every(k=>isFinite(+r[k]))&&(r.bp==null||BPS.some(b=>b.id===r.bp));}
@@ -1785,9 +1797,9 @@ function cleanMeta(){
  for(const b of BPS){const v=meta.bp[b.id];if(v===1||v===2)bp[b.id]=v;}
  meta.up=up;meta.pv=pv;meta.bp=bp;
  const leg={};if(isO(meta.leg))for(const k in BAL.upg.legacy){const v=Math.floor(+meta.leg[k]);if(isFinite(v)&&v>0)leg[k]=Math.min(v,1000);}meta.leg=leg;
- meta.heat=cl(meta.heat,0,BAL.heat.max);meta.heatSel=cl(meta.heatSel,0,BAL.heat.max);
+ meta.bestM=cl(meta.bestM,0,MAXF);meta.heat=cl(meta.heat,0,BAL.heat.max);meta.heatSel=cl(meta.heatSel,0,BAL.heat.max);
  const e=meta.exp,run=[null,null];
- for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:+r.t0,seed:Math.floor(+r.seed)>>>0,pw:+r.pw};}
+ for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:+r.t0,seed:Math.floor(+r.seed)>>>0,pw:+r.pw,bf:cl(r.bf,0,MAXF)};}
  const rp=expRepOk(e.rep)?{cls:e.rep.cls,dur:+e.rep.dur,el:+e.rep.el,delves:+e.rep.delves,floor:+e.rep.floor,kills:+e.rep.kills,deaths:+e.rep.deaths,gold:+e.rep.gold,bp:e.rep.bp||null,early:e.rep.early?1:0}:null;
  meta.exp={s2:e.s2?1:0,run:run,rep:rp};
 }
@@ -1903,14 +1915,16 @@ function pairSwitch(k){
  meta.gold-=fee;meta.pv[k]=meta.pv[k]===1?0:1;saveMeta();return true;
 }
 // text for a card: what the current level gives and what the next one adds
+// what one level of a pair variant gives, said BEFORE paying: 'Keen +2% crit per level'
+function pairPer(q,v){return v.n+' '+v.d(1)+(q.max>1?' per level':'');}
 function upText(it){
  const l=upLvl(it.k),mx=upMax(it);
  if(it.steps){
-  const v=upShown(it,l),n=l<mx?upShown(it,l+1)-v:0,u=it.u;
-  return '+'+v+u+(n?' · next +'+n:' · MAX');
+  const v=upBonus(it.k),leg=(meta.leg&&meta.leg[it.k])|0,n=l<mx?upShown(it,l+1)-upShown(it,l):0,u=it.u;   // the real total, veteran bonus of a migrated save included
+  return '+'+v+u+(it.k==='pot'&&v!==1?'s':'')+(leg?' (incl. '+leg+' veteran)':'')+(n?' · next +'+n:' · MAX');
  }
  const va=pairVar(it);
- return (l?va.d(l):'no effect yet')+(l<mx?'':' · MAX');
+ return (l?va.d(l):pairPer(it,va))+(l&&l>=mx?' · MAX':'');
 }
 
 // ---------- Heat ----------
@@ -1952,8 +1966,13 @@ function bpRunDrop(won){
  return b;
 }
 function bpIcon(b){return b.t==='perk'?'p_'+b.id:b.e;}
+// the kind and class of a blueprint, said on its card: 'Off-hand · Rogue only'
+function bpKind(b){
+ const k={weapon:'Weapon',off:'Off-hand',charm:'Charm',perk:'Perk'}[b.t]||'Item',c=b.t==='off'?OFF[b.id].cls:b.t==='perk'?(perkById(b.id)||{}).cls:null;
+ return k+' · '+(c?CLS[c].n+' only':'any class');
+}
 function bpDesc(b){
- const d=b.t==='weapon'?wpRule(b.id,false):b.t==='off'?offRule(b.id):b.t==='charm'?charmRule(b.id):(perkById(b.id)||{d:''}).d;
+ const d=b.t==='weapon'?wpRule(b.id,false).replace(/(-?\+?\d+ attack)/,'$1 vs Sword'):b.t==='off'?offRule(b.id):b.t==='charm'?charmRule(b.id):(perkById(b.id)||{d:''}).d;
  return d.replace(/\.$/,'');
 }
 // loot pools only contain unlocked blueprints
@@ -1975,40 +1994,56 @@ function expRow(cls,pw){
  return rows[rows.length-1];
 }
 function expDur(min){return BAL.exp.durs.find(d=>d.min===min)||BAL.exp.durs[0];}
-// expected gold of an expedition of `dur` minutes (shown on the send screen)
-function expEstimate(cls,dur,pw){return Math.round(expRow(cls,pw==null?upSpent():pw).gph*expDur(dur).rate*dur/60);}
+// the deepest floor the player reached in MANUAL play (Auto does not count; at least 1): a hero never delves deeper
+function expBest(rec){const b=rec&&rec.bf>0?rec.bf:meta.bestM|0;return Math.max(1,Math.min(MAXF,b));}   // a trip sent by an older build has no bf: it follows the current best
+// gold per hour at the 8 h rate for a best floor and upgrade power
+function expGph(best,pw){
+ const X=BAL.exp,B=Math.max(1,Math.min(MAXF,best|0)),c=X.boost;let k=c[c.length-1][1];
+ if(pw<=c[0][0])k=c[0][1];else for(let i=1;i<c.length;i++)if(pw<=c[i][0]){k=c[i-1][1]+(c[i][1]-c[i-1][1])*(pw-c[i-1][0])/(c[i][0]-c[i-1][0]);break;}
+ return X.gph[B-1]*(1+k);
+}
+// expected gold of an expedition of `dur` minutes (shown on the send screen); cls is kept for callers, every class pays the same
+function expEstimate(cls,dur,pw,best){return Math.round(expGph(best==null?expBest():best,pw==null?upSpent():pw)*expDur(dur).rate*dur/60);}
 function expElapsed(rec,now){const m=(now-rec.t0)/60000;return m>0?Math.min(m,BAL.exp.capMin):0;}   // never negative, never more than the cap
 function expReady(rec,now){return !!rec&&expElapsed(rec,now)>=rec.dur;}
+function expLeft(rec,now){return Math.max(0,Math.min(rec.dur,rec.dur-expElapsed(rec,now)))*60000;}   // ms to go, never more than the trip length (a clock set back does not add time)
 // The outcome of an expedition after `now`: pure (the record, the clock and which blueprints are already found decide it), so a reload cannot reroll it.
 // The hero is back after rec.dur minutes (or `now` if recalled earlier) and made one delve per delveMin minutes; each delve draws the floor it
-// ended on from the class row; its gold / kills are that floor's means scaled so the expedition pays rate x manual gold per hour on average.
+// ended on from the class row (every floor above the player's best manual floor is folded into it); gold / kills follow that floor's shape, scaled so the
+// expedition pays expGph x rate per hour on average (BAL.exp.flat of every delve is the same on every floor, so a short trip is not a lottery).
 function expResult(rec,now,found){
- const X=BAL.exp,D=expDur(rec.dur),el=expElapsed(rec,now),eff=Math.min(el,rec.dur);
+ const X=BAL.exp,D=expDur(rec.dur),el=expElapsed(rec,now),eff=Math.min(el,rec.dur),B=expBest(rec);
  const row=expRow(rec.cls,rec.pw);
- let avg=0;for(let i=0;i<9;i++)avg+=row.reach[i]*row.gold[i];
- const scale=avg>0?row.gph*(X.delveMin/60)*D.rate/avg:0;
+ const reach=Array(9).fill(0),wg=Array(9).fill(0),wk=Array(9).fill(0);
+ for(let i=0;i<9;i++){const t=B<MAXF&&i>B-1?B-1:i;reach[t]+=row.reach[i];wg[t]+=row.reach[i]*row.gold[i];wk[t]+=row.reach[i]*row.kills[i];}
+ let tot=0,mg=0;for(let i=0;i<9;i++)tot+=reach[i];
+ for(let i=0;i<9;i++)mg+=wg[i];mg=tot>0?mg/tot:1;
+ const gold=reach.map((r,i)=>r>0?X.flat*mg+(1-X.flat)*wg[i]/r:0),kills=reach.map((r,i)=>r>0?wk[i]/r:0);
+ let avg=0;for(let i=0;i<9;i++)avg+=reach[i]/Math.max(tot,1e-9)*gold[i];
+ const scale=avg>0?expGph(B,rec.pw)*(X.delveMin/60)*D.rate/avg:0;
  const phase=mulberry(hashStr(rec.cls+'|'+rec.seed+'|'+rec.t0))();
  const n=Math.max(0,Math.floor(eff/X.delveMin+phase));
- let gold=0,kills=0,deaths=0,floor=0,bp=null;
+ let g=0,kl=0,deaths=0,floor=0,bp=null;
  for(let i=0;i<n;i++){
   const rng=mulberry(hashStr(rec.seed+'|'+rec.t0+'|'+rec.pw.toFixed(1)+'|'+i));
-  let u=rng(),f=0;for(;f<8;f++){u-=row.reach[f];if(u<0)break;}
-  gold+=scale*row.gold[f];kills+=scale*row.kills[f];
+  let u=rng()*tot,f=0;for(;f<8;f++){u-=reach[f];if(u<0)break;}
+  f=Math.min(f,8);
+  g+=scale*gold[f];kl+=scale*kills[f];
   if(f<8)deaths++;
-  floor=Math.max(floor,Math.min(f+1,MAXF));
+  floor=Math.max(floor,Math.min(f+1,B));
   const roll=rng();
-  if(!bp&&f+1>=X.bpMinFloor&&roll<X.bpChance){
+  if(!bp&&Math.min(f+1,B)>=X.bpMinFloor&&roll<X.bpChance){
    const pool=BPS.filter(b=>b.tier==='c'&&!bpState(b.id)&&!(found&&found.has(b.id)));
    if(pool.length)bp=pool[Math.floor(rng()*pool.length)].id;
   }
  }
- return {cls:rec.cls,dur:rec.dur,el:Math.round(eff),delves:n,floor:floor,kills:Math.round(kills),deaths:deaths,gold:Math.round(gold),bp:bp,early:el<rec.dur?1:0};
+ return {cls:rec.cls,dur:rec.dur,el:Math.round(eff),delves:n,floor:floor,kills:Math.round(kl),deaths:deaths,gold:Math.round(g),bp:bp,early:el<rec.dur?1:0};
 }
 function expFree(){const e=meta.exp;for(let i=0;i<(e.s2?2:1);i++)if(!e.run[i])return i;return -1;}
 function expSend(slot,cls,dur){
  const e=meta.exp;
  if(slot<0||slot>1||(slot===1&&!e.s2)||e.run[slot]||!CLS[cls]||(cls!=='warrior'&&!meta.unl[cls])||!BAL.exp.durs.some(d=>d.min===dur))return false;
- e.run[slot]={cls:cls,dur:dur,t0:Date.now(),seed:Math.floor(Math.random()*4294967296)>>>0,pw:upSpent()};
+ e.run[slot]={cls:cls,dur:dur,t0:Date.now(),seed:Math.floor(Math.random()*4294967296)>>>0,pw:upSpent(),bf:expBest()};
  saveMeta();return true;
 }
 // pay the result of a slot (done or recalled early) and free it; the report is kept until the player closes it
@@ -2028,9 +2063,18 @@ function fmtDur(ms){
 }
 
 // ---------- Auto's idle pay ----------
-// Auto earns the 30-minute expedition rate for the time it plays (gold per hour of the class at the current upgrade power), not the gold of the run.
-function autoRate(cls){return expRow(cls,upSpent()).gph*BAL.exp.durs[0].rate;}
-function autoPay(g){const ms=(g.auto&&g.auto.ms)|0;return Math.round(autoRate(g.p.cls)*ms/3600000);}
+// Auto pays by the TURNS it played (so 1x / 2x / 4x pay the same), at the 30-minute expedition rate for the player's best manual floor and upgrade power.
+function autoGph(){return expGph(expBest(),upSpent())*BAL.exp.durs[0].rate;}
+function autoRate(){return autoGph();}   // gold per hour of play (1 turn = BAL.exp.turnSec)
+function autoPerTurn(){return autoGph()*BAL.exp.turnSec/3600;}
+function autoTurns(g){return g&&g.auto?(g.auto.t|0)+(AUTO.self?Math.max(0,g.turn-AUTO.t0):0):0;}   // turns Auto played, including the one being resolved
+function autoPay(g,turns){return Math.round(autoPerTurn()*(turns==null?autoTurns(g):turns));}
+// what a run banks (and what the HUD shows once Auto has played in it): run gold of the turns the player played themselves (x Heat), plus idle pay for Auto's turns
+function runBank(g,won){
+ const aut=!!(g.auto&&g.auto.used),bonus=won?BAL.run.winBonus:0,heat=gHeat(g);
+ const share=aut?Math.min(1,autoTurns(g)/Math.max(1,g.turn)):0,idle=aut?autoPay(g):0;
+ return {banked:Math.round((g.p.gold+bonus)*(1-share)*heatGold(heat)+idle),idle:idle,share:share,bonus:bonus,heat:heat};
+}
 
 // audio.js - WebAudio sound effects, vibration and the sound on/off toggle.
 
@@ -3518,7 +3562,7 @@ function buildFloor(f){
   for(let a=0;a<40&&!G.merchant;a++){
    const t=free(a<30?pick(others):rooms[0]);if(!t)continue;
    G.merchant={x:t[0],y:t[1],stock:[]};
-   if(a<30&&!stairsOk()){G.merchant=null;}
+   if(!stairsOk()){G.merchant=null;}   // never in the way of the stairs, not even on the last tries (no merchant is better than a blocked floor)
   }
   if(G.merchant)G.merchant.stock=buildStock(f);
  }
@@ -3579,8 +3623,7 @@ function finish(kind){
  autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
  const won=kind==='win',dead=kind==='dead',hard=!!G.hard,heat=gHeat(G),aut=!!(G.auto&&G.auto.used);
  // Auto: the time it played is paid at the idle rate; only the turns the player played themselves keep their share of the run gold
- const bonus=won?BAL.run.winBonus:0,share=aut?Math.min(1,((G.auto.t|0)+(AUTO.self?Math.max(0,G.turn-AUTO.t0):0))/Math.max(1,G.turn)):0,idle=aut?autoPay(G):0;
- const banked=Math.round((p.gold+bonus)*(1-share)*heatGold(heat)+idle);   // Heat multiplies run gold only: idle pay is by the clock, not by the dungeon
+ const rb=runBank(G,won),bonus=rb.bonus,share=rb.share,idle=rb.idle,banked=rb.banked;   // Heat multiplies run gold only: idle pay is by turns played, not by the dungeon. The HUD shows this same number
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
@@ -3596,7 +3639,7 @@ function finish(kind){
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<div class="portrait">'+ic(clsOf(p).e,56)+'</div><p class="recap"><b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'</p><div class="chips3"><span>Floor <b>'+G.floor+'</b></span><span><b>'+G.turn+'</b> turns</span><span><b>'+G.kills+'</b> kills</span></div>'+
   '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>('+(heat>1?'Heat '+heat:'Hard')+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto run: idle pay '+idle+' gold'+(share<1?' plus your own turns':'')+'.</p>':'')+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turns: idle pay '+idle+' gold'+(share<1?', plus run gold of yours':'')+'.</p>':'')+
   (bpD?'<p class="recap" id="bpRecap">'+ic(bpIcon(bpD),20)+' Blueprint found: <b>'+bpD.n+'</b></p>':'')+
   (heatUp?'<p class="recap" id="heatRecap">'+ic('skull',16)+' <b>Heat '+heatUp+'</b> unlocked: '+HEAT[heatUp].n+'.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
@@ -3624,7 +3667,7 @@ function goDown(opt){
  const p=G.p;
  if(p.renew>0){p.hp=Math.min(p.mhp,p.hp+Math.round(p.mhp*p.renew));}
  if(G.floor===BAL.ach.noArmorFloor&&!p.eq.armor)earn('bare');
- meta.best=Math.max(meta.best,G.floor);saveMeta();checkAch();
+ meta.best=Math.max(meta.best,G.floor);if(!AUTO.self)meta.bestM=Math.max(meta.bestM|0,G.floor);saveMeta();checkAch();   // bestM = the deepest floor the player reached by hand: it limits how deep expeditions go
  msg('Floor '+G.floor+' - '+themeOf(G.floor,G.variant).n+(G.floor===MAXF?' (dragon lair!)':'')+'.');
  save();render();
 }
@@ -3714,6 +3757,20 @@ const tz=trapSet(),cz=crackSet();
    const full=[];let k=g2;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
    const i=full.findIndex(t=>tz.has(ix(t[0],t[1])));
    if(i>0){msg('Trap in the way.');startWalk(full.slice(0,i),{explore:true});return;}
+  }
+ }
+ if(goal<0&&cz.size){
+  // unexplored ground (or the stairs' way) exists only through a cracking tile: walk up to it and say so, instead of "nothing left" (Wait lets it settle)
+  const q=[[p.x,p.y]],pv=new Map([[ix(p.x,p.y),-1]]);let g3=-1;
+  for(let i=0;i<q.length&&g3<0;i++){const [x,y]=q[i];
+   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+    if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||enemyAt(nx,ny)||dz.has(k))continue;
+    pv.set(k,ix(x,y));q.push([nx,ny]);
+    if(!G.exp[k]||G.map[k]===3||loot.has(k)||G.map[k]===2){g3=k;break;}}}
+  if(g3>=0){
+   const full=[];let k=g3;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
+   const i=full.findIndex(t=>cz.has(ix(t[0],t[1])));
+   if(i>=0){msg('The floor is cracking ahead. Wait for it to settle.');if(i>0)startWalk(full.slice(0,i),{explore:true});else render();return;}
   }
  }
  if(goal<0){
@@ -3878,7 +3935,7 @@ function perkTags(pk){
  return t;
 }
 // leading icon chip for choice cards (perks / upgrades): a few specific icons, the rest share the generic perk mark
-const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',trapper:'trap_spike',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',xpf:'tome',edge:'lens',vigor:'heart',prep:'fire',stalker:'p_stalker',warcry:'p_warcry',frostbite:'p_frostbite',lacerate:'p_lacerate',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
+const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',trapper:'trap_spike',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',xpf:'tome',edge:'ab_backstab',vigor:'elixir',prep:'fire',stalker:'p_stalker',warcry:'p_warcry',frostbite:'p_frostbite',lacerate:'p_lacerate',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
 // perk categories tint the icon chip: offence orange, defence blue, utility violet
 const PERK_CAT={might:'o',vamp:'o',keen:'o',venom:'o',chain:'o',blood:'o',berserk:'o',exec:'o',glass:'o',fury:'o',stampede:'o',assassin:'o',arcana:'o',deepfreeze:'o',pyro:'o',warlord:'o',riposte:'o',
  vit:'d',bul:'d',thorns:'d',evade:'d',second:'d',phoenix:'d',renew:'d',regen:'d',retrib:'d',shadow:'d'};
@@ -3946,7 +4003,7 @@ function showMenu(){
   {html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
   {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(el){
    // the cost is stated BEFORE the first activation: the first tap only says it, the second starts (no alert / confirm)
-   if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' Idle pay '+autoRateText()+', not run gold. Tap again';return;}
+   if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' Pays '+autoRateText()+', not run gold. Tap again';return;}
    closeModal();autoStart();}},
   {html:ic('perk',20)+' Perks',c:1,fn:function(){showPerks(showMenu);}},
   {html:ic('info',20)+' Controls',c:1,fn:function(){showHelp(showMenu);}},
@@ -3970,7 +4027,7 @@ function showGear(){
   {k:'equip',label:'Equip',c:1,big:1,fn:function(){
    if(G.items.indexOf(it)<0){closeModal();return;}
    const old=equipItem(it);
-   if(worthKeeping(old)){const on=gearName(old);it.k=old.k;it.v=old.v;it.tr=old.tr||null;msg('Equipped '+nn+'. You drop your '+on+'.');}
+   if(worthKeeping(old)){const on=gearName(old);it.k=old.k;it.v=old.v;it.tr=old.tr||null;it.skip=1;msg('Equipped '+nn+'. You drop your '+on+'.');}
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
    closeModal();save();render();
    if(G.pending>0)showPerk();}},
@@ -4052,18 +4109,25 @@ function showClassPicker(mode){
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
  else if(heatMax()>=1){
   // Heat lives here, next to the choice it changes: 0 = normal, 1 = Hard, each next one adds a rule. A level opens by winning at the one below.
+  const lb=document.createElement('p');lb.id='heatLbl';lb.className='sub';lb.innerHTML='<b>Heat</b>: a harder dungeon pays more gold.';t.appendChild(lb);
   const row=document.createElement('div');row.id='heatRow';row.className='heat';
-  const hs=heatSel();
+  const hs=heatSel(),p=document.createElement('div');p.id='heatInfo';p.className='sub';
+  const lockWhy=h=>h===heatMax()+1?'Win a run at Heat '+heatMax()+' to unlock Heat '+h+'.':'Unlock Heat '+(h-1)+' first.';
   for(let h=0;h<=BAL.heat.max;h++){
-   const b=document.createElement('button');b.className='c'+(h===hs?' on':'');b.dataset.heat=h;b.disabled=h>heatMax();
-   b.innerHTML=h>heatMax()?ic('lock',16):'<b>'+h+'</b>';b.setAttribute('aria-label','Heat '+h+(h>heatMax()?' (locked)':''));
-   b.addEventListener('click',function(){meta.heatSel=h;saveMeta();showClassPicker(mode);});
+   const lk=h>heatMax(),b=document.createElement('button');b.className='c'+(h===hs?' on':'')+(lk?' locked':'');b.dataset.heat=h;
+   b.innerHTML=lk?ic('lock',16):'<b>'+h+'</b>';b.setAttribute('aria-label','Heat '+h+(lk?' (locked)':''));if(lk)b.setAttribute('aria-disabled','true');
+   b.addEventListener('click',function(){
+    if(lk){p.innerHTML='<b>Heat '+h+' is locked.</b> '+lockWhy(h);return;}   // a lock says why it is locked (no screen rebuild)
+    meta.heatSel=h;saveMeta();showClassPicker(mode);});
    row.appendChild(b);
   }
   t.appendChild(row);
-  const p=document.createElement('p');p.id='heatInfo';p.className='sub';
-  p.innerHTML=hs>0?'<b>Heat '+hs+' · '+HEAT[hs].n+'</b>: '+HEAT[hs].d+' Gold ×'+heatGold(hs)+'.':'<b>Heat 0</b>: the standard dungeon. Win to climb.';
-  t.appendChild(p);
+  // every rule that is active at the selected level, one short line each
+  let hh='<b>Heat '+hs+(hs?' · '+HEAT[hs].n:' · Normal')+'</b>, gold ×'+heatGold(hs);
+  if(!hs)hh+='<br>The standard dungeon.';
+  else{hh+='<br>Hard: '+HARD_RULES.slice(0,3).map(r=>r.n.toLowerCase()).join(', ')+'.';for(let i=2;i<=hs;i++)hh+='<br>'+HEAT[i].n+': '+HEAT[i].d;}
+  if(heatMax()<BAL.heat.max)hh+='<br><em>Locked: win a run at Heat '+heatMax()+' for Heat '+(heatMax()+1)+'.</em>';
+  p.innerHTML=hh;t.appendChild(p);
  }
  for(const k of Object.keys(CLS)){
   const C=CLS[k],open=k==='warrior'||!!meta.unl[k],row=document.createElement('div');row.className='cls';
@@ -4098,8 +4162,9 @@ function showTitle(keep){
  if(hasSave()){const b=big(add('button','Continue run','c'));b.id='btnContinue';b.addEventListener('click',continueRun);}
  const nb=big(add('button','New run','c'));nb.id='btnNew';guard(nb,'New run',function(){showClassPicker();});
  {const nr=expReadyCount(),na=expActive();
-  const eb=big(add('button',ic('map',22)+' Expeditions'+(nr?'<i class="pill rdy">'+(nr>1?nr+' ready':'Ready')+'</i>':na?'<i class="pill">'+fmtDur(Math.min(...meta.exp.run.filter(Boolean).map(r=>r.t0+r.dur*60000-Date.now())))+'</i>':''),'c'));
+  const eb=big(add('button',ic('map',22)+' Expeditions'+(nr?'<i class="pill rdy">'+(nr>1?nr+' ready':'Ready')+'</i>':na?'<i class="pill">'+expPill()+'</i>':''),'c'));
   eb.id='btnExp';eb.style.position='relative';eb.addEventListener('click',function(){showExpeditions();});}
+ expPillTick();
  const g=add('div','');g.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px';
  const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.className='c';b.innerHTML=html;b.classList.add('tri');b.addEventListener('click',fn);g.appendChild(b);return b;};
  const db=cell('btnDaily',ic('cal',22)+'<span class="tl">Daily</span>'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
@@ -4108,6 +4173,20 @@ function showTitle(keep){
  cell('btnMore',ic('menu',22)+'<span class="tl">More</span>',function(){showMore();});
  $('title').style.display='flex';
  if(keep)t.scrollTop=st;
+}
+// the time left on the title's Expeditions button: the shortest running trip. It follows the clock while the title stays open (one timer, gone when the screen changes).
+function expPill(){const l=meta.exp.run.filter(Boolean).map(r=>expLeft(r,Date.now()));return l.length?fmtDur(Math.min(...l)):'';}
+let pillTimer=null;
+function expPillTick(){
+ if(pillTimer){clearInterval(pillTimer);pillTimer=null;}
+ if(!expActive())return;
+ pillTimer=setInterval(function(){
+  const b=$('btnExp');
+  if(!b||!b.isConnected||$('title').style.display==='none'||b.parentNode!==$('titleBox')){clearInterval(pillTimer);pillTimer=null;return;}
+  const nr=expReadyCount(),pl=b.querySelector('.pill'),rdy=pl&&pl.classList.contains('rdy');
+  if(nr&&!rdy||!nr&&rdy){showTitle(true);return;}
+  if(pl&&!nr){const tx=expPill();if(pl.textContent!==tx)pl.textContent=tx;}
+ },1000);
 }
 // the rarely used screens
 function showMore(){
@@ -4159,6 +4238,7 @@ function showUpgrades(tab){
   sw.style.width='76px';sw.style.minWidth='76px';
   sw.addEventListener('click',function(){if(pairSwitch(q.k))showUpgrades('upg');});
   row.appendChild(sw);
+  const od=document.createElement('small');od.className='pdesc';od.dataset.other=q.k;od.textContent='Swap: '+pairPer(q,other)+(fee?'':' (free now)');row.appendChild(od);
  }
  add('h2','Unlocks').style.fontSize='16px';
  for(const u of UNLOCKS){
@@ -4235,7 +4315,9 @@ function showAchievements(){
 
 // idleui.js - the idle screens, drawn into the title box: Expeditions (slots, send, report) and the Blueprints tab of the shop. Logic: idle.js.
 
-let expTimer=null,expPick='warrior';
+let expTimer=null,expPick='warrior',expOpenAt=0;
+// a screen that puts a commit button under the button that opened it ignores real taps for the dialog grace (and a tap that began before it opened)
+function expBlocked(e){return !!(e&&e.isTrusted&&BAL.ui.modalGraceMs&&(performance.now()-expOpenAt<BAL.ui.modalGraceMs||(e.detail>0&&lastDown<expOpenAt)));}
 function expLeave(){if(expTimer){clearInterval(expTimer);expTimer=null;}}
 function expScreen(title,name){
  expLeave();
@@ -4261,11 +4343,13 @@ function showExpeditions(){
    b.addEventListener('click',function(){showExpSend(i);});
    continue;
   }
-  const rdy=expReady(rec,now),left=Math.max(0,rec.t0+rec.dur*60000-now),pct=Math.min(100,100*expElapsed(rec,now)/rec.dur);
+  const rdy=expReady(rec,now),left=expLeft(rec,now),pct=Math.min(100,100*expElapsed(rec,now)/rec.dur);
   expAdd(card,'div','<span class="hero">'+ic(CLS[rec.cls].e,40)+'</span><span class="xi"><b>'+CLS[rec.cls].n+' · '+expDur(rec.dur).n+'</b><span class="xt" data-left="'+i+'">'+(rdy?'Back home':'Back in '+fmtDur(left))+'</span></span>','xhead');
   expAdd(card,'div','<i style="width:'+pct+'%"></i>','xbar');
   const b=expAdd(card,'button',rdy?ic('check',22)+' Collect':'Recall now','c');b.dataset.collect=i;b.style.minHeight='56px';if(rdy)b.classList.add('go');
-  b.addEventListener('click',function(){expCollect(i);showExpReport(meta.exp.rep);});
+  b.addEventListener('click',function(){
+   if(!rdy&&!b.dataset.arm){b.dataset.arm=1;b.textContent='Recall: pays '+expResult(rec,Date.now()).gold+'. Tap again';return;}   // a recall pays only the part done: say so first
+   expCollect(i);showExpReport(meta.exp.rep);});
  }
  expBack(t,showTitle);
  $('title').style.display='flex';
@@ -4275,11 +4359,12 @@ function showExpeditions(){
   const n=Date.now();
   for(let i=0;i<2;i++){const r=meta.exp.run[i];if(!r)continue;
    if(expReady(r,n)&&!($('titleBox').querySelector('[data-collect="'+i+'"]')||{classList:{contains:()=>false}}).classList.contains('go')){showExpeditions();return;}
-   const el=$('titleBox').querySelector('[data-left="'+i+'"]');const tx='Back in '+fmtDur(r.t0+r.dur*60000-n);if(el&&el.textContent!==tx&&!expReady(r,n))el.textContent=tx;}
+   const el=$('titleBox').querySelector('[data-left="'+i+'"]');const tx='Back in '+fmtDur(expLeft(r,n));if(el&&el.textContent!==tx&&!expReady(r,n))el.textContent=tx;}
  },1000);
 }
 function showExpSend(slot){
- const t=expScreen('Send a hero','send');
+ const t=expScreen('Send a hero','send');expOpenAt=performance.now();
+ expAdd(t,'p','Heroes go as deep as you have: floor '+expBest()+'.','sub').id='expGate';
  const open=Object.keys(CLS).filter(k=>k==='warrior'||meta.unl[k]);
  if(open.indexOf(expPick)<0)expPick=open[0];
  const row=expAdd(t,'div','','xcls');
@@ -4291,7 +4376,7 @@ function showExpSend(slot){
  for(const d of BAL.exp.durs){
   const b=expAdd(t,'button','<b>'+d.n+'</b><span>about <span class="gold">'+expEstimate(expPick,d.min,pw)+' '+ic('coin',13)+'</span>'+(d.hint?' · '+d.hint:'')+'</span>','c');
   b.dataset.dur=d.min;b.style.minHeight='60px';
-  b.addEventListener('click',function(){if(expSend(slot,expPick,d.min))showExpeditions();});
+  b.addEventListener('click',function(e){if(expBlocked(e))return;if(expSend(slot,expPick,d.min))showExpeditions();});
  }
  expBack(t,showExpeditions);
  $('title').style.display='flex';
@@ -4300,10 +4385,10 @@ function showExpReport(r){
  const t=expScreen('Expedition report','report'),C=CLS[r.cls]||CLS.warrior;
  expAdd(t,'div',ic(C.e,56),'portrait');
  expAdd(t,'p','<b>'+C.n+'</b> · '+(r.early?'recalled after '+fmtDur(r.el*60000):expDur(r.dur).n),'recap');
- expAdd(t,'div','<span>Deepest floor <b>'+(r.floor||'-')+'</b></span><span>Kills <b>'+r.kills+'</b></span><span>Deaths <b>'+r.deaths+'</b></span>','chips3');
+ expAdd(t,'div','<span>Deepest floor <b>'+(r.floor||'-')+'</b></span><span>Kills <b>'+r.kills+'</b></span><span>Delves <b>'+r.delves+'</b></span>','chips3');
  expAdd(t,'p','Gold <span class="gold" id="repGold">+'+r.gold+' '+ic('coin',16)+'</span>','recap');
  if(r.bp){const b=bpOf(r.bp);if(b)expAdd(t,'p',ic(bpIcon(b),24)+' Blueprint found: <b>'+b.n+'</b>','recap').id='repBp';}
- if(!r.delves)expAdd(t,'p','Too short for a delve. Try a longer trip.','sub');
+ if(!r.delves)expAdd(t,'p',r.early?'Recalled before the first delve: nothing found.':'No delve this time.','sub');
  const d=expAdd(t,'button','Done','c');d.id='btnDone';d.style.minHeight='56px';
  d.addEventListener('click',function(){meta.exp.rep=null;saveMeta();showExpeditions();});
  $('title').style.display='flex';
@@ -4311,11 +4396,11 @@ function showExpReport(r){
 // the Blueprints tab: found ones can be bought, bought ones are listed, the rest only as counts by where they drop
 function bpTab(t,add){
  const c=bpCounts();
- add('p','Found <b>'+c.found+'</b>/'+c.total+' · Unlocked <b>'+c.unlocked+'</b>. Unlocked ones can drop in runs.','sub');
+ add('p','Found <b>'+c.found+'</b>/'+c.total+' · Bought <b>'+c.unlocked+'</b>. Bought ones can drop in runs.','sub');
  const list=BPS.filter(b=>bpState(b.id)>=1).sort((a,b)=>bpState(a.id)-bpState(b.id)||'cbr'.indexOf(a.tier)-'cbr'.indexOf(b.tier));
  for(const b of list){
   const st=bpState(b.id),cost=BAL.bp.cost[b.tier];
-  const inner='<b>'+b.n+'</b><span>'+bpDesc(b)+(st===2?' · <span style="color:#6fd08c">Unlocked</span>':' · <span class="gold">'+cost+' '+ic('coin',13)+'</span>')+'</span>';
+  const inner='<b>'+b.n+'</b><span class="bpk">'+bpKind(b)+'</span><span>'+bpDesc(b)+(st===2?' · <span style="color:#6fd08c">Bought</span>':' · <span class="gold">'+cost+' '+ic('coin',13)+'</span>')+'</span>';
   const el=add('button','<span class="chp">'+ic(bpIcon(b),28)+'</span><span class="ct">'+inner+'</span>','hasic');
   el.dataset.bp=b.id;el.dataset.state=st;
   if(st===2){el.disabled=true;el.style.opacity='.85';el.style.borderColor='#2a8a5a';}
@@ -4417,7 +4502,7 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';setH(rt,'Mana '+Math.floor(p.mana||0)+'/'+m);}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';setH(rt,ic('knife',16)+' Knives '+(G.knives||0)+'/'+m);}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+p.gold+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+(G.heat>1?' '+G.heat:'')+'</span>':'')+(G.ppois?'<span style="color:#7be04b">'+ic('st_pois',16)+' '+G.ppois.t+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
+ setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+(G.auto&&G.auto.used?runBank(G,G.won).banked:p.gold)+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.ppois?'<span style="color:#7be04b">'+ic('st_pois',16)+' '+G.ppois.t+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
  autoUi();
 }
@@ -4614,7 +4699,7 @@ const AUTO_SPEED_KEY='dcr_auto_speed',RANGED=['cultist','archer','warlock'];
 const AUTO={on:false,tm:null,pick:null,speed:1,self:false,uiKey:'',ignore:new Set(),shopped:{},bad:new Set(),uses:{},uses8:{},ticks:0,modals:0,idle:0,mrun:0,hold:0,lastProg:0,pf:0,pexp:0,hp:1e9,kills:0,err:null,lastStop:''};
 try{const s=+localStorage.getItem(AUTO_SPEED_KEY);if(BAL.auto.speeds.indexOf(s)>=0)AUTO.speed=s;}catch(e){}
 // what the player is told about Auto's pay: gold per hour (the 30-minute expedition rate at the current upgrade power; Heat does not change it)
-function autoRateText(){const c=G&&G.p?G.p.cls:'warrior';return '~'+Math.round(autoRate(c))+' gold/h';}
+function autoRateText(){return '~'+Math.max(1,Math.round(autoPerTurn()*1000))+' gold per 1000 turns';}
 function autoDelay(flash){return Math.max(15,(flash?BAL.auto.flashMs:BAL.auto.tickMs)/AUTO.speed);}
 // exactly one pending timer, ever: scheduling always cancels the previous one
 function autoSchedule(ms){if(AUTO.tm)clearTimeout(AUTO.tm);AUTO.tm=setTimeout(autoTick,ms);}
@@ -4626,7 +4711,7 @@ function autoStart(sync){
  if(!G||G.over||!G.auto||$('title').style.display!=='none')return false;
  walkTok++;armed=null;
  G.auto.on=1;AUTO.on=true;AUTO.pick=null;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=G.kills;AUTO.pf=G.floor;AUTO.pexp=-1;AUTO.lastProg=G.turn;AUTO.lastStop='';AUTO.err=null;
- if(!G.auto.noticed){G.auto.noticed=1;const t='Auto earns idle pay, '+autoRateText()+'.';msg(t);toast(t,4200);}
+ if(!G.auto.noticed){G.auto.noticed=1;const t='Auto pays '+autoRateText()+'.';msg(t);toast(t,4200);}
  AUTO.lastT=performance.now();
  msg('Auto on.');
  save();render();
@@ -5590,7 +5675,7 @@ window.__dbg.art={SPR:SPR,spriteBmp:spriteBmp,tileBmp:tileBmp,ic:ic,ENV:ENV,THEM
 // idle / meta layer: the pure model and the screens, for the tests and the simulator
 window.__dbg.idle={UPG:UPG,PAIRS:PAIRS,HEAT:HEAT,BPS:BPS,EXP_TABLE:EXP_TABLE,upLvl:upLvl,upBuy:upBuy,upSpent:upSpent,upMaxSpent:upMaxSpent,upCost:upCost,upVal:upVal,upMax:upMax,upNext:upNext,upBonus:upBonus,pairSwitch:pairSwitch,pairVar:pairVar,pairFee:pairFee,
  heatMax:heatMax,heatSel:heatSel,heatGold:heatGold,heatAfterWin:heatAfterWin,bpState:bpState,bpOn:bpOn,bpFound:bpFound,bpBuy:bpBuy,bpCounts:bpCounts,bpRunDrop:bpRunDrop,bpTable:bpTable,bpPick:bpPick,
- expRow:expRow,expResult:expResult,expSend:expSend,expCollect:expCollect,expReady:expReady,expElapsed:expElapsed,expEstimate:expEstimate,expBuySlot:expBuySlot,expReadyCount:expReadyCount,expFree:expFree,autoRate:autoRate,autoPay:autoPay,
+ expRow:expRow,expResult:expResult,expSend:expSend,expCollect:expCollect,expReady:expReady,expElapsed:expElapsed,expEstimate:expEstimate,expBuySlot:expBuySlot,expReadyCount:expReadyCount,expFree:expFree,autoRate:autoRate,autoPay:autoPay,autoGph:autoGph,autoPerTurn:autoPerTurn,autoTurns:autoTurns,runBank:runBank,expBest:expBest,expGph:expGph,expLeft:expLeft,
  showExpeditions:showExpeditions,showUpgrades:showUpgrades,showExpSend:showExpSend,showExpReport:showExpReport,cleanMeta:cleanMeta,mulberry:mulberry,fmtDur:fmtDur};
 })();
 </script></body></html>

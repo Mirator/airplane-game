@@ -50,7 +50,7 @@ describe('idle', { concurrency: CONC }, () => {
   it('expedition model: deterministic, capped at 8 h, never paid for negative time, early collect pays the part done, pay per hour falls with length but totals rise, ~1/4-1/3 of manual', async () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 3, meta: { ...BASE, gold: 100 } });
     try {
-      const rec = { cls: 'warrior', dur: 480, t0: 1700000000000, seed: 4242, pw: 2000 };
+      const rec = { cls: 'warrior', dur: 480, t0: 1700000000000, seed: 4242, pw: 2000, bf: 5 };
       const r = await page.evaluate(([rec, H]) => {
         const I = window.__dbg.idle, t0 = rec.t0, out = {};
         out.a = I.expResult(rec, t0 + 20 * H); out.cap = I.expResult(rec, t0 + 8 * H); out.past = I.expResult(rec, t0 + 800 * H);
@@ -58,22 +58,23 @@ describe('idle', { concurrency: CONC }, () => {
         out.part = I.expResult(rec, t0 + 2 * H); out.again = I.expResult(rec, t0 + 2 * H);
         out.elapsed = [I.expElapsed(rec, t0 - 1), I.expElapsed(rec, t0 + 99 * H), I.expElapsed(rec, t0 + H)];
         // rates over many seeds: per hour for 30 min / 2 h / 8 h, against the table's manual gold per hour
-        const row = I.expRow('warrior', rec.pw), mean = (dur, n) => { let g = 0; for (let s = 0; s < n; s++) g += I.expResult({ cls: 'warrior', dur, t0: t0 + s * 7919, seed: s * 31 + 1, pw: rec.pw }, t0 + s * 7919 + dur * 60000).gold; return g / n; };
-        out.g30 = mean(30, 300) * 2; out.g120 = mean(120, 200) / 2; out.g480 = mean(480, 100) / 8; out.gph = row.gph; out.rates = window.__dbg.tables.BAL.exp.durs.map((d) => d.rate);
+        const mean = (dur, n) => { let g = 0; for (let s = 0; s < n; s++) g += I.expResult({ cls: 'warrior', dur, t0: t0 + s * 7919, seed: s * 31 + 1, pw: rec.pw, bf: rec.bf }, t0 + s * 7919 + dur * 60000).gold; return g / n; };
+        out.g30 = mean(30, 300) * 2; out.g120 = mean(120, 200) / 2; out.g480 = mean(480, 100) / 8; out.gph = I.expGph(rec.bf, rec.pw); out.rates = window.__dbg.tables.BAL.exp.durs.map((d) => d.rate);
         out.tot = [mean(30, 100), mean(120, 100), mean(480, 100)];
-        out.bpAny = [...Array(300).keys()].some((s) => I.expResult({ cls: 'mage', dur: 480, t0: t0, seed: s, pw: 0 }, t0 + 8 * H).bp);
+        out.bpAny = [...Array(300).keys()].some((s) => I.expResult({ cls: 'mage', dur: 480, t0: t0, seed: s, pw: 0, bf: 4 }, t0 + 8 * H).bp);
+        out.bpNone = [...Array(300).keys()].some((s) => I.expResult({ cls: 'mage', dur: 480, t0: t0, seed: s, pw: 0, bf: 2 }, t0 + 8 * H).bp);
         return out;
       }, [rec, H]);
       assert.deepEqual(r.a, r.cap, 'more than 8 h pays exactly 8 h'); assert.deepEqual(r.past, r.cap);
       assert.deepEqual(r.part, r.again, 'the same inputs give the same result');
       assert.equal(r.neg.gold, 0); assert.equal(r.neg.delves, 0); assert.equal(r.zero.gold, 0); assert.deepEqual(r.elapsed, [0, 480, 60]);
       assert.equal(r.part.early, 1); assert.equal(r.cap.early, 0); assert.ok(r.part.gold > 0 && r.part.gold < r.cap.gold, 'early collect pays the part done: ' + r.part.gold + ' < ' + r.cap.gold);
-      assert.ok(r.cap.floor >= 1 && r.cap.floor <= 8 && r.cap.deaths <= r.cap.delves && r.cap.kills > 0);
+      assert.ok(r.cap.floor >= 1 && r.cap.floor <= 5 && r.cap.deaths <= r.cap.delves && r.cap.kills > 0, 'never deeper than the player has been (floor 5): ' + r.cap.floor);
       assert.ok(r.g30 > r.g120 && r.g120 > r.g480, 'pay per hour falls with length: ' + [r.g30, r.g120, r.g480].map(Math.round));
       assert.ok(r.tot[0] < r.tot[1] && r.tot[1] < r.tot[2], 'total pay rises with length');
-      for (const [g, rate] of [[r.g30, r.rates[0]], [r.g120, r.rates[1]], [r.g480, r.rates[2]]]) assert.ok(Math.abs(g / (r.gph * rate) - 1) < 0.2, 'about rate x manual gold per hour: ' + Math.round(g) + ' vs ' + Math.round(r.gph * rate));
-      assert.ok(r.rates.every((x) => x >= 0.2 && x <= 0.34), 'a quarter to a third of manual play');
-      assert.ok(r.bpAny, 'a long trip can bring a blueprint');
+      for (const [g, rate] of [[r.g30, r.rates[0]], [r.g120, r.rates[1]], [r.g480, r.rates[2]]]) assert.ok(Math.abs(g / (r.gph * rate) - 1) < 0.2, 'about rate x gold per hour of the best floor: ' + Math.round(g) + ' vs ' + Math.round(r.gph * rate));
+      assert.ok(r.rates[0] > r.rates[1] && r.rates[1] > r.rates[2] && r.rates[2] === 1, '30 min is the best rate, 8 h the base');
+      assert.ok(r.bpAny, 'a long trip can bring a blueprint'); assert.ok(!r.bpNone, 'no blueprint from heroes that never got past floor 2');
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });
@@ -81,9 +82,8 @@ describe('idle', { concurrency: CONC }, () => {
   it('expedition outcome scales with upgrade power and class, and a hero sent through the game screens survives a reload with the same result', async () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 4, meta: { ...BASE, gold: 2000 } });
     try {
-      const pw = await page.evaluate(() => { const I = window.__dbg.idle; const g = (c, p) => I.expRow(c, p).gph; return { lo: g('warrior', 0), hi: g('warrior', I.upMaxSpent()), m: g('mage', 0), r: g('rogue', 0), spent0: I.upSpent() }; });
-      assert.ok(pw.hi > pw.lo * 1.5, 'stronger characters bring home more: ' + pw.lo + ' -> ' + pw.hi); assert.equal(pw.spent0, 0);
-      assert.ok(pw.m > 0 && pw.r > 0);
+      const pw = await page.evaluate(() => { const I = window.__dbg.idle; const g = (b, p) => I.expGph(b, p); return { lo: g(4, 0), hi: g(4, I.upMaxSpent()), deep: g(8, 0), spent0: I.upSpent() }; });
+      assert.ok(pw.hi > pw.lo * 1.5, 'stronger characters bring home more: ' + pw.lo + ' -> ' + pw.hi); assert.ok(pw.deep > pw.lo * 1.5, 'deeper best floor pays more'); assert.equal(pw.spent0, 0);
       await page.evaluate(() => { const I = window.__dbg.idle; I.upBuy('hp'); I.upBuy('hp'); });
       assert.equal(await page.evaluate(() => window.__dbg.idle.upSpent()), 30 + 78, 'power = gold put into levels');
       // through the screens
@@ -95,7 +95,7 @@ describe('idle', { concurrency: CONC }, () => {
       await page.locator('[data-dur="120"]').click();
       assert.match(await page.locator('.xslot[data-slot="0"]').textContent(), /Mage · 2 hours.*Back in/);
       const saved = await page.evaluate(() => JSON.parse(JSON.stringify(window.__dbg.api.meta().exp.run[0])));
-      assert.equal(saved.cls, 'mage'); assert.equal(saved.dur, 120); assert.equal(saved.pw, 108);
+      assert.equal(saved.cls, 'mage'); assert.equal(saved.dur, 120); assert.equal(saved.pw, 108); assert.equal(saved.bf, 1, 'the best manual floor is stored with the trip');
       // second slot is a purchase
       assert.equal(await page.locator('#btnSlot2').isDisabled(), false);
       await page.locator('#btnSlot2').click();
@@ -127,7 +127,7 @@ describe('idle', { concurrency: CONC }, () => {
       const gold1 = await page.evaluate(() => window.__dbg.api.meta().gold);
       assert.ok(Math.abs(gold1 - 10 - want.full) <= 3, 'paid the result: ' + (gold1 - 10) + ' vs ' + want.full);
       const body = await page.locator('#titleBox').innerText();
-      for (const w of ['Deepest floor', 'Kills', 'Deaths', 'Gold']) assert.match(body, new RegExp(w));
+      for (const w of ['Deepest floor', 'Kills', 'Delves', 'Gold']) assert.match(body, new RegExp(w));
       await reload(page);
       assert.equal(await page.evaluate(() => window.__dbg.api.meta().gold), gold1, 'reload pays nothing more');
       await page.locator('#btnExp').click();
@@ -142,7 +142,7 @@ describe('idle', { concurrency: CONC }, () => {
       // a blueprint in a result is marked found, not unlocked
       const bp = await page.evaluate(() => {
         const I = window.__dbg.idle, m = window.__dbg.api.meta(); let found = null;
-        for (let s = 0; s < 400 && !found; s++) { m.exp.run[0] = { cls: 'mage', dur: 480, t0: 1e12, seed: s, pw: 0 }; const r = I.expResult(m.exp.run[0], 1e12 + 8 * 3600000); if (r.bp) { I.expCollect(0, 1e12 + 8 * 3600000); found = r.bp; } }
+        for (let s = 0; s < 400 && !found; s++) { m.exp.run[0] = { cls: 'mage', dur: 480, t0: 1e12, seed: s, pw: 0, bf: 4 }; const r = I.expResult(m.exp.run[0], 1e12 + 8 * 3600000); if (r.bp) { I.expCollect(0, 1e12 + 8 * 3600000); found = r.bp; } }
         return { found, state: found && I.bpState(found), tier: found && I.BPS.find((b) => b.id === found).tier };
       });
       assert.ok(bp.found && bp.state === 1 && bp.tier === 'c', 'expeditions bring common blueprints, found but not bought');

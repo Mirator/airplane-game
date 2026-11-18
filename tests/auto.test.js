@@ -336,7 +336,7 @@ describe('auto', { concurrency: CONC }, () => {
   });
 
   // ---------------------------------------------------------------------------------------------------- rewards and records
-  it('an Auto run banks idle pay for the time it played, not the run gold; a manual run banks full gold; a mixed run keeps its manual share; records and the daily still count and carry an Auto tag', async () => {
+  it('an Auto run banks idle pay for the turns it played, not the run gold; a manual run banks full gold; a mixed run keeps its manual share; records and the daily still count and carry an Auto tag', async () => {
     const { page, ctx } = await fresh('warrior', 31);
     try {
       const man = await page.evaluate(() => {
@@ -350,15 +350,16 @@ describe('auto', { concurrency: CONC }, () => {
         const D = window.__dbg, G = D(), m = D.api.meta();
         D.auto.start(true); D.auto.step(); D.auto.step();
         const played = { ms: G.auto.ms, t: G.auto.t, turn: G.turn };
-        G.auto.ms = 3600000; G.p.gold = 101; const g0 = m.gold, runs0 = m.runs, rate = D.idle.autoRate('warrior');
+        m.bestM = 4; G.turn = 3000; G.auto.t = 3000; G.p.gold = 101; const g0 = m.gold, runs0 = m.runs, rate = D.idle.autoPerTurn() * 3000, hud = null;
         D.api.finish('abandon');
-        return { played, rate, banked: m.gold - g0, text: document.getElementById('modalBox').textContent, recap: !!document.getElementById('autoRecap'), aruns: m.rec.n.warrior.aruns, runs: m.runs - runs0, on: G.auto.on };
+        return { played, rate, hud: document.getElementById('stats').textContent, banked: m.gold - g0, text: document.getElementById('modalBox').textContent, recap: !!document.getElementById('autoRecap'), aruns: m.rec.n.warrior.aruns, runs: m.runs - runs0, on: G.auto.on };
       });
       assert.equal(aut.played.t, aut.played.turn, 'every turn of this run was Auto\'s');
       assert.ok(aut.played.ms > 0, 'simulated Auto time is counted');
-      assert.equal(aut.banked, Math.round(aut.rate), 'one hour of Auto = one hour at the idle rate; the 101 run gold is not paid');
-      assert.ok(aut.rate > 0);
-      assert.equal(aut.recap, true); assert.match(aut.text, /Auto run: idle pay/);
+      assert.equal(aut.banked, Math.round(aut.rate), '3000 turns of Auto = 3000 turns at the idle rate; the 101 run gold is not paid');
+      assert.ok(aut.rate > 5, 'best floor 4 pays a few gold for 3000 turns: ' + aut.rate);
+      assert.ok(new RegExp('\\b' + aut.banked + '\\b').test(aut.hud), 'the HUD shows the banked number: ' + aut.hud + ' vs ' + aut.banked);
+      assert.equal(aut.recap, true); assert.match(aut.text, /Auto played 3000 turns: idle pay \d+ gold/); assert.ok(aut.text.includes('+' + aut.banked), 'the recap says the banked number');
       assert.equal(aut.aruns, 1); assert.equal(aut.runs, 1, 'the run counts in the records'); assert.equal(aut.on, 0);
       const lists = await page.evaluate(() => { document.getElementById('modalBox').querySelector('button').click(); window.__dbg.mods.showRecords(); return document.getElementById('titleBox').innerHTML; });
       assert.match(lists, /Auto<\/em>/, 'Records list shows the Auto tag');
@@ -373,21 +374,39 @@ describe('auto', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('Auto earns the idle rate in real time too: one second of ticking adds about a second, whatever the speed, and a slow tick never counts more than a few flash delays', async () => {
-    const { page, ctx } = await fresh('mage', 34);
+  it('Auto pays by turns played: the same seed at 1x and 4x banks the same gold; the HUD shows what will be banked while it runs (steps and real timers) and at the end', async () => {
+    const run = async (speed) => {
+      const { page, ctx } = await newPage(browser, { seed: 34, meta: META, fakeDate: [2026, 5, 6] });   // a Daily is seeded by the date: the same game every time
+      try {
+        await page.evaluate(() => window.__dbg.fn.startRun('warrior', { daily: true })); await dbgReady(page); await closeModal(page);
+        const r = await page.evaluate((sp) => {
+          const D = window.__dbg, G = D(), m = D.api.meta(); m.bestM = 3; while (D.auto.state().speed !== sp) D.auto.speed();
+          const hudN = () => +document.querySelectorAll('#stats span')[2].textContent.replace(/\D/g, ''), bad = [], g0 = m.gold; let n = 0;
+          D.auto.start(true);
+          while (D.auto.state().on && !D().over && n++ < 6000) { D.auto.step(); if (!D().over && G.auto.used && hudN() !== D.idle.runBank(G, false).banked) bad.push([G.turn, hudN(), D.idle.runBank(G, false).banked]); }
+          return { gold: m.gold - g0, turn: G.turn, t: G.auto.t, over: G.over, hud: document.querySelectorAll('#stats span')[2].textContent, bad: bad.slice(0, 3), pick: G.p.gold };
+        }, speed);
+        if (speed === 4) {   // real timers: sample the HUD against the bank a few times while it ticks along
+          const live = await page.evaluate(() => { const G = window.__dbg(); return !G.over; });
+          assert.equal(live, false, 'the sync run ended the game');
+        }
+        return r;
+      } finally { await ctx.close(); }
+    };
+    const [a, b] = await Promise.all([run(1), run(4)]);
+    assert.ok(a.over && b.over, 'both runs ended');
+    assert.equal(a.gold, b.gold, 'same gold at any speed: ' + JSON.stringify([a, b])); assert.equal(a.t, b.t, 'same turns'); assert.equal(a.t, a.turn, 'every turn was Auto\'s');
+    assert.ok(a.gold > 0 && a.gold !== a.pick, 'paid by turns, not the ' + a.pick + ' picked up: ' + a.gold);
+    assert.equal(+a.hud.replace(/\D/g, ''), a.gold, 'HUD at the end == banked: ' + a.hud + ' / ' + a.gold);
+    assert.deepEqual(a.bad.concat(b.bad), [], 'while Auto runs the HUD gold is the projected bank');
+    // real timers at 4x: the HUD follows the same number
+    const { page, ctx } = await fresh('warrior', 35);
     try {
-      await fastAuto(page, 20);
-      const r = await page.evaluate(async () => {
-        const D = window.__dbg, G = D(); D.auto.start(false);
-        await new Promise((res) => setTimeout(res, 1500)); D.auto.stop('x');
-        const ms = G.auto.ms, tickMs = D.tables.BAL.auto.tickMs, cap = 4 * D.tables.BAL.auto.flashMs;
-        // a page that was throttled for ten seconds: the next tick adds at most the cap
-        G.auto.ms = 0; D.auto.start(false); D.auto.stop('y');
-        return { ms, t: G.auto.t, turn: G.turn, cap, rate: D.idle.autoRate('mage'), pay: D.idle.autoPay({ p: { cls: 'mage' }, auto: { ms: 3600000 } }) };
-      });
-      assert.ok(r.ms >= 1000 && r.ms <= 2600, 'about 1.5 s of play was counted: ' + r.ms);
-      assert.ok(r.t > 0 && r.t <= r.turn);
-      assert.equal(r.pay, Math.round(r.rate));
+      await fastAuto(page, 40);
+      await page.evaluate(() => { const D = window.__dbg; D.api.meta().bestM = 3; while (D.auto.state().speed !== 4) D.auto.speed(); D.auto.start(false); });
+      const bad = [];
+      for (let i = 0; i < 8; i++) { await page.waitForTimeout(120); const x = await page.evaluate(() => { const D = window.__dbg, G = D(); if (G.over || D.auto.state().tm === null && false) return null; return [+document.querySelectorAll('#stats span')[2].textContent.replace(/\D/g, ''), D.idle.runBank(G, false).banked, G.p.gold]; }); if (x && x[0] !== x[1]) bad.push(x); }
+      assert.deepEqual(bad, []);
     } finally { await ctx.close(); }
   });
 
@@ -395,11 +414,11 @@ describe('auto', { concurrency: CONC }, () => {
     const { page, ctx } = await fresh('rogue', 32);
     try {
       const r = await page.evaluate(() => {
-        const D = window.__dbg, G = D(), A = D.auto, cnt = () => G.log.filter((l) => /Auto earns idle pay/.test(l)).length;
+        const D = window.__dbg, G = D(), A = D.auto, cnt = () => G.log.filter((l) => /Auto pays ~/.test(l)).length;
         A.start(true); const a = cnt(); A.stop('x'); A.start(true); A.stop('y'); A.start(true);
         return { a, b: cnt(), toast: document.getElementById('toast').textContent };
       });
-      assert.equal(r.a, 1); assert.equal(r.b, 1); assert.match(r.toast, /idle pay.*gold\/h/);
+      assert.equal(r.a, 1); assert.equal(r.b, 1); assert.match(r.toast, /Auto pays ~\d+ gold per 1000 turns/);
     } finally { await ctx.close(); }
   });
 

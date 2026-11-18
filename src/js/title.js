@@ -17,18 +17,25 @@ function showClassPicker(mode){
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
  else if(heatMax()>=1){
   // Heat lives here, next to the choice it changes: 0 = normal, 1 = Hard, each next one adds a rule. A level opens by winning at the one below.
+  const lb=document.createElement('p');lb.id='heatLbl';lb.className='sub';lb.innerHTML='<b>Heat</b>: a harder dungeon pays more gold.';t.appendChild(lb);
   const row=document.createElement('div');row.id='heatRow';row.className='heat';
-  const hs=heatSel();
+  const hs=heatSel(),p=document.createElement('div');p.id='heatInfo';p.className='sub';
+  const lockWhy=h=>h===heatMax()+1?'Win a run at Heat '+heatMax()+' to unlock Heat '+h+'.':'Unlock Heat '+(h-1)+' first.';
   for(let h=0;h<=BAL.heat.max;h++){
-   const b=document.createElement('button');b.className='c'+(h===hs?' on':'');b.dataset.heat=h;b.disabled=h>heatMax();
-   b.innerHTML=h>heatMax()?ic('lock',16):'<b>'+h+'</b>';b.setAttribute('aria-label','Heat '+h+(h>heatMax()?' (locked)':''));
-   b.addEventListener('click',function(){meta.heatSel=h;saveMeta();showClassPicker(mode);});
+   const lk=h>heatMax(),b=document.createElement('button');b.className='c'+(h===hs?' on':'')+(lk?' locked':'');b.dataset.heat=h;
+   b.innerHTML=lk?ic('lock',16):'<b>'+h+'</b>';b.setAttribute('aria-label','Heat '+h+(lk?' (locked)':''));if(lk)b.setAttribute('aria-disabled','true');
+   b.addEventListener('click',function(){
+    if(lk){p.innerHTML='<b>Heat '+h+' is locked.</b> '+lockWhy(h);return;}   // a lock says why it is locked (no screen rebuild)
+    meta.heatSel=h;saveMeta();showClassPicker(mode);});
    row.appendChild(b);
   }
   t.appendChild(row);
-  const p=document.createElement('p');p.id='heatInfo';p.className='sub';
-  p.innerHTML=hs>0?'<b>Heat '+hs+' · '+HEAT[hs].n+'</b>: '+HEAT[hs].d+' Gold ×'+heatGold(hs)+'.':'<b>Heat 0</b>: the standard dungeon. Win to climb.';
-  t.appendChild(p);
+  // every rule that is active at the selected level, one short line each
+  let hh='<b>Heat '+hs+(hs?' · '+HEAT[hs].n:' · Normal')+'</b>, gold ×'+heatGold(hs);
+  if(!hs)hh+='<br>The standard dungeon.';
+  else{hh+='<br>Hard: '+HARD_RULES.slice(0,3).map(r=>r.n.toLowerCase()).join(', ')+'.';for(let i=2;i<=hs;i++)hh+='<br>'+HEAT[i].n+': '+HEAT[i].d;}
+  if(heatMax()<BAL.heat.max)hh+='<br><em>Locked: win a run at Heat '+heatMax()+' for Heat '+(heatMax()+1)+'.</em>';
+  p.innerHTML=hh;t.appendChild(p);
  }
  for(const k of Object.keys(CLS)){
   const C=CLS[k],open=k==='warrior'||!!meta.unl[k],row=document.createElement('div');row.className='cls';
@@ -63,8 +70,9 @@ function showTitle(keep){
  if(hasSave()){const b=big(add('button','Continue run','c'));b.id='btnContinue';b.addEventListener('click',continueRun);}
  const nb=big(add('button','New run','c'));nb.id='btnNew';guard(nb,'New run',function(){showClassPicker();});
  {const nr=expReadyCount(),na=expActive();
-  const eb=big(add('button',ic('map',22)+' Expeditions'+(nr?'<i class="pill rdy">'+(nr>1?nr+' ready':'Ready')+'</i>':na?'<i class="pill">'+fmtDur(Math.min(...meta.exp.run.filter(Boolean).map(r=>r.t0+r.dur*60000-Date.now())))+'</i>':''),'c'));
+  const eb=big(add('button',ic('map',22)+' Expeditions'+(nr?'<i class="pill rdy">'+(nr>1?nr+' ready':'Ready')+'</i>':na?'<i class="pill">'+expPill()+'</i>':''),'c'));
   eb.id='btnExp';eb.style.position='relative';eb.addEventListener('click',function(){showExpeditions();});}
+ expPillTick();
  const g=add('div','');g.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px';
  const cell=(id,html,fn)=>{const b=document.createElement('button');b.id=id;b.className='c';b.innerHTML=html;b.classList.add('tri');b.addEventListener('click',fn);g.appendChild(b);return b;};
  const db=cell('btnDaily',ic('cal',22)+'<span class="tl">Daily</span>'+(meta.dly[todayKey()]?'<small style="display:block;font-size:11px">'+dailyNote()+'</small>':''),null);
@@ -73,6 +81,20 @@ function showTitle(keep){
  cell('btnMore',ic('menu',22)+'<span class="tl">More</span>',function(){showMore();});
  $('title').style.display='flex';
  if(keep)t.scrollTop=st;
+}
+// the time left on the title's Expeditions button: the shortest running trip. It follows the clock while the title stays open (one timer, gone when the screen changes).
+function expPill(){const l=meta.exp.run.filter(Boolean).map(r=>expLeft(r,Date.now()));return l.length?fmtDur(Math.min(...l)):'';}
+let pillTimer=null;
+function expPillTick(){
+ if(pillTimer){clearInterval(pillTimer);pillTimer=null;}
+ if(!expActive())return;
+ pillTimer=setInterval(function(){
+  const b=$('btnExp');
+  if(!b||!b.isConnected||$('title').style.display==='none'||b.parentNode!==$('titleBox')){clearInterval(pillTimer);pillTimer=null;return;}
+  const nr=expReadyCount(),pl=b.querySelector('.pill'),rdy=pl&&pl.classList.contains('rdy');
+  if(nr&&!rdy||!nr&&rdy){showTitle(true);return;}
+  if(pl&&!nr){const tx=expPill();if(pl.textContent!==tx)pl.textContent=tx;}
+ },1000);
 }
 // the rarely used screens
 function showMore(){
@@ -124,6 +146,7 @@ function showUpgrades(tab){
   sw.style.width='76px';sw.style.minWidth='76px';
   sw.addEventListener('click',function(){if(pairSwitch(q.k))showUpgrades('upg');});
   row.appendChild(sw);
+  const od=document.createElement('small');od.className='pdesc';od.dataset.other=q.k;od.textContent='Swap: '+pairPer(q,other)+(fee?'':' (free now)');row.appendChild(od);
  }
  add('h2','Unlocks').style.fontSize='16px';
  for(const u of UNLOCKS){

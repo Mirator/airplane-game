@@ -81,7 +81,7 @@ const BAL = {
   enemyAi: {
     sightRange: 9, loseTrackDist: 14,
     smashCooldown: 2, breathCooldown: 2, defaultWindMul: 2, breathRange: 7, breathLength: 8,
-    fleeSteps: 2, tiredTurns: 3,
+    fleeSteps: 1, tiredTurns: 3,
     healEvery: 3, healFrac: 0.35, healBelow: 0.75, healRange: 8,   // Cultist: heals a hurt ally instead of attacking
     lungeEvery: 3,                 // goblins/skeletons (EN lunge:true) take an extra step every Nth turn while chasing: a kiter cannot back away forever
     enrageFrac: 0.5, enrageAtkMul: 1.5, enrageBreathCd: 2,  // boss below this HP fraction: hits harder, breathes more often
@@ -89,22 +89,22 @@ const BAL = {
     summonAt: [0.75, 0.5, 0.25], summonN: 4                      // dragon calls whelps when its HP first drops below each fraction
   },
   // --- resources (combat.js endTurn) ---
-  rage: { max: 100, dealt: 8, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
-  mana: { regen: 1.25, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
+  rage: { max: 100, dealt: 10, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
+  mana: { regen: 1.1, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
   // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
-    bash:     { cd: 6, stun: 2, stunBoss: 1, mul: 1.0 },
+    bash:     { cd: 5, stun: 2, stunBoss: 1, mul: 1.0 },
     cleave:   { rage: 30, mul: 1.0, cd: 0 },
-    charge:   { rage: 15, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
-    brace:    { rage: 35, cd: 0, hits: 3, turns: 6, reduce: 0.5, reflect: 0.5 },
+    charge:   { rage: 10, cd: 2, minDist: 2, maxDist: 6, mul: 0.8, stun: 2, stunBoss: 1 },
+    brace:    { rage: 30, cd: 0, hits: 4, turns: 6, reduce: 0.5, reflect: 0.5 },
     bolt:     { mana: 7, cd: 0, mul: 1.3, add: 1, range: 8 },
     nova:     { mana: 7, cd: 2, freeze: 3, freezeBoss: 1, mul: 0.6 },
     blink:    { mana: 4, cd: 2, range: 5 },
     fire:     { mana: 13, cd: 0, base: 10, perFloor: 3, range: 7, radius: 1 },
     backstab: { cd: 5, mul: 2.4, weakMul: 0.5 },
-    vanish:   { cd: 10, turns: 3 },
+    vanish:   { cd: 8, turns: 3 },
     knife:    { cd: 0, max: 4, mul: 0.7, add: 1, range: 6 },
-    smoke:    { cd: 14, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 }   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
+    smoke:    { cd: 11, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 }   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
   },
   // --- off-hand and charm numbers (items.js, abilities.js) ---
   offhand: {
@@ -140,7 +140,7 @@ const BAL = {
   run: { winBonus: 150 },
   // --- Auto (autopilot, auto.js). Deliberately a simple player: no kiting, no retreating to regenerate ---
   auto: {
-    // Auto no longer banks run gold: the time it plays (real ms, or virtual ms in the simulator) is paid at the 30-minute expedition rate (BAL.exp, EXP_TABLE).
+    // Auto does not bank run gold: every TURN it plays is paid at the 30-minute expedition rate for the player's best manual floor (BAL.exp), so 1x / 2x / 4x pay the same.
     // A run that was only partly Auto keeps its manual share of the run gold (Heat multiplies that share, not the idle pay).
     tickMs: 250,                  // 1x = one decision per tick = 4 turns per second; speeds below divide this
     speeds: [1, 2, 4],
@@ -183,10 +183,15 @@ const BAL = {
           eliteHpMul: 1.6, eliteAtkMul: 1.3,   // Heat 3: the key-carrying elite
           potionMul: 0.7,                // Heat 4: potions heal this fraction
           enrageFrac: 0.8, breathCut: 1 },     // Heat 5: the dragon enrages at this HP share and its breath comes this many turns sooner
-  // --- expeditions (idle.js): the hero is away up to capMin minutes; every delveMin minutes it makes one delve whose outcome is drawn from EXP_TABLE.
-  // rate = share of the manual gold per hour (bot play at the same upgrade power, ~turnSec per human turn) the expedition pays; 30 min is the best rate, 8 h the best total.
+  // --- expeditions (idle.js): the hero is away up to capMin minutes; every delveMin minutes it makes one delve whose outcome is drawn from EXP_TABLE (its shape only).
+  // INCOME IS GATED BY THE PLAYER: a hero cannot go deeper than the deepest floor the player reached in MANUAL play (meta.bestM, min 1). Gold per hour of an 8 h trip =
+  // gph[bestFloor-1] x (1 + boost(upgrade power)); a shorter trip pays 'rate' times that per hour (30 min the best rate, 8 h the best total). Auto pays the 30 min rate per turn played.
+  // Targets per 8 h: best floor 1-2 fresh ~70-100; floor 4 with ~800 gold of upgrades ~500; dragon reached + 3000 ~1200; everything maxed ~1750.
   exp: { capMin: 480, delveMin: 10, turnSec: 1.2, secondSlot: 500, bpChance: 0.04, bpMinFloor: 3,
-         durs: [{ min: 30, n: '30 min', rate: 0.33, hint: 'Best rate' }, { min: 120, n: '2 hours', rate: 0.30, hint: '' }, { min: 480, n: '8 hours', rate: 0.25, hint: 'Best total' }] },
+         gph: [8, 10.5, 22, 40, 48, 60, 70, 79],                       // gold per hour (8 h rate, no upgrades) by best manual floor 1..8
+         boost: [[0, 0], [800, 0.38], [3000, 0.67], [16554, 1.44]],   // [upgrade power (gold put into levels), extra income]: linear between points
+         flat: 0.6,                                                   // share of a delve's pay that does not depend on the floor it ended on (less luck, same average)
+         durs: [{ min: 30, n: '30 min', rate: 1.25, hint: 'Best rate' }, { min: 120, n: '2 hours', rate: 1.12, hint: '' }, { min: 480, n: '8 hours', rate: 1, hint: 'Best total' }] },
   // --- blueprints (idle.js): found in expeditions (tier c), deep manual runs (r, floor deepFrom+), the dragon / Heat 1+ runs (b); then bought with gold
   bp: { cost: { c: 80, r: 200, b: 450 }, deepFrom: 5, deepChance: 0.3, bestWin: 0.5, bestHeat: 0.15, bestHeatWin: 0.9 },
   ach: { kills: 200, elites: 10, streak: 3, dailyDays: 3, hoard: 200, fastTurns: 1000, noArmorFloor: 5 }
@@ -194,14 +199,14 @@ const BAL = {
 
 // ===== Tables: enemies, perks, synergies, classes, gear traits, traps, shop, unlocks =====
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
-// the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give much less (diminishing returns); int = whole numbers (half levels round). pct = a percentage. =====
+// the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give less (diminishing returns) but always a whole, honest step: what a card says for the next level is what it gives; int = whole numbers. pct = a percentage. =====
 const UPG=[
- {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,1.5]],int:1,late:5},
- {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1],[1,0.5]],int:1,late:3},
- {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1],[1,0.5]],int:1,late:3},
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,5]],int:1,late:5},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[4,1]],int:1,late:3},
+ {k:'def',n:'Padded',base:70,u:' defense',steps:[[4,1]],int:1,late:3},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
  {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1,late:4},
- {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,1.5]],pct:1,late:0}
+ {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,3]],pct:1,late:0}
 ];
 function upMax(u){return u.max||u.steps.reduce((a,s)=>a+s[0],0);}
 function upVal(u,l){let v=0,r=l;for(const s of u.steps){const t=Math.min(r,s[0]);v+=t*s[1];r-=t;if(r<=0)break;}return v;}
@@ -211,8 +216,8 @@ function upCost(u,l){const f=u.base*(l+1)*(1+l*BAL.upg.rise);return Math.round(u
 const r1=x=>Math.round(x*10)/10;
 const PAIRS=[
  {k:'edge',n:'Edge',base:60,max:3,late:0,v:[
-  {id:'keen',n:'Keen',d:l=>'+'+r1(l)+'% crit',f:(p,l)=>{p.crit+=0.01*l;}},
-  {id:'vicious',n:'Vicious',d:l=>'+'+r1(1.2*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.012*l;}}]},
+  {id:'keen',n:'Keen',d:l=>'+'+r1(2*l)+'% crit',f:(p,l)=>{p.crit+=0.02*l;}},
+  {id:'vicious',n:'Vicious',d:l=>'+'+r1(2*l)+'% damage',f:(p,l)=>{p.dmgMul=1+0.02*l;}}]},
  {k:'vigor',n:'Vigor',base:60,max:3,late:0,v:[
   {id:'regrow',n:'Regrowth',d:l=>r1(1.5*l)+'% HP healed per floor',f:(p,l)=>{p.renew+=0.015*l;}},
   {id:'drink',n:'Lifedrinker',d:l=>r1(l)+'% of damage healed',f:(p,l)=>{p.life+=0.01*l;}}]},
@@ -309,7 +314,7 @@ const SYN=[
 // kit = the four ability keys (defs in content.js ABIL); start = starting weapon kind; mana = base mana pool (0 = none)
 const CLS={
  warrior:{n:'Warrior',e:'warrior',hp:46,atk:4,def:3,crit:0.05,fire:1,mana:0,kit:['bash','cleave','charge','brace'],start:'sword',res:'Rage'},
- mage:{n:'Mage',e:'mage',hp:28,atk:4,def:0,crit:0.05,fire:2,mana:28,kit:['bolt','nova','blink','fire'],start:'staff',res:'Mana'},
+ mage:{n:'Mage',e:'mage',hp:28,atk:4,def:0,crit:0.05,fire:2,mana:24,kit:['bolt','nova','blink','fire'],start:'staff',res:'Mana'},
  rogue:{n:'Rogue',e:'rogue',hp:32,atk:4,def:0,crit:0.12,fire:1,mana:0,kit:['backstab','vanish','knife','smoke'],start:'dagger',res:'Knives'}
 };
 const LG={warrior:{hp:4,atkE:4},mage:{hp:5,atkE:3},rogue:{hp:3,atkE:2}};

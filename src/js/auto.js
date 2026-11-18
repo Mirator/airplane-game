@@ -5,7 +5,7 @@ const AUTO_SPEED_KEY='dcr_auto_speed',RANGED=['cultist','archer','warlock'];
 const AUTO={on:false,tm:null,pick:null,speed:1,self:false,uiKey:'',ignore:new Set(),shopped:{},bad:new Set(),uses:{},uses8:{},ticks:0,modals:0,idle:0,mrun:0,hold:0,lastProg:0,pf:0,pexp:0,hp:1e9,kills:0,err:null,lastStop:''};
 try{const s=+localStorage.getItem(AUTO_SPEED_KEY);if(BAL.auto.speeds.indexOf(s)>=0)AUTO.speed=s;}catch(e){}
 // what the player is told about Auto's pay: gold per hour (the 30-minute expedition rate at the current upgrade power; Heat does not change it)
-function autoRateText(){const c=G&&G.p?G.p.cls:'warrior';return '~'+Math.round(autoRate(c))+' gold/h';}
+function autoRateText(){return '~'+Math.max(1,Math.round(autoPerTurn()*1000))+' gold per 1000 turns';}
 function autoDelay(flash){return Math.max(15,(flash?BAL.auto.flashMs:BAL.auto.tickMs)/AUTO.speed);}
 // exactly one pending timer, ever: scheduling always cancels the previous one
 function autoSchedule(ms){if(AUTO.tm)clearTimeout(AUTO.tm);AUTO.tm=setTimeout(autoTick,ms);}
@@ -17,7 +17,7 @@ function autoStart(sync){
  if(!G||G.over||!G.auto||$('title').style.display!=='none')return false;
  walkTok++;armed=null;
  G.auto.on=1;AUTO.on=true;AUTO.pick=null;AUTO.idle=0;AUTO.mrun=0;AUTO.hp=1e9;AUTO.kills=G.kills;AUTO.pf=G.floor;AUTO.pexp=-1;AUTO.lastProg=G.turn;AUTO.lastStop='';AUTO.err=null;
- if(!G.auto.noticed){G.auto.noticed=1;const t='Auto earns idle pay, '+autoRateText()+'.';msg(t);toast(t,4200);}
+ if(!G.auto.noticed){G.auto.noticed=1;const t='Auto pays '+autoRateText()+'.';msg(t);toast(t,4200);}
  AUTO.lastT=performance.now();
  msg('Auto on.');
  save();render();

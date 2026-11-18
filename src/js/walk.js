@@ -85,6 +85,20 @@ const tz=trapSet(),cz=crackSet();
    if(i>0){msg('Trap in the way.');startWalk(full.slice(0,i),{explore:true});return;}
   }
  }
+ if(goal<0&&cz.size){
+  // unexplored ground (or the stairs' way) exists only through a cracking tile: walk up to it and say so, instead of "nothing left" (Wait lets it settle)
+  const q=[[p.x,p.y]],pv=new Map([[ix(p.x,p.y),-1]]);let g3=-1;
+  for(let i=0;i<q.length&&g3<0;i++){const [x,y]=q[i];
+   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+    if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||enemyAt(nx,ny)||dz.has(k))continue;
+    pv.set(k,ix(x,y));q.push([nx,ny]);
+    if(!G.exp[k]||G.map[k]===3||loot.has(k)||G.map[k]===2){g3=k;break;}}}
+  if(g3>=0){
+   const full=[];let k=g3;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
+   const i=full.findIndex(t=>cz.has(ix(t[0],t[1])));
+   if(i>=0){msg('The floor is cracking ahead. Wait for it to settle.');if(i>0)startWalk(full.slice(0,i),{explore:true});else render();return;}
+  }
+ }
  if(goal<0){
   // go to stairs if seen
   for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. To the stairs.');startWalk(pa);return;}}

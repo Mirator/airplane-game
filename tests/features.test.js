@@ -412,7 +412,7 @@ describe('features', { concurrency: CONC }, () => {
     try {
       assert.equal(await b.page.locator('#titleBox #heatRow').count(), 0, 'not on the title');
       await b.page.locator('#btnNew').click();
-      const st = await b.page.locator('#heatRow button').evaluateAll((bs) => bs.map((e) => ({ d: e.disabled, h: e.getBoundingClientRect().height, w: e.getBoundingClientRect().width })));
+      const st = await b.page.locator('#heatRow button').evaluateAll((bs) => bs.map((e) => ({ d: e.classList.contains('locked'), h: e.getBoundingClientRect().height, w: e.getBoundingClientRect().width })));
       assert.equal(st.length, 6); assert.deepEqual(st.map((x) => x.d), [false, false, true, true, true, true], 'a win has unlocked Heat 1 only');
       assert.ok(st.every((x) => x.h >= 44 && x.w >= 44), 'tap targets: ' + JSON.stringify(st));
       await b.page.locator('#heatRow button[data-heat="1"]').click();

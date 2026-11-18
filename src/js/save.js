@@ -4,7 +4,7 @@ let meta={seenHelp:0,gold:0,wins:0,best:0,unl:{}};
 // meta fields added with floor modifiers / daily / records / achievements / Hard / idle layer: every one gets a safe default when an older save lacks it.
 // mv = meta version: 1 (no field) had the flat shop (hp atk pot goldp def) and the Hard toggle, 2 has meta.up / pv (upgrade levels, pair variants), bp (blueprints),
 // heat / heatSel, exp (expeditions).
-const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0,aruns:0,up:{},pv:{},bp:{},leg:{},heat:0,heatSel:0,exp:{}});
+const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0,aruns:0,up:{},pv:{},bp:{},leg:{},heat:0,heatSel:0,bestM:0,exp:{}});
 let metaRaw=null,metaDirty=false;
 try{metaRaw=JSON.parse(localStorage.getItem(META_KEY));}catch(e){}
 const hadMeta=!!(metaRaw&&typeof metaRaw==='object'&&!Array.isArray(metaRaw));
@@ -33,6 +33,7 @@ if(hadMeta&&!(+metaRaw.mv>=2)){
  migrated=true;
 }
 meta.mv=2;
+if(hadMeta&&metaRaw.bestM===undefined)meta.bestM=+meta.best||0;   // a save from before the gate: the deepest floor it ever reached counts (Auto runs included, we cannot tell)
 // every field of the idle layer is checked on every boot: anything missing or damaged is replaced by a safe value, never an exception
 function expRecOk(r){return !!r&&typeof r==='object'&&!!CLS[r.cls]&&BAL.exp.durs.some(d=>d.min===+r.dur)&&isFinite(+r.t0)&&isFinite(+r.seed)&&isFinite(+r.pw)&&+r.pw>=0;}
 function expRepOk(r){return !!r&&typeof r==='object'&&!!CLS[r.cls]&&['dur','el','delves','floor','kills','deaths','gold'].every(k=>isFinite(+r[k]))&&(r.bp==null||BPS.some(b=>b.id===r.bp));}
@@ -46,9 +47,9 @@ function cleanMeta(){
  for(const b of BPS){const v=meta.bp[b.id];if(v===1||v===2)bp[b.id]=v;}
  meta.up=up;meta.pv=pv;meta.bp=bp;
  const leg={};if(isO(meta.leg))for(const k in BAL.upg.legacy){const v=Math.floor(+meta.leg[k]);if(isFinite(v)&&v>0)leg[k]=Math.min(v,1000);}meta.leg=leg;
- meta.heat=cl(meta.heat,0,BAL.heat.max);meta.heatSel=cl(meta.heatSel,0,BAL.heat.max);
+ meta.bestM=cl(meta.bestM,0,MAXF);meta.heat=cl(meta.heat,0,BAL.heat.max);meta.heatSel=cl(meta.heatSel,0,BAL.heat.max);
  const e=meta.exp,run=[null,null];
- for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:+r.t0,seed:Math.floor(+r.seed)>>>0,pw:+r.pw};}
+ for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:+r.t0,seed:Math.floor(+r.seed)>>>0,pw:+r.pw,bf:cl(r.bf,0,MAXF)};}
  const rp=expRepOk(e.rep)?{cls:e.rep.cls,dur:+e.rep.dur,el:+e.rep.el,delves:+e.rep.delves,floor:+e.rep.floor,kills:+e.rep.kills,deaths:+e.rep.deaths,gold:+e.rep.gold,bp:e.rep.bp||null,early:e.rep.early?1:0}:null;
  meta.exp={s2:e.s2?1:0,run:run,rep:rp};
 }

@@ -23,14 +23,16 @@ function pairSwitch(k){
  meta.gold-=fee;meta.pv[k]=meta.pv[k]===1?0:1;saveMeta();return true;
 }
 // text for a card: what the current level gives and what the next one adds
+// what one level of a pair variant gives, said BEFORE paying: 'Keen +2% crit per level'
+function pairPer(q,v){return v.n+' '+v.d(1)+(q.max>1?' per level':'');}
 function upText(it){
  const l=upLvl(it.k),mx=upMax(it);
  if(it.steps){
-  const v=upShown(it,l),n=l<mx?upShown(it,l+1)-v:0,u=it.u;
-  return '+'+v+u+(n?' · next +'+n:' · MAX');
+  const v=upBonus(it.k),leg=(meta.leg&&meta.leg[it.k])|0,n=l<mx?upShown(it,l+1)-upShown(it,l):0,u=it.u;   // the real total, veteran bonus of a migrated save included
+  return '+'+v+u+(it.k==='pot'&&v!==1?'s':'')+(leg?' (incl. '+leg+' veteran)':'')+(n?' · next +'+n:' · MAX');
  }
  const va=pairVar(it);
- return (l?va.d(l):'no effect yet')+(l<mx?'':' · MAX');
+ return (l?va.d(l):pairPer(it,va))+(l&&l>=mx?' · MAX':'');
 }
 
 // ---------- Heat ----------
@@ -72,8 +74,13 @@ function bpRunDrop(won){
  return b;
 }
 function bpIcon(b){return b.t==='perk'?'p_'+b.id:b.e;}
+// the kind and class of a blueprint, said on its card: 'Off-hand · Rogue only'
+function bpKind(b){
+ const k={weapon:'Weapon',off:'Off-hand',charm:'Charm',perk:'Perk'}[b.t]||'Item',c=b.t==='off'?OFF[b.id].cls:b.t==='perk'?(perkById(b.id)||{}).cls:null;
+ return k+' · '+(c?CLS[c].n+' only':'any class');
+}
 function bpDesc(b){
- const d=b.t==='weapon'?wpRule(b.id,false):b.t==='off'?offRule(b.id):b.t==='charm'?charmRule(b.id):(perkById(b.id)||{d:''}).d;
+ const d=b.t==='weapon'?wpRule(b.id,false).replace(/(-?\+?\d+ attack)/,'$1 vs Sword'):b.t==='off'?offRule(b.id):b.t==='charm'?charmRule(b.id):(perkById(b.id)||{d:''}).d;
  return d.replace(/\.$/,'');
 }
 // loot pools only contain unlocked blueprints
@@ -95,40 +102,56 @@ function expRow(cls,pw){
  return rows[rows.length-1];
 }
 function expDur(min){return BAL.exp.durs.find(d=>d.min===min)||BAL.exp.durs[0];}
-// expected gold of an expedition of `dur` minutes (shown on the send screen)
-function expEstimate(cls,dur,pw){return Math.round(expRow(cls,pw==null?upSpent():pw).gph*expDur(dur).rate*dur/60);}
+// the deepest floor the player reached in MANUAL play (Auto does not count; at least 1): a hero never delves deeper
+function expBest(rec){const b=rec&&rec.bf>0?rec.bf:meta.bestM|0;return Math.max(1,Math.min(MAXF,b));}   // a trip sent by an older build has no bf: it follows the current best
+// gold per hour at the 8 h rate for a best floor and upgrade power
+function expGph(best,pw){
+ const X=BAL.exp,B=Math.max(1,Math.min(MAXF,best|0)),c=X.boost;let k=c[c.length-1][1];
+ if(pw<=c[0][0])k=c[0][1];else for(let i=1;i<c.length;i++)if(pw<=c[i][0]){k=c[i-1][1]+(c[i][1]-c[i-1][1])*(pw-c[i-1][0])/(c[i][0]-c[i-1][0]);break;}
+ return X.gph[B-1]*(1+k);
+}
+// expected gold of an expedition of `dur` minutes (shown on the send screen); cls is kept for callers, every class pays the same
+function expEstimate(cls,dur,pw,best){return Math.round(expGph(best==null?expBest():best,pw==null?upSpent():pw)*expDur(dur).rate*dur/60);}
 function expElapsed(rec,now){const m=(now-rec.t0)/60000;return m>0?Math.min(m,BAL.exp.capMin):0;}   // never negative, never more than the cap
 function expReady(rec,now){return !!rec&&expElapsed(rec,now)>=rec.dur;}
+function expLeft(rec,now){return Math.max(0,Math.min(rec.dur,rec.dur-expElapsed(rec,now)))*60000;}   // ms to go, never more than the trip length (a clock set back does not add time)
 // The outcome of an expedition after `now`: pure (the record, the clock and which blueprints are already found decide it), so a reload cannot reroll it.
 // The hero is back after rec.dur minutes (or `now` if recalled earlier) and made one delve per delveMin minutes; each delve draws the floor it
-// ended on from the class row; its gold / kills are that floor's means scaled so the expedition pays rate x manual gold per hour on average.
+// ended on from the class row (every floor above the player's best manual floor is folded into it); gold / kills follow that floor's shape, scaled so the
+// expedition pays expGph x rate per hour on average (BAL.exp.flat of every delve is the same on every floor, so a short trip is not a lottery).
 function expResult(rec,now,found){
- const X=BAL.exp,D=expDur(rec.dur),el=expElapsed(rec,now),eff=Math.min(el,rec.dur);
+ const X=BAL.exp,D=expDur(rec.dur),el=expElapsed(rec,now),eff=Math.min(el,rec.dur),B=expBest(rec);
  const row=expRow(rec.cls,rec.pw);
- let avg=0;for(let i=0;i<9;i++)avg+=row.reach[i]*row.gold[i];
- const scale=avg>0?row.gph*(X.delveMin/60)*D.rate/avg:0;
+ const reach=Array(9).fill(0),wg=Array(9).fill(0),wk=Array(9).fill(0);
+ for(let i=0;i<9;i++){const t=B<MAXF&&i>B-1?B-1:i;reach[t]+=row.reach[i];wg[t]+=row.reach[i]*row.gold[i];wk[t]+=row.reach[i]*row.kills[i];}
+ let tot=0,mg=0;for(let i=0;i<9;i++)tot+=reach[i];
+ for(let i=0;i<9;i++)mg+=wg[i];mg=tot>0?mg/tot:1;
+ const gold=reach.map((r,i)=>r>0?X.flat*mg+(1-X.flat)*wg[i]/r:0),kills=reach.map((r,i)=>r>0?wk[i]/r:0);
+ let avg=0;for(let i=0;i<9;i++)avg+=reach[i]/Math.max(tot,1e-9)*gold[i];
+ const scale=avg>0?expGph(B,rec.pw)*(X.delveMin/60)*D.rate/avg:0;
  const phase=mulberry(hashStr(rec.cls+'|'+rec.seed+'|'+rec.t0))();
  const n=Math.max(0,Math.floor(eff/X.delveMin+phase));
- let gold=0,kills=0,deaths=0,floor=0,bp=null;
+ let g=0,kl=0,deaths=0,floor=0,bp=null;
  for(let i=0;i<n;i++){
   const rng=mulberry(hashStr(rec.seed+'|'+rec.t0+'|'+rec.pw.toFixed(1)+'|'+i));
-  let u=rng(),f=0;for(;f<8;f++){u-=row.reach[f];if(u<0)break;}
-  gold+=scale*row.gold[f];kills+=scale*row.kills[f];
+  let u=rng()*tot,f=0;for(;f<8;f++){u-=reach[f];if(u<0)break;}
+  f=Math.min(f,8);
+  g+=scale*gold[f];kl+=scale*kills[f];
   if(f<8)deaths++;
-  floor=Math.max(floor,Math.min(f+1,MAXF));
+  floor=Math.max(floor,Math.min(f+1,B));
   const roll=rng();
-  if(!bp&&f+1>=X.bpMinFloor&&roll<X.bpChance){
+  if(!bp&&Math.min(f+1,B)>=X.bpMinFloor&&roll<X.bpChance){
    const pool=BPS.filter(b=>b.tier==='c'&&!bpState(b.id)&&!(found&&found.has(b.id)));
    if(pool.length)bp=pool[Math.floor(rng()*pool.length)].id;
   }
  }
- return {cls:rec.cls,dur:rec.dur,el:Math.round(eff),delves:n,floor:floor,kills:Math.round(kills),deaths:deaths,gold:Math.round(gold),bp:bp,early:el<rec.dur?1:0};
+ return {cls:rec.cls,dur:rec.dur,el:Math.round(eff),delves:n,floor:floor,kills:Math.round(kl),deaths:deaths,gold:Math.round(g),bp:bp,early:el<rec.dur?1:0};
 }
 function expFree(){const e=meta.exp;for(let i=0;i<(e.s2?2:1);i++)if(!e.run[i])return i;return -1;}
 function expSend(slot,cls,dur){
  const e=meta.exp;
  if(slot<0||slot>1||(slot===1&&!e.s2)||e.run[slot]||!CLS[cls]||(cls!=='warrior'&&!meta.unl[cls])||!BAL.exp.durs.some(d=>d.min===dur))return false;
- e.run[slot]={cls:cls,dur:dur,t0:Date.now(),seed:Math.floor(Math.random()*4294967296)>>>0,pw:upSpent()};
+ e.run[slot]={cls:cls,dur:dur,t0:Date.now(),seed:Math.floor(Math.random()*4294967296)>>>0,pw:upSpent(),bf:expBest()};
  saveMeta();return true;
 }
 // pay the result of a slot (done or recalled early) and free it; the report is kept until the player closes it
@@ -148,6 +171,15 @@ function fmtDur(ms){
 }
 
 // ---------- Auto's idle pay ----------
-// Auto earns the 30-minute expedition rate for the time it plays (gold per hour of the class at the current upgrade power), not the gold of the run.
-function autoRate(cls){return expRow(cls,upSpent()).gph*BAL.exp.durs[0].rate;}
-function autoPay(g){const ms=(g.auto&&g.auto.ms)|0;return Math.round(autoRate(g.p.cls)*ms/3600000);}
+// Auto pays by the TURNS it played (so 1x / 2x / 4x pay the same), at the 30-minute expedition rate for the player's best manual floor and upgrade power.
+function autoGph(){return expGph(expBest(),upSpent())*BAL.exp.durs[0].rate;}
+function autoRate(){return autoGph();}   // gold per hour of play (1 turn = BAL.exp.turnSec)
+function autoPerTurn(){return autoGph()*BAL.exp.turnSec/3600;}
+function autoTurns(g){return g&&g.auto?(g.auto.t|0)+(AUTO.self?Math.max(0,g.turn-AUTO.t0):0):0;}   // turns Auto played, including the one being resolved
+function autoPay(g,turns){return Math.round(autoPerTurn()*(turns==null?autoTurns(g):turns));}
+// what a run banks (and what the HUD shows once Auto has played in it): run gold of the turns the player played themselves (x Heat), plus idle pay for Auto's turns
+function runBank(g,won){
+ const aut=!!(g.auto&&g.auto.used),bonus=won?BAL.run.winBonus:0,heat=gHeat(g);
+ const share=aut?Math.min(1,autoTurns(g)/Math.max(1,g.turn)):0,idle=aut?autoPay(g):0;
+ return {banked:Math.round((g.p.gold+bonus)*(1-share)*heatGold(heat)+idle),idle:idle,share:share,bonus:bonus,heat:heat};
+}

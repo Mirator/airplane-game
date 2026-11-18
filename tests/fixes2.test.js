@@ -140,7 +140,7 @@ describe('playtest bugs and clarity', { concurrency: CONC }, () => {
       await page.click('#menuBtn');
       await page.locator('#modalBox button[data-k="auto"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.auto.state().on), false, 'not started yet');
-      assert.match(await page.locator('#modalBox button[data-k="auto"]').textContent(), /idle pay ~\d+ gold\/h, not run gold/i);
+      assert.match(await page.locator('#modalBox button[data-k="auto"]').textContent(), /pays ~\d+ gold per 1000 turns, not run gold/i);
       await page.locator('#modalBox button[data-k="auto"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.auto.state().on), true, 'started by the second tap');
       await page.evaluate(() => window.__dbg.auto.stop());

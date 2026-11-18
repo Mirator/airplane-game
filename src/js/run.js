@@ -104,7 +104,7 @@ function buildFloor(f){
   for(let a=0;a<40&&!G.merchant;a++){
    const t=free(a<30?pick(others):rooms[0]);if(!t)continue;
    G.merchant={x:t[0],y:t[1],stock:[]};
-   if(a<30&&!stairsOk()){G.merchant=null;}
+   if(!stairsOk()){G.merchant=null;}   // never in the way of the stairs, not even on the last tries (no merchant is better than a blocked floor)
   }
   if(G.merchant)G.merchant.stock=buildStock(f);
  }
@@ -165,8 +165,7 @@ function finish(kind){
  autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
  const won=kind==='win',dead=kind==='dead',hard=!!G.hard,heat=gHeat(G),aut=!!(G.auto&&G.auto.used);
  // Auto: the time it played is paid at the idle rate; only the turns the player played themselves keep their share of the run gold
- const bonus=won?BAL.run.winBonus:0,share=aut?Math.min(1,((G.auto.t|0)+(AUTO.self?Math.max(0,G.turn-AUTO.t0):0))/Math.max(1,G.turn)):0,idle=aut?autoPay(G):0;
- const banked=Math.round((p.gold+bonus)*(1-share)*heatGold(heat)+idle);   // Heat multiplies run gold only: idle pay is by the clock, not by the dungeon
+ const rb=runBank(G,won),bonus=rb.bonus,share=rb.share,idle=rb.idle,banked=rb.banked;   // Heat multiplies run gold only: idle pay is by turns played, not by the dungeon. The HUD shows this same number
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
@@ -182,7 +181,7 @@ function finish(kind){
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<div class="portrait">'+ic(clsOf(p).e,56)+'</div><p class="recap"><b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'</p><div class="chips3"><span>Floor <b>'+G.floor+'</b></span><span><b>'+G.turn+'</b> turns</span><span><b>'+G.kills+'</b> kills</span></div>'+
   '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>('+(heat>1?'Heat '+heat:'Hard')+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto run: idle pay '+idle+' gold'+(share<1?' plus your own turns':'')+'.</p>':'')+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turns: idle pay '+idle+' gold'+(share<1?', plus run gold of yours':'')+'.</p>':'')+
   (bpD?'<p class="recap" id="bpRecap">'+ic(bpIcon(bpD),20)+' Blueprint found: <b>'+bpD.n+'</b></p>':'')+
   (heatUp?'<p class="recap" id="heatRecap">'+ic('skull',16)+' <b>Heat '+heatUp+'</b> unlocked: '+HEAT[heatUp].n+'.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
@@ -210,7 +209,7 @@ function goDown(opt){
  const p=G.p;
  if(p.renew>0){p.hp=Math.min(p.mhp,p.hp+Math.round(p.mhp*p.renew));}
  if(G.floor===BAL.ach.noArmorFloor&&!p.eq.armor)earn('bare');
- meta.best=Math.max(meta.best,G.floor);saveMeta();checkAch();
+ meta.best=Math.max(meta.best,G.floor);if(!AUTO.self)meta.bestM=Math.max(meta.bestM|0,G.floor);saveMeta();checkAch();   // bestM = the deepest floor the player reached by hand: it limits how deep expeditions go
  msg('Floor '+G.floor+' - '+themeOf(G.floor,G.variant).n+(G.floor===MAXF?' (dragon lair!)':'')+'.');
  save();render();
 }
