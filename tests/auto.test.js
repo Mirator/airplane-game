@@ -1,4 +1,4 @@
-// Auto (autopilot) tests: completes floors for every class, a tap hands control back without moving, reload resumes paused, half gold + recap label,
+// Auto (autopilot) tests: completes floors for every class, a tap hands control back without moving, reload resumes paused, idle pay + recap label,
 // watchdog, dialogs resolved (gear / perk / path / shrine / merchant), one timer however fast you toggle, hidden page, old saves, layout.
 // Every test has its own browser context and runs concurrently with the others. Waits are on conditions; where a test only needs
 // "Auto is running" it shortens the decision interval (BAL.auto.tickMs) - the rule under test is the same, just sooner - and where
@@ -114,7 +114,7 @@ describe('auto', { concurrency: CONC }, () => {
       const resume = async () => { await reload(page); await page.click('#btnContinue'); await dbgReady(page); await closeModal(page); return snap(page); };   // (Continue re-opens a pending level-up dialog)
       const loaded = await resume();   // (the page being hidden during the reload already paused it)
       assert.equal(loaded.on, 0, 'paused after reload');
-      assert.equal(await page.evaluate(() => window.__dbg().auto.used), 1, 'the half-gold flag is kept');
+      assert.equal(await page.evaluate(() => window.__dbg().auto.used), 1, 'the Auto flag is kept');
       assert.equal(await page.evaluate(() => window.__dbg.auto.timers()), 0, 'no timer pending: nothing can act');
       assert.equal(await page.locator('#autoSpd').isVisible(), false);
       await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));   // longer than one decision interval at 1x
@@ -336,7 +336,7 @@ describe('auto', { concurrency: CONC }, () => {
   });
 
   // ---------------------------------------------------------------------------------------------------- rewards and records
-  it('half gold is banked for an Auto run (full for a manual one); the recap says so; records and the daily still count and carry an Auto tag', async () => {
+  it('an Auto run banks idle pay for the time it played, not the run gold; a manual run banks full gold; a mixed run keeps its manual share; records and the daily still count and carry an Auto tag', async () => {
     const { page, ctx } = await fresh('warrior', 31);
     try {
       const man = await page.evaluate(() => {
@@ -348,15 +348,46 @@ describe('auto', { concurrency: CONC }, () => {
       await startRun(page, 'warrior'); await closeModal(page);
       const aut = await page.evaluate(() => {
         const D = window.__dbg, G = D(), m = D.api.meta();
-        D.auto.start(true); D.auto.step(); D.auto.step(); G.p.gold = 101; const g0 = m.gold, runs0 = m.runs;
+        D.auto.start(true); D.auto.step(); D.auto.step();
+        const played = { ms: G.auto.ms, t: G.auto.t, turn: G.turn };
+        G.auto.ms = 3600000; G.p.gold = 101; const g0 = m.gold, runs0 = m.runs, rate = D.idle.autoRate('warrior');
         D.api.finish('abandon');
-        return { banked: m.gold - g0, text: document.getElementById('modalBox').textContent, recap: !!document.getElementById('autoRecap'), aruns: m.rec.n.warrior.aruns, runs: m.runs - runs0, on: G.auto.on };
+        return { played, rate, banked: m.gold - g0, text: document.getElementById('modalBox').textContent, recap: !!document.getElementById('autoRecap'), aruns: m.rec.n.warrior.aruns, runs: m.runs - runs0, on: G.auto.on };
       });
-      assert.equal(aut.banked, 51, 'round(101 * 0.5)');
-      assert.equal(aut.recap, true); assert.match(aut.text, /Auto run: half gold/);
+      assert.equal(aut.played.t, aut.played.turn, 'every turn of this run was Auto\'s');
+      assert.ok(aut.played.ms > 0, 'simulated Auto time is counted');
+      assert.equal(aut.banked, Math.round(aut.rate), 'one hour of Auto = one hour at the idle rate; the 101 run gold is not paid');
+      assert.ok(aut.rate > 0);
+      assert.equal(aut.recap, true); assert.match(aut.text, /Auto run: idle pay/);
       assert.equal(aut.aruns, 1); assert.equal(aut.runs, 1, 'the run counts in the records'); assert.equal(aut.on, 0);
       const lists = await page.evaluate(() => { document.getElementById('modalBox').querySelector('button').click(); window.__dbg.mods.showRecords(); return document.getElementById('titleBox').innerHTML; });
       assert.match(lists, /Auto<\/em>/, 'Records list shows the Auto tag');
+      // a run played half by hand: its manual share of the run gold is kept, plus the idle pay for the Auto time
+      await page.evaluate(() => { document.getElementById('titleBox'); window.__dbg.api.showTitle(); });
+      const mixed = await page.evaluate(() => {
+        const D = window.__dbg; D.fn.startRun('warrior'); document.getElementById('modal').style.display = 'none';
+        const G = D(), m = D.api.meta(); G.turn = 10; G.auto = { on: 0, used: 1, noticed: 1, ms: 0, t: 5 }; G.p.gold = 100; const g0 = m.gold; D.api.finish('abandon');
+        return m.gold - g0;
+      });
+      assert.equal(mixed, 50, 'half the turns by hand: half the run gold');
+    } finally { await ctx.close(); }
+  });
+
+  it('Auto earns the idle rate in real time too: one second of ticking adds about a second, whatever the speed, and a slow tick never counts more than a few flash delays', async () => {
+    const { page, ctx } = await fresh('mage', 34);
+    try {
+      await fastAuto(page, 20);
+      const r = await page.evaluate(async () => {
+        const D = window.__dbg, G = D(); D.auto.start(false);
+        await new Promise((res) => setTimeout(res, 1500)); D.auto.stop('x');
+        const ms = G.auto.ms, tickMs = D.tables.BAL.auto.tickMs, cap = 4 * D.tables.BAL.auto.flashMs;
+        // a page that was throttled for ten seconds: the next tick adds at most the cap
+        G.auto.ms = 0; D.auto.start(false); D.auto.stop('y');
+        return { ms, t: G.auto.t, turn: G.turn, cap, rate: D.idle.autoRate('mage'), pay: D.idle.autoPay({ p: { cls: 'mage' }, auto: { ms: 3600000 } }) };
+      });
+      assert.ok(r.ms >= 1000 && r.ms <= 2600, 'about 1.5 s of play was counted: ' + r.ms);
+      assert.ok(r.t > 0 && r.t <= r.turn);
+      assert.equal(r.pay, Math.round(r.rate));
     } finally { await ctx.close(); }
   });
 
@@ -364,11 +395,11 @@ describe('auto', { concurrency: CONC }, () => {
     const { page, ctx } = await fresh('rogue', 32);
     try {
       const r = await page.evaluate(() => {
-        const D = window.__dbg, G = D(), A = D.auto, cnt = () => G.log.filter((l) => /Auto runs bank half gold/.test(l)).length;
+        const D = window.__dbg, G = D(), A = D.auto, cnt = () => G.log.filter((l) => /Auto earns idle pay/.test(l)).length;
         A.start(true); const a = cnt(); A.stop('x'); A.start(true); A.stop('y'); A.start(true);
         return { a, b: cnt(), toast: document.getElementById('toast').textContent };
       });
-      assert.equal(r.a, 1); assert.equal(r.b, 1); assert.match(r.toast, /half gold/);
+      assert.equal(r.a, 1); assert.equal(r.b, 1); assert.match(r.toast, /idle pay.*gold\/h/);
     } finally { await ctx.close(); }
   });
 
@@ -393,7 +424,7 @@ describe('auto', { concurrency: CONC }, () => {
     try {
       await page.evaluate(() => { window.__dbg.fn.save(); const o = JSON.parse(localStorage.getItem('dcr_run_v2')); delete o.auto; localStorage.setItem('dcr_run_v2', JSON.stringify(o)); });
       await reload(page); await page.click('#btnContinue'); await dbgReady(page);
-      assert.deepEqual(await page.evaluate(() => window.__dbg().auto), { on: 0, used: 0, noticed: 0 });
+      assert.deepEqual(await page.evaluate(() => window.__dbg().auto), { on: 0, used: 0, noticed: 0, ms: 0, t: 0 });
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

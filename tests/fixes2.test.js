@@ -134,13 +134,13 @@ describe('playtest bugs and clarity', { concurrency: CONC }, () => {
       assert.match(await page.locator('#a_0').textContent(), /3/);
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
-  it('P2-11: the first Auto tap in a run only states the half-gold cost; the second starts it (no alert)', async () => {
+  it('P2-11: the first Auto tap in a run only states the idle-pay terms; the second starts it (no alert)', async () => {
     const { page, ctx, errors } = await fresh('warrior', 88);
     try {
       await page.click('#menuBtn');
       await page.locator('#modalBox button[data-k="auto"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.auto.state().on), false, 'not started yet');
-      assert.match(await page.locator('#modalBox button[data-k="auto"]').textContent(), /half gold/i);
+      assert.match(await page.locator('#modalBox button[data-k="auto"]').textContent(), /idle pay ~\d+ gold\/h, not run gold/i);
       await page.locator('#modalBox button[data-k="auto"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.auto.state().on), true, 'started by the second tap');
       await page.evaluate(() => window.__dbg.auto.stop());
