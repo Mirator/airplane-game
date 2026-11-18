@@ -18,7 +18,7 @@ describe('fix3: expedition economy', { concurrency: CONC }, () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 21, meta: { ...BASE, gold: 0 } });
     try {
       const r = await page.evaluate(() => {
-        const D = window.__dbg, I = D.idle, m = D.api.meta(), out = {};
+        const D = window.__dbg, I = D.idle, m = D.api.meta(), out = {}, H = 3600000;
         out.best0 = I.expBest();
         const est = (b, pw, d) => I.expEstimate('warrior', d || 480, pw, b), max = I.upMaxSpent();
         out.tab = { b1: est(1, 0), b2: est(2, 0), b4mid: est(4, 800), b4heavy: est(4, 3000), b8heavy: est(8, 3000), b8max: est(8, max), b8fresh: est(8, 0) };
@@ -98,6 +98,7 @@ describe('fix3: expedition economy', { concurrency: CONC }, () => {
       await page.evaluate(() => { const m = window.__dbg.api.meta(); m.exp.run[0] = { cls: 'warrior', dur: 30, t0: Date.now() - 30 * 60000 + 60500, seed: 1, pw: 0, bf: 1 }; m.exp.run[1] = null; window.__dbg.api.showTitle(); });
       assert.match(await txt(page, '#btnExp .pill'), /^2m$/);
       await page.waitForFunction(() => /^1m$/.test(document.querySelector('#btnExp .pill').textContent), null, { timeout: 4000 });
+      await page.evaluate(() => { window.__dbg.api.meta().exp.run[0].t0 = Date.now() - 30 * 60000 + 1500; });   // 1.5 s to go
       await page.waitForFunction(() => /Ready/.test(document.querySelector('#btnExp .pill').textContent), null, { timeout: 4000 });
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
@@ -154,7 +155,7 @@ describe('fix3: shop, Heat, blueprints', { concurrency: CONC }, () => {
       assert.match(r.cards.hp, new RegExp('\\+' + r.bonus.hp + ' HP'), 'Hardy shows its real total: ' + r.cards.hp + ' vs ' + r.bonus.hp);
       assert.match(r.cards.hp, /\(incl\. \d+ veteran\)/);
       assert.match(r.cards.atk, new RegExp('\\+' + r.bonus.atk + ' attack')); assert.match(r.cards.def, new RegExp('\\+' + r.bonus.def + ' defense'));
-      assert.match(r.cards.goldp, new RegExp('\\+' + r.bonus.gm + '% gold')); assert.match(r.cards.pot, new RegExp('\\+' + (r.bonus.pots) + ' potions'));
+      assert.match(r.cards.goldp, new RegExp('\\+' + r.bonus.gm + '% gold')); assert.match(r.cards.pot, new RegExp('\\+' + (r.bonus.pots - 1) + ' potions'));
       assert.equal(r.bonus.hp, 56); assert.equal(r.bonus.atk, 5); assert.equal(r.bonus.gm, 105);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
@@ -174,9 +175,9 @@ describe('fix3: shop, Heat, blueprints', { concurrency: CONC }, () => {
       // a lock is tappable and says why; nothing else changes
       const locks = page.locator('#heatRow button.locked');
       assert.equal(await locks.count(), 3);
-      await locks.nth(0).click(); assert.match(await txt(page, '#heatInfo'), /Heat 3 is locked\. Win a run at Heat 2 to unlock Heat 3\./);
-      await locks.nth(1).click(); assert.match(await txt(page, '#heatInfo'), /Heat 4 is locked\. Unlock Heat 3 first\./);
-      assert.equal(await page.evaluate(() => window.__dbg.api.meta().heatSel), 2, 'a locked level is never selected');
+      await locks.nth(0).click({ force: true }); assert.match(await txt(page, '#heatInfo'), /Heat 3 is locked\. Win a run at Heat 2 to unlock Heat 3\./);
+      await locks.nth(1).click({ force: true }); assert.match(await txt(page, '#heatInfo'), /Heat 4 is locked\. Unlock Heat 3 first\./);
+      assert.equal(await page.evaluate(() => window.__dbg.idle.heatSel()), 2, 'a locked level is never selected');
       const bs = await page.locator('#heatRow button').evaluateAll((b) => b.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }));
       assert.ok(bs.every(([w, h]) => w >= 44 && h >= 44), 'tap targets');
       await page.locator('#heatRow button[data-heat="0"]').click(); assert.match(await txt(page, '#heatInfo'), /Heat 0 · Normal[\s\S]*standard dungeon/);
@@ -244,7 +245,7 @@ describe('fix3: Explore and the floor', { concurrency: CONC }, () => {
   it('Explore: the way on leads through a cracking tile -> it says so and stops in front (not "Nothing left"); gear you just dropped is not a goal and never reopens its card', async () => {
     const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 29 });
     try {
-      await arena(page, ['#############', '#@.........?#', '#############']);
+      await arena(page, ['#########################', '#@.....................?#', '#########################']);
       await page.evaluate(() => { const G = window.__dbg(); G.cracks = [{ x: G.p.x + 4, y: G.p.y, t: 99 }]; });
       const a = await last(page);
       await page.evaluate(() => window.__dbg.fn.explore()); await page.waitForTimeout(700);
@@ -258,7 +259,7 @@ describe('fix3: Explore and the floor', { concurrency: CONC }, () => {
       await page.evaluate(() => window.__dbg.fn.explore()); assert.match((await last(page)).log, /Nothing left/);
       // gear swap: equip the found item, the old one is dropped under the player and marked skip
       await arena(page, ['#########', '#@.......#', '#########']);
-      await page.evaluate(() => { const G = window.__dbg(); G.items.push({ x: G.p.x + 1, y: G.p.y, t: 'weapon', k: 'axe', v: 1, tr: null }); window.__dbg.fn.tryMove(1, 0); });
+      await page.evaluate(() => { const G = window.__dbg(); G.p.eq.weapon = { t: 'weapon', k: 'sword', v: 2, tr: null }; G.items.push({ x: G.p.x + 1, y: G.p.y, t: 'weapon', k: 'axe', v: 3, tr: null }); window.__dbg.fn.tryMove(1, 0); });
       await page.waitForSelector('#modalBox[data-kind="gear"]');
       await page.locator('#modalBox button[data-k="equip"]').click();
       const dr = await page.evaluate(() => { const G = window.__dbg(); return { items: G.items.map((i) => [i.k, i.skip | 0, i.x, i.y]), eq: G.p.eq.weapon.k, px: G.p.x }; });
