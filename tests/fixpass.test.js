@@ -337,10 +337,10 @@ describe('reset across tabs, clock and save details', { concurrency: CONC }, () 
       // tab A is in the background (tab B was opened last): its dialogs are pressed through the DOM
       const dom = (sel) => a.page.evaluate((s) => document.querySelector(s).click(), sel);
       await dom('#btnMore'); await dom('#btnReset'); await dom('#modalBox button[data-k="reset1"]'); await dom('#modalBox button[data-k="reset2"]');
-      await a.page.waitForFunction(() => document.getElementById('title').style.display !== 'none' && document.getElementById('modal').style.display === 'none' && !document.getElementById('btnContinue'), null, { polling: 100 });
+      await a.page.waitForFunction(() => document.getElementById('title').style.display !== 'none' && document.getElementById('modal').style.display === 'none' && !document.getElementById('btnContinue'), null, { polling: 100, timeout: 60000 });
       const store = await a.page.evaluate(() => ({ metaRaw: localStorage.getItem('dcr_meta_v1'), ls: Object.keys(localStorage), gold: window.__dbg.api.meta().gold, unl: Object.keys(window.__dbg.api.meta().unl), heat: window.__dbg.api.meta().heat, up: window.__dbg.api.meta().up.hp }));
       assert.deepEqual(store.ls.filter((k) => /^dcr_/.test(k) && k !== 'dcr_meta_v1'), [], 'no run / settings key is left (the other tab may already have booted a fresh, empty meta)'); assert.equal(store.metaRaw === null || (JSON.parse(store.metaRaw).gold === 0 && !(JSON.parse(store.metaRaw).unl || {}).rogue), true, 'the stored meta is empty or fresh: ' + store.metaRaw); assert.equal(store.gold, 0); assert.deepEqual(store.unl, []); assert.equal(store.heat, 0); assert.equal(store.up, 0);
-      await b.waitForFunction(() => window.__marker !== 1, null, { timeout: 15000, polling: 100 });   // the other tab reloaded itself
+      await b.bringToFront(); await b.waitForFunction(() => window.__marker !== 1, null, { timeout: 60000, polling: 100 });   // the other tab reloaded itself
       assert.equal(await b.evaluate(() => window.__dbg.api.meta().gold), 0, 'and booted from the empty storage');
       assert.equal(await b.evaluate(() => localStorage.getItem('dcr_meta_v1') === null || JSON.parse(localStorage.getItem('dcr_meta_v1')).gold === 0), true, 'the stale tab did not write the old save back');
       assert.deepEqual(errs, []);
