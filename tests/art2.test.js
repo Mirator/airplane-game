@@ -39,7 +39,7 @@ describe('art direction', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('the dragon is drawn after (above) the player and the whelps, its bar lives in a top strip that no sprite covers, and its overlays are sized to it', async () => {
+  it('the dragon is drawn after (above) the player and the whelps, its bar is a HUD row above the map (never on the canvas) and its overlays are sized to it', async () => {
     const { page, ctx, errors } = await openRun(browser, 'warrior');
     try {
       await page.evaluate(() => { window.__dbg.fn.newFloor(8); });
@@ -54,14 +54,15 @@ describe('art direction', { concurrency: CONC }, () => {
         const v = window.__dbg.view(), o = v.order, G = window.__dbg(), ts = v.ts;
         const rects = G.enemies.filter((e) => e.t !== 'dragon' && G.vis[e.y * 30 + e.x]).map((e) => ({ l: v.ox + e.x * ts, t: v.oy + e.y * ts, r: v.ox + (e.x + 1) * ts, b: v.oy + (e.y + 1) * ts }));
         rects.push({ l: v.ox + G.p.x * ts, t: v.oy + G.p.y * ts, r: v.ox + (G.p.x + 1) * ts, b: v.oy + (G.p.y + 1) * ts });
-        const bb = v.bossBar, hit = bb && rects.some((q) => q.l < bb.x + bb.w && q.r > bb.x && q.t < bb.y + bb.h && q.b > bb.y);
-        return { o, bb, hit, ts, cw: v.cw };
+        const row = document.getElementById('bossRow'), rr = row.getBoundingClientRect(), cr = document.getElementById('c').getBoundingClientRect();
+        return { o, shown: row.style.display !== 'none' && rr.height > 8, rowBottom: rr.bottom, mapTop: cr.top, name: document.getElementById('bossName').textContent, hp: document.getElementById('bossHp').textContent, bar: document.getElementById('bossBar').getBoundingClientRect().width, ts, cw: v.cw, oldBar: v.bossBar || null, drawn: o.indexOf('bossBar') };
       });
       const ix = (n) => r.o.indexOf(n);
       assert.ok(ix('dragonHead') > ix('foes') && ix('dragonHead') > ix('player'), 'head after foes and player: ' + r.o);
       assert.ok(ix('dragonBody') < ix('objects') && ix('dragonBody') < ix('foes'), 'body under neighbours (it never hides loot, whelps or the player): ' + r.o);
-      assert.ok(r.bb && r.bb.y <= 12 && r.bb.w >= 60 && !r.hit, 'boss bar in the top strip, off every sprite: ' + JSON.stringify(r.bb));
-      assert.ok(r.bb.x + r.bb.w < r.cw, 'bar inside the canvas');
+      assert.ok(r.shown && r.rowBottom <= r.mapTop + 1 && r.bar >= 60, 'boss bar is a HUD row above the map, off every sprite: ' + JSON.stringify(r));
+      assert.equal(r.name, 'Dragon'); assert.match(r.hp, /^\d+\/\d+$/);
+      assert.equal(r.drawn, -1, 'nothing is drawn on the canvas for the boss bar'); assert.equal(r.oldBar, null);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

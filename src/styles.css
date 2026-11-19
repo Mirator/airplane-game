@@ -93,6 +93,17 @@ button.armed{background:#6b4f12;border-color:var(--gold);box-shadow:0 0 0 2px va
 .chip.mod{border-color:#ffb04a;background:rgba(58,42,22,.88)}.chip.hard{border-color:#ff6a5a;background:rgba(74,28,36,.88)}
 /* Auto: a strip in the top bar while it plays (indicator, speed, stop) and a thin amber frame round the map */
 #autoBox{display:flex;align-items:center;gap:6px;flex:none}
+#stats{flex:1 1 0}
+#srow{flex-wrap:wrap}
+#bossRow{display:flex;align-items:center;gap:8px;min-height:18px}
+#bossName{font-size:13px;font-weight:800;color:#ffd9a8;flex:none}
+#bossBar{flex:1;height:12px;border-radius:6px;background:#4a1420;border:1px solid #1b0b10;overflow:hidden;position:relative}
+#bossBar::after{content:'';position:absolute;left:30%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.7)}
+#bossFill{display:block;height:100%;width:100%;transition:width .15s}
+#bossHp{font-size:12px;font-weight:800;color:var(--dim);flex:none;min-width:72px;text-align:right}
+#autoNote{align-items:center;gap:4px;font-size:12px;line-height:16px;color:#ffe9a8}
+#autoNote b{color:#fff}
+#stats .hn{font-weight:inherit;display:inline}#stats .hw{font-style:normal}
 #autoTag{font-size:13px;font-weight:800;color:#ffe9a8;letter-spacing:.3px;animation:autop 1.4s ease-in-out infinite;display:inline-flex;align-items:center;gap:4px}
 #autoBtn,#autoSpd{min-height:44px;min-width:44px;padding:0 12px;border-radius:22px;background:#b5731f;border:1px solid #ffd24a;font-size:15px;font-weight:800;color:#fff;line-height:1.05;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:4px}
 #autoSpd{background:rgba(20,22,40,.9);color:#ffe9a8}
@@ -216,52 +227,105 @@ body.kb button[data-key]::before{content:attr(data-key);display:block;position:a
 button.danger{border-color:#ff6a5a;background:#4a1c24;color:#ffd6d0}
 .box.reset button.keep{min-height:60px;font-size:18px;font-weight:800;border-color:var(--accent)}
 @media (min-width:700px){.box{max-width:520px}}
-/* portrait tablet: the bars keep a sane width */
-@media (min-width:700px){#bar,#bar2{width:100%;max-width:600px;margin:0 auto}#log{max-width:600px;margin:0 auto;width:100%}#hud{max-width:600px;margin:0 auto;width:100%}}
-/* landscape windows (>= 640 x 480, wider than tall): map left, side panel right. The panel is compact below 960 px wide and a designed column from 960 up */
-#sight{display:none}
-@media (min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10){
- :root{--pw:clamp(280px,34vw,330px)}
- #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"cv hud" "cv sight" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
- #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:10px 10px 4px}
+/* PORTRAIT TABLET (>= 700 wide, taller than wide): the whole width is used - full-width HUD and bars with larger type and icons, a taller log, the map takes the rest */
+@media (min-width:700px) and (max-aspect-ratio:11/10){
+ #app{max-width:none}
+ #hud{max-width:none;padding:10px 16px 4px;gap:6px}
+ #hrow{gap:10px}
+ #hpbar,#resbar{height:34px;max-width:none}#hptxt{font-size:18px;line-height:34px}#restxt{font-size:16px;line-height:34px}
+ #menuBtn,#gearBtn{min-width:54px;width:54px;min-height:54px}
+ #stats{font-size:18px}
+ #bossName{font-size:15px}#bossHp{font-size:14px}#bossBar{height:14px}
+ #autoNote{font-size:14px}
+ #log{max-width:none;margin:0;width:100%;height:100px;font-size:17px;line-height:23px;padding:6px 20px}
+ #bar,#bar2{max-width:none;width:100%;padding-left:16px;padding-right:16px}
+ #bar button{min-height:80px}#bar2 button{min-height:78px}
+ #bar button small,#bar2 button small,#tray button small{font-size:16px}
+ #bar2 small.sub{font-size:14px}
+ .bi,.ai{height:34px}.bi svg,.ai svg{width:34px;height:34px}
+ #tray button{font-size:22px}
+ .box{max-width:600px}
+}
+/* WIDE WINDOWS (a side panel on the right): wider than tall and at least 560 x 480 - or 560 x 360 for a desktop window (a fine pointer; touch phones get the rotate hint instead).
+   The same query is in render.js (WIDE_Q): keep them equal. Panel compact below 960 px wide, a designed column from 960 up. */
+#sight,#runsum{display:none}
+@media (min-width:560px) and (min-height:480px) and (min-aspect-ratio:11/10),(min-width:560px) and (min-height:360px) and (min-aspect-ratio:11/10) and (pointer:fine){
+ :root{--pw:clamp(260px,34vw,330px)}
+ #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto auto minmax(66px,1fr) auto auto;grid-template-areas:"cv hud" "cv sight" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
+ #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:8px 10px 4px}
+ #hrow{flex-wrap:wrap;row-gap:4px}
+ #hpbar{flex:1 1 0;min-width:120px;max-width:none}#resbar{order:3;flex:1 1 100%;max-width:none}
  #cv{grid-area:cv}
  #logw{grid-area:logw;min-height:0;overflow:hidden}
  #log{max-width:none;margin:0;width:auto;height:100%;padding:6px 12px}
  #tray{top:auto;height:72px}
  #bar2{grid-area:bar2;max-width:none;margin:0;width:auto;padding:4px 10px 0}
- #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 10px 12px}
+ #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 10px 10px}
  #bar button,#bar2 button{max-height:76px}
- #hpbar{max-width:none}#resbar{max-width:none}
 }
-/* >= 960 wide: a larger type scale, the In sight list, the log fills the free height */
-@media (min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10){
+@media (max-height:560px) and (min-width:560px) and (min-aspect-ratio:11/10){#bar button,#bar2 button{min-height:50px}.bi,#bar2 .ai{height:22px}#bar{padding-bottom:6px}#hud{padding-top:6px}}
+/* >= 960 wide: a larger type scale, the In sight list (scrolls, never cut), the log is capped, tall windows add a "This run" box */
+@media (min-width:960px) and (min-height:360px) and (min-aspect-ratio:11/10){
  :root{--pw:clamp(380px,27vw,520px);--fs:15px;--lh:21px}
- #sight{display:block;grid-area:sight;margin:6px 10px 0;padding:6px 8px;border:1px solid var(--line);border-radius:12px;background:#12152a;max-height:34vh;overflow:hidden}
- #sight h3{margin:0 0 4px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
- #sightList{display:flex;flex-direction:column;gap:4px}
+ #app{grid-template-rows:auto minmax(0,auto) minmax(0,1fr) minmax(0,auto) auto auto;grid-template-areas:"cv hud" "cv sight" "cv ." "cv logw" "cv bar2" "cv bar"}   /* In sight and the log hug their content (capped); the free height is plain dark space, not an empty box */
+ #sight{display:flex;flex-direction:column;grid-area:sight;margin:6px 10px 0;padding:6px 8px;border:1px solid var(--line);border-radius:12px;background:#12152a;max-height:min(34vh,330px);min-height:0;overflow:hidden}
+ #sight h3{margin:0 0 4px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);flex:none}
+ #sight h3 b{color:var(--text)}
+ #sightList{display:flex;flex-direction:column;gap:4px;overflow-y:auto;min-height:0;flex:1 1 auto;scrollbar-width:thin}
  #sightList .none{font-size:var(--fs);color:var(--dim);padding:4px 2px}
- #sightList button.srow{min-height:44px;padding:2px 8px;display:flex;align-items:center;gap:8px;width:100%;text-align:left;font-size:var(--fs);box-shadow:none}
+ #sightList button.srow{flex:none;min-height:44px;padding:2px 8px;display:flex;align-items:center;gap:8px;width:100%;text-align:left;font-size:var(--fs);box-shadow:none}
  #sightList .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
  #sightList .sh{flex:none;width:30%;max-width:120px;height:10px;border-radius:5px;background:#3a1420;overflow:hidden}
  #sightList .sh i{display:block;height:100%;background:#d8504a}
  #sightList .sv{flex:none;width:44px;text-align:right;font-size:13px;color:var(--dim);font-weight:700}
+ #hrow{flex-wrap:nowrap}#hpbar{flex:11 1 0;min-width:0}#resbar{order:0;flex:9 1 0}
  #hptxt{font-size:calc(var(--fs) + 1px)}#restxt{font-size:var(--fs)}
  #hpbar,#resbar{height:28px}#hptxt,#restxt{line-height:28px}
  #stats{font-size:calc(var(--fs) + 1px)}
- #logw{margin:6px 10px 0;border:1px solid var(--line);border-radius:12px;background:#10121f;display:flex;flex-direction:column}
- #logw::before{content:'Log';display:block;padding:6px 12px 0;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
- #log{flex:1;min-height:0;height:auto}
- #log{font-size:var(--fs);line-height:var(--lh);padding:8px 12px}
+ #logw{margin:6px 10px 0;border:1px solid var(--line);border-radius:12px;background:#10121f;display:flex;flex-direction:column;max-height:min(34vh,300px);min-height:90px;align-self:end;width:auto}
+ #log{flex:1;min-height:0;height:auto;font-size:var(--fs);line-height:var(--lh);padding:8px 12px}
  #log div{-webkit-line-clamp:3}
  #bar button small,#bar2 button small,#tray button small{font-size:calc(var(--fs) - 2px)}
  #bar2 small.sub{font-size:calc(var(--fs) - 3px)}
  #bar button,#bar2 button{min-height:64px}
 }
+@media (min-width:960px) and (min-height:600px) and (min-aspect-ratio:11/10){#logw::before{content:'Log';display:block;padding:6px 12px 0;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}}
+/* 1024x480 and the like: three log lines and a short In sight list share what the two button rows leave */
+@media (min-width:960px) and (min-height:360px) and (max-height:599px) and (min-aspect-ratio:11/10){
+ #sight{padding:4px 6px;max-height:34%}#sight h3{margin-bottom:2px;font-size:12px}
+ #sightList button.srow{min-height:36px}
+ #bar button,#bar2 button{min-height:52px}
+ #hpbar,#resbar{height:26px}#hptxt,#restxt{line-height:26px}
+ #logw{margin-top:4px}#log{padding:4px 10px}
+}
+/* tall: the log is capped (no big empty box) and the free height shows a "This run" summary */
+@media (min-width:960px) and (min-height:900px) and (min-aspect-ratio:11/10){
+ #app{grid-template-rows:auto minmax(0,auto) minmax(0,1fr) minmax(0,auto) auto auto;grid-template-areas:"cv hud" "cv sight" "cv runsum" "cv logw" "cv bar2" "cv bar"}
+ #logw{max-height:min(30vh,300px);min-height:150px}
+ #sight{max-height:min(30vh,320px)}
+ #runsum{display:block;grid-area:runsum;margin:6px 10px 0;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#12152a;overflow:auto;min-height:0}
+ #runsum h3{margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+ #runInfo{display:flex;flex-direction:column;gap:6px;font-size:var(--fs)}
+ #runInfo .rsh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+ #runInfo .rsh span{color:var(--dim);font-size:calc(var(--fs) - 1px)}
+ #runInfo .rsp{display:flex;flex-wrap:wrap;gap:6px}
+ #runInfo .rsc{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:#232845;border:1px solid #3c4272}
+ #runInfo .rsc i{position:absolute;right:-3px;bottom:-4px;font-style:normal;font-size:11px;font-weight:800;background:#6a3fb5;border-radius:7px;padding:0 4px;line-height:14px}
+ #runInfo .rsg{display:flex;justify-content:space-between;gap:10px;align-items:center}
+ #runInfo .rsg small{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;flex:none}
+ #runInfo .rsg span{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ #runInfo .none{color:var(--dim)}
+}
 @media (min-width:1400px) and (min-height:480px) and (min-aspect-ratio:11/10){:root{--fs:16px;--lh:22px}}
 @media (min-width:1800px) and (min-height:700px) and (min-aspect-ratio:11/10){:root{--fs:17px;--lh:24px}}
+/* Auto strip: icon-only Stop on narrow screens so the purse keeps its room */
+@media (max-width:420px){#autoBtn .stl{display:none}#autoBtn{padding:0;min-width:44px}#stats{gap:10px}#hud.auto #stats .hw{display:none}}   /* the word Heat only gives way while the Auto strip shares the row */
+@media (max-width:959px) and (min-aspect-ratio:11/10){#stats{flex-wrap:wrap;row-gap:2px}}
 /* the two 46 px top buttons: the chip sits on their lower-right corner, outside the icon */
 body.kb #menuBtn[data-key]::before,body.kb #gearBtn[data-key]::before{left:-5px;top:auto;right:auto;bottom:-8px}
-body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before,body.kb #tray button[data-key]::before{left:2px;top:1px}
+body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before{left:50%;top:-7px;transform:translateX(-50%);z-index:4}   /* straddling the top edge: the icon is never under it */
+body.kb #bar button,body.kb #bar2 button{padding-top:8px}   /* room under the chip that straddles the top edge */
+body.kb #tray button[data-key]::before{left:2px;top:1px}
 /* level-up badge on the Equipment button: a pulsing count, never over the map */
 #gearBtn .bd{top:-4px;right:-4px;background:#d4572a;border:1px solid #ffd24a;z-index:2}
 #gearBtn.pick{border-color:var(--gold)}
@@ -273,28 +337,39 @@ body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before,bod
 button:focus-visible{outline:3px solid var(--gold);outline-offset:2px;z-index:3}
 .box button:focus-visible{outline-offset:-3px}
 #sightList button.srow:focus-visible{outline-offset:-3px}
-/* menus on big screens: a wider card, larger type, lists in two columns */
-@media (min-width:1180px) and (min-height:600px){
+/* menus on big screens (tablet portrait, any wide window from 900 px): a wider card, larger type, lists in two columns */
+@media (min-width:760px) and (min-height:600px),(min-width:900px) and (min-aspect-ratio:11/10){
  .box{max-width:620px;font-size:17px}
  .box p,.pl,.rl{font-size:16px}.pl small{font-size:15px}
  .sub,.box button span,.box button.hasic .ct span{font-size:15px!important}
  .box h2{font-size:24px}
  .box button{min-height:54px;font-size:17px}
  #title{align-items:center}#titleBox{margin-top:0;max-height:calc(100% - 4vh)}
- #titleBox{max-width:1000px;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:start}
+ #titleBox{max-width:min(1000px,100%);display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:start}
  #titleBox>*{grid-column:1/-1}
  #titleBox>button.hasic,#titleBox>.pair,#titleBox>.pl,#titleBox>.xslot,#titleBox>.lockrow{grid-column:auto}
  #titleBox h1{font-size:36px}
+ #titleBox>.cls .clsmain{min-height:110px}
+ #titleBox.home{max-width:min(700px,100%)}
+}
+/* Records: the totals and the scoring note span both columns; the class picker is three cards side by side on a wide window */
+@media (min-width:760px) and (min-height:600px),(min-width:900px) and (min-aspect-ratio:11/10){#titleBox.recs>.pl:first-of-type,#titleBox.recs>.pl:last-of-type{grid-column:1/-1}}
+@media (min-width:1100px) and (min-height:600px){#titleBox.pick{grid-template-columns:repeat(3,1fr)}#titleBox.pick>.cls{grid-column:auto}#titleBox.pick .cls{flex-direction:column}#titleBox.pick .cls .clsinfo{width:100%;min-height:44px;flex-direction:row}}
+/* wide windows from 900 px: the title is a picture on the left and the buttons on the right (fits 1024 x 480 without scrolling) */
+@media (min-width:900px) and (min-aspect-ratio:11/10){
  #titleBox.home{max-width:920px;grid-template-rows:repeat(8,auto)}
  #titleBox.home>.logo{grid-column:1;grid-row:1/9;align-self:center;margin:0}
  #titleBox.home>*:not(.logo){grid-column:2}
  #titleBox.home .scene{max-height:none}
- #titleBox>.cls .clsmain{min-height:110px}
+ #titleBox.home h1{font-size:32px}
 }
+@media (min-width:900px) and (min-aspect-ratio:11/10) and (max-height:560px){#titleBox{padding:12px 16px;gap:6px 14px}#titleBox.home h1{font-size:28px}#titleBox button.tri{min-height:56px}}
 @media (min-width:1700px) and (min-height:800px){
  .box{font-size:19px;max-width:700px}.box p,.pl,.rl{font-size:18px}.sub,.box button span,.box button.hasic .ct span{font-size:16px!important}
  #titleBox{max-width:1180px}#titleBox.home{max-width:1060px}
 }
+/* short phones: the class picker (with Heat) fits without covering a card under the Back button */
+@media (max-height:700px){.cls .clsmain{min-height:0;padding:4px 10px;grid-template-columns:46px 1fr;column-gap:8px}.cls .clsmain .hero svg{width:42px;height:42px}.cls .clsmain .ab{margin-top:0}.cls .clsmain .ab svg{width:22px;height:22px}.cls .clsmain b{font-size:17px}.box{gap:8px}#titleBox h1{font-size:24px}#heatInfo em{display:none}}
 
 .nw{white-space:nowrap}
-.box button.hasic:disabled{opacity:.72}
+.box button.hasic:disabled{opacity:.86}

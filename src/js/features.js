@@ -36,10 +36,18 @@ function showShrine(){
  opts.push({k:'leave',esc:1,label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
  showModal('Shrine','',opts,'shrine',ic('shrine',30));
 }
+// why a merchant row cannot be bought right now ('' = it can)
+function shopWhy(it,p){
+ if(it.sold)return '';
+ if(it.k==='pot'&&G.inv.pot>=p.potCap)return 'Your potion belt is full ('+G.inv.pot+'/'+p.potCap+').';
+ if(it.k==='perk'&&pc(it.id)>=perkById(it.id).max)return 'You already have the most of this perk.';
+ if(p.gold<it.price)return 'Need '+(it.price-p.gold)+' more gold.';
+ return '';
+}
 function showShop(){
  if(!G||G.over||!G.merchant)return;walkTok++;
  const m=G.merchant,p=G.p;
- const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' <span class="nw">- <span class="gold">'+it.price+' '+ic('coin',14)+'</span></span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
+ const btns=m.stock.map(function(it,i){const why=shopWhy(it,p);return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' <span class="nw">- <span class="gold">'+it.price+' '+ic('coin',14)+'</span></span></b><span>'+(why?'<em class="why">'+why+'</em>':it.d)+'</span>',off:!!it.sold||!!why,fn:function(){buy(i);}};});
  btns.push({k:'leave',esc:1,label:'Leave',c:1,fn:closeModal});
  showModal('Merchant','<p class="sub">You have <span class="gold">'+p.gold+' '+ic('coin',14)+'</span></p>',btns,'shop',ic('merchant',30));
 }

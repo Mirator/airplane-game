@@ -26,14 +26,14 @@ const BAL = {
   enemy: {
     hpPerFloor: 0.78, atkPerFloor: 0.73,        // +78% / +73% of base per floor above 1
     rangedHpFactor: 0.6, rangedAtkFactor: 0.7,  // ranged enemies scale slower
-    early: [1, 0.92, 0.9, 0.93],                        // extra hp / attack multiplier on floors 1-4 (a smoother start; rewards are untouched, so levels and gold keep pace)
+    early: [1, 0.85, 0.8, 0.78],                        // extra hp / attack multiplier on floors 1-4 (a smoother start; rewards are untouched, so levels and gold keep pace)
     eliteHpMul: 2, eliteAtkMul: 1.2, eliteAtkAdd: 1
   },
   spawn: {
     enemyBase: 5, enemyPerFloor: 1.0, enemyExtraMax: 2, ratLastFloor: 5,
-    earlyCut: [2, 1],         // fewer enemy groups on floors 1 and 2 (later floors are untouched, so XP and gold keep their pace)
+    earlyCut: [2, 1, 1],         // fewer enemy groups on floors 1 and 2 (later floors are untouched, so XP and gold keep their pace)
     goldPiles: 3, goldMin: 3, goldMax: 6, goldPerFloor: 2,
-    extraPotionChance: 0.4,
+    extraPotionChance: 0.65,
     weaponChance: 0.5, weaponMin: 1, weaponMax: 2, weaponPerFloor: 0.7,
     armorChance: 0.5, armorRand: 2, armorDiv: 2, armorBase: 1,
     fireChance: 0.5, teleChance: 0.35
@@ -98,7 +98,8 @@ const BAL = {
     backstab: { cd: 5, mul: 2.4, weakMul: 0.5 },
     vanish:   { cd: 8, turns: 3 },
     knife:    { cd: 0, max: 4, mul: 0.7, add: 1, range: 6 },
-    smoke:    { cd: 11, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 }   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
+    smoke:    { cd: 11, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 },   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
+    shot:     { cd: 0 }   // the Mage's free shot armed from the keyboard (its numbers are BAL.shot)
   },
   // --- off-hand and charm numbers (items.js, abilities.js) ---
   offhand: {
@@ -195,8 +196,8 @@ const BAL = {
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
 // the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give less (diminishing returns) but always a whole, honest step: what a card says for the next level is what it gives; int = whole numbers. pct = a percentage. =====
 const UPG=[
- {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,4]],int:1,late:5},
- {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1]],int:1,late:3},
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[1,16],[1,12],[3,6],[3,2]],int:1,late:5},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[1,2],[2,1]],int:1,late:3},
  {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1]],int:1,late:3},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
  {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1,late:4},
@@ -243,8 +244,8 @@ const EN={
  cultist:{n:'Cultist',e:'cultist',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
  bat:{n:'Bat',e:'bat',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
  warlock:{n:'Warlock',e:'warlock',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
- whelp:{n:'Whelp',e:'whelp',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
- dragon:{n:'Dragon',e:'dragon',hp:1700,atk:68,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
+ whelp:{n:'Whelp',e:'whelp',hp:12,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
+ dragon:{n:'Dragon',e:'dragon',hp:2200,atk:60,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[

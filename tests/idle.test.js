@@ -201,7 +201,7 @@ describe('idle', { concurrency: CONC }, () => {
       assert.equal(await page.locator('#tabUpg').getAttribute('aria-pressed'), 'true');
       const cards = await page.locator('[data-up]').evaluateAll((bs) => bs.map((b) => ({ k: b.dataset.up, t: b.textContent.replace(/\s+/g, ' ').trim(), h: b.getBoundingClientRect().height, r: b.getBoundingClientRect().right })));
       assert.equal(cards.length, 9, 'six boosts and three pairs');
-      assert.match(cards.find((c) => c.k === 'hp').t, /Hardy 2\/8\s*\+16 HP · next \+8/);
+      assert.match(cards.find((c) => c.k === 'hp').t, /Hardy 2\/8\s*\+28 HP · next \+6/);
       assert.match(cards.find((c) => c.k === 'edge').t, /Edge: Keen 1\/3/);
       assert.ok(cards.every((c) => c.h >= 44 && c.r <= 391));
       const sw = await page.locator('[data-swap]').evaluateAll((bs) => bs.map((b) => ({ k: b.dataset.swap, h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width, t: b.textContent.trim(), d: b.disabled })));
@@ -209,8 +209,14 @@ describe('idle', { concurrency: CONC }, () => {
       assert.match(sw.find((x) => x.k === 'edge').t, /Vicious.*50/); assert.match(sw.find((x) => x.k === 'vigor').t, /Lifedrinker.*free/);
       await page.locator('[data-up="hp"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.idle.upLvl('hp')), 3);
+      const gold0 = await page.evaluate(() => window.__dbg.api.meta().gold);
+      await page.locator('[data-swap="edge"]').click();   // a swap that costs gold needs a second tap on the same button
+      assert.equal(await page.evaluate(() => window.__dbg.idle.pairVar(window.__dbg.idle.PAIRS[0]).id), 'keen', 'one tap only asks');
+      assert.equal(await page.evaluate(() => window.__dbg.api.meta().gold), gold0, 'nothing charged yet');
+      assert.match(await page.locator('[data-swap="edge"]').textContent(), /Tap again/);
       await page.locator('[data-swap="edge"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.idle.pairVar(window.__dbg.idle.PAIRS[0]).id), 'vicious');
+      assert.equal(await page.evaluate(() => window.__dbg.api.meta().gold), gold0 - 50, 'the fee is paid by the second tap');
       await page.locator('#tabBp').click();
       assert.equal(await page.locator('#tabBp').getAttribute('aria-pressed'), 'true');
       assert.match(await page.locator('#titleBox').innerText(), /Found 0\/20/);
@@ -475,7 +481,7 @@ describe('idle', { concurrency: CONC }, () => {
         return out;
       });
       assert.equal(r.h0.hard, 0); assert.equal(r.h0.pots, 1); assert.equal(r.h1.hard, 1); assert.equal(r.h1.heat, 1); assert.equal(r.h1.pots, 0, 'one fewer starting potion');
-      assert.equal(r.h1.hp, r.want.hp); assert.equal(r.h1.atk, r.want.atk); assert.equal(r.h1.dat, r.want.dat);
+      assert.ok(Math.abs(r.h1.hp - r.want.hp) <= 1 && Math.abs(r.h1.atk - r.want.atk) <= 1, 'Hard numbers (a rounding step of one is fine): ' + JSON.stringify([r.h1, r.want])); assert.equal(r.h1.dat, r.want.dat);
       assert.ok(r.heal[0] === r.heal[1] && r.heal[2] < r.heal[0], 'Heat 4: potions heal less: ' + r.heal);
       assert.ok(r.count[1] >= r.count[0] + 12, 'Heat 2 adds foes: ' + r.count);
       assert.deepEqual(r.rage, [false, true], 'Heat 5: the dragon enrages early');

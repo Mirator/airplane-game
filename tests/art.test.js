@@ -170,7 +170,7 @@ describe('art', { concurrency: CONC }, () => {
       const r = await page.evaluate(() => {
         const T = window.__dbg.tables, bad = [];
         for (const t of ['EN', 'CLS', 'WP', 'ARM', 'OFF', 'CH']) { const seen = {}; for (const k in T[t]) { if (T[t][k].e !== k) bad.push(t + '.' + k + ' -> ' + T[t][k].e); if (seen[T[t][k].e]) bad.push('dup ' + T[t][k].e); seen[T[t][k].e] = 1; } }
-        for (const k in T.ABIL) if (T.ABIL[k].e !== 'ab_' + k) bad.push('ABIL.' + k + ' -> ' + T.ABIL[k].e);
+        for (const k in T.ABIL) if (k !== 'shot' && T.ABIL[k].e !== 'ab_' + k) bad.push('ABIL.' + k + ' -> ' + T.ABIL[k].e);
         for (const m of window.__dbg.mods.MODS) if (m.e !== 'm_' + m.id) bad.push('MOD.' + m.id + ' -> ' + m.e);
         return bad;
       });

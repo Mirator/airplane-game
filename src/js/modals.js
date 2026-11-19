@@ -15,18 +15,19 @@ function modalBlocked(e){
 function showModal(title,html,buttons,kind,icon,opt){
  const wasOpen=$('modal').style.display!=='none';
  const keepIdx=wasOpen&&$('modalBox').contains(document.activeElement)?dlgButtons($('modalBox')).indexOf(document.activeElement):-1;   // a dialog rebuilt in place (the merchant after a purchase) keeps the focused row
- modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]&&!(opt&&opt.nograce)?BAL.ui.modalGraceMs:0;
- armed=null;{const tt=$('toast');if(tt)tt.style.opacity='0';}if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
+ const prevKind=wasOpen?$('modalBox').dataset.kind:'';   // a dialog that REPLACES another of a different kind is a new dialog (grace); the same kind rebuilt (the merchant after a purchase) is not
+ modalAt=performance.now();modalGrace=(!wasOpen||prevKind!==(kind||''))&&GRACE_KINDS[kind]&&!(opt&&opt.nograce)?BAL.ui.modalGraceMs:0;
+ armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
  const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
   const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;if(bt.esc)el.dataset.esc='1';if(bt.def)el.dataset.def='1';
-  el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
+  el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}if(bt.tall)el.style.minHeight='68px';   // room for the two-line terms: the buttons below never jump
   el.addEventListener('click',function(e){e.stopPropagation();if(modalBlocked(e))return;bt.fn(el);});
   b.appendChild(el);
  }
  $('modal').style.alignItems=kind==='help'?'flex-start':'';   // an open section must not move the headings under the finger
- $('modal').style.display='flex';
+ $('modal').style.display='flex';toastHold();
  if(keepIdx>=0){const bs=dlgButtons(b);(bs[Math.min(keepIdx,bs.length-1)]||bs[0]||b).focus();}else focusFirst(b);
 }
 function closeModal(){{const a=document.activeElement;if(a&&a!==document.body&&$('modalBox').contains(a))a.blur();}   // focus leaves with the dialog at once (a hidden button must not keep taking Enter / Space)
@@ -58,8 +59,8 @@ function showPerk(manual){
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {k:pk.id,html:cardHtml(pk.id,'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>'),cls:'hasic',fn:function(){
    addPerk(pk.id);G.picks.shift();G.pending=G.picks.length;closeModal();save();render();
-   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk(true);else afterModals();
-  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){showPerk(true);});}},{k:'later',esc:1,label:'Later',c:1,fn:closeModal}]),'perk',null,{nograce:!!manual});
+   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk();else afterModals();   // chained: the next pick keeps its own grace (a double click must never take two perks)
+  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){showPerk();});}},{k:'later',esc:1,label:'Later',c:1,fn:closeModal}]),'perk',null,{nograce:!!manual});
 }
 // equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
@@ -107,7 +108,7 @@ function showMenu(){
  const arm={v:false},armAuto={v:false};
  showModal('Menu','',[
   {esc:1,html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
-  {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(el){
+  {k:'auto',label:ic('auto',20)+' Auto play',c:1,tall:1,fn:function(el){
    // the cost is stated BEFORE the first activation: the first tap only says it, the second starts (no alert / confirm)
    if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' Pays '+autoRateText()+', not run gold. Tap again';return;}
    closeModal();autoStart();}},

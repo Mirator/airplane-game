@@ -67,7 +67,8 @@ function floatFx(x,y,text,color,big){
   }
  }
  const live=fx.filter(g=>!g.c&&now<g.t+g.d).length;
- const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={x:x,y:y,text:text,color:col,big:!!big,t:t,t0:t0,k:k,sz:sz,d:k==='n'&&live>4?550:LBL_MS[k],off:base,dxo:dxo,n:1};
+ const fe=!mine&&G&&G.enemies?G.enemies.find(e=>e.x===x&&e.y===y&&!e.dead&&e.hp>0):null;
+ const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={fid:fe?fe.id:0,x:x,y:y,text:text,color:col,big:!!big,t:t,t0:t0,k:k,sz:sz,d:k==='n'&&live>4?550:LBL_MS[k],off:base,dxo:dxo,n:1};
  const w=lblW(text,sz,k),h=sz*(k==='n'?1.15:1.5),step=Math.max(0.3,h);
  let row=-1;
  for(let tries=0;tries<12&&row<0;tries++){

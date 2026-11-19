@@ -69,6 +69,7 @@ function targetTiles(k){
   case 'charge':return chargeLines().map(c=>[c.e.x,c.e.y]);
   case 'bolt':return enemyShots(BAL.ability.bolt.range).map(e=>[e.x,e.y]);
   case 'knife':return enemyShots(BAL.ability.knife.range).map(e=>[e.x,e.y]);
+  case 'shot':return G.enemies.filter(canShoot).map(e=>[e.x,e.y]);
   case 'blink':return blinkTiles();
   case 'fire':return groundTiles(BAL.ability.fire.range);
   case 'smoke':return groundTiles(BAL.ability.smoke.range);
@@ -230,6 +231,7 @@ const DO={
   for(const e of G.enemies)e.awake=false;
   vfxAdd('vanish',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish.');endTurn();
  },
+ shot:function(tx,ty){mageShot(enemyAt(tx,ty));},
  knife:function(tx,ty){
   const e=enemyAt(tx,ty),a=BAL.ability.knife,p=G.p;spend('knife');breakVanish();
   vfxAdd('knife',p.x,p.y,tx,ty);
@@ -273,12 +275,13 @@ function useAbility(k,tx,ty){
  DO[k](tx,ty);
  return true;
 }
-function toggleAbility(k){
+function toggleAbility(k,kb){
  walkTok++;if(!G||G.over||modalOpen())return;
  if(armed===k){if(ABIL[k].tg==='self'){useAbility(k);return;}cancelTarget();return;}   // armed self ability: the second tap uses it
  const why=whyNot(k);
  if(why){msg(why);if(armed){armed=null;}render();return;}
- armed=k;msg(ABIL[k].n+(ABIL[k].tg==='self'?': tap again to use.':': tap a target.'));render();
+ armed=k;kcur=null;bannerUntil=0;toastHold();
+ msg(ABIL[k].n+(ABIL[k].tg==='self'?(kb?': Enter or '+(kit().indexOf(k)+1)+' to use, Esc to cancel.':': tap again to use.'):(kb?': arrows move the cursor, Tab next foe, Enter fires, Esc cancels.':': tap a target.')));render();
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- the Mage's free shot: a weak ranged attack on a visible foe within BAL.shot.range (also next to you: the Mage never melees). No mana, no cooldown, one turn.

@@ -25,7 +25,8 @@ const ENAMES=['Gorak','Vexa','Morn','Sable','Thrain','Ilsa','Brakk','Nyx'],ETITL
 const ABIL={
  bash:{e:'ab_bash',n:'Bash',tg:'adj'},cleave:{e:'ab_cleave',n:'Cleave',tg:'self'},charge:{e:'ab_charge',n:'Charge',tg:'line'},brace:{e:'ab_brace',n:'Brace',tg:'self'},
  bolt:{e:'ab_bolt',n:'Bolt',tg:'enemy'},nova:{e:'ab_nova',n:'Nova',tg:'self'},blink:{e:'ab_blink',n:'Blink',tg:'tile'},fire:{e:'ab_fire',n:'Fireball',tg:'tile'},
- backstab:{e:'ab_backstab',n:'Backstab',tg:'adj'},vanish:{e:'ab_vanish',n:'Vanish',tg:'self'},knife:{e:'ab_knife',n:'Knife',tg:'enemy'},smoke:{e:'ab_smoke',n:'Smoke',tg:'tile'}
+ backstab:{e:'ab_backstab',n:'Backstab',tg:'adj'},vanish:{e:'ab_vanish',n:'Vanish',tg:'self'},knife:{e:'ab_knife',n:'Knife',tg:'enemy'},smoke:{e:'ab_smoke',n:'Smoke',tg:'tile'},
+ shot:{e:'ab_bolt',n:'Shot',tg:'enemy'}   // not on any button: the Mage's free shot, armed by the F key so a keyboard cursor can pick its target
 };
 // ---- descriptive text: every number below is read from BAL / the tables, never hand-copied ----
 const pct=x=>Math.round(x*100)+'%',sgn=n=>(n>=0?'+':'')+n;

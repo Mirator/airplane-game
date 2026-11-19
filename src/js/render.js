@@ -1,7 +1,9 @@
 // render.js - canvas sizing and the main render() pass: tiles (pre-rendered, blitted), sprites (pre-rendered, blitted), effects overlays, fog, banner.
 
 // wide layout (side panel) is decided by CSS; the log shows more lines there
-const wideMq=window.matchMedia?window.matchMedia('(min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null,bigMq=window.matchMedia?window.matchMedia('(min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null;
+// WIDE_Q is the side-panel query of styles.css (keep them equal; a test compares them)
+const WIDE_Q='(min-width:560px) and (min-height:480px) and (min-aspect-ratio:11/10),(min-width:560px) and (min-height:360px) and (min-aspect-ratio:11/10) and (pointer:fine)',BIG_Q='(min-width:960px) and (min-height:360px) and (min-aspect-ratio:11/10)';
+const wideMq=window.matchMedia?window.matchMedia(WIDE_Q):null,bigMq=window.matchMedia?window.matchMedia(BIG_Q):null;
 function isWide(){return !!(wideMq&&wideMq.matches);}
 function isBig(){return !!(bigMq&&bigMq.matches);}
 // base tile size: about 11.5 tiles across the short side, never below 28 and never above BAL.ui.camMaxTs (sprites stay crisp, big screens show more map instead)
@@ -126,6 +128,8 @@ function drawDanger(dz,x0,x1,y0,y1,ox,oy,ts,now,am,clip){
 // Explore / a walk met a foe) has to be on screen and tappable: if some of it falls outside the normal view, the camera frames the player plus all of
 // it - panning to the middle of that box and, when the box is bigger than the view, zooming out down to BAL.ui.camMinTs. Sight is 7 tiles, so a
 // box never needs more than 15 x 15 tiles. The frame holds while the ability stays armed, or until the next turn for the sight case.
+// where a floating label is drawn, in tile units: a damage number rides with the foe it hit (the foe may step away while the number rises)
+function lblTile(f){const s=f.fid&&fdraw[f.fid];return s&&s.g===G?[s.dx,s.dy]:[f.x,f.y];}
 function frameOn(){return !!frameT&&frameT.g===G&&frameT.t===G.turn&&frameT.f===G.floor;}
 function frameSight(){if(G)frameT={g:G,t:G.turn,f:G.floor};}
 function seenAwake(){return G.enemies.filter(e=>e.awake&&!e.dead&&G.vis[ix(e.x,e.y)]);}
@@ -162,7 +166,7 @@ function drawEdgeMarks(ox,oy,ts){
 }
 // targeting: enemy targets get a bracket reticle; ground abilities get their reachable area as one shape with a single outline
 function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
- const col={cleave:'#ffb04a',nova:'#9fe8ff',brace:'#9cf',vanish:'#c9a0ff',bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile',self=ABIL[armed].tg==='self';
+ const col={cleave:'#ffb04a',nova:'#9fe8ff',brace:'#9cf',vanish:'#c9a0ff',bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',shot:'#cfe3ff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile',self=ABIL[armed].tg==='self';
  if(ground||self){
   const set=new Set(tg.map(t=>ix(t[0],t[1])));
   ctx.globalAlpha=0.14;ctx.fillStyle=col;for(const t of tg)ctx.fillRect(ox+t[0]*ts,oy+t[1]*ts,ts,ts);ctx.globalAlpha=1;
@@ -176,6 +180,9 @@ function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
   if(self){   // what it will hit: brackets on the foes; the hero's own tile is ringed (tap it to use)
    const q=G.p,hx=ox+(q.x+0.5)*ts,hy=oy+(q.y+0.5)*ts;
    ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(hx,hy,ts*0.46,0,7);ctx.stroke();ctx.lineWidth=1;
+   if(armed==='brace'||armed==='vanish'){const pu=0.5+0.5*Math.sin(now/220);   // Brace / Vanish act on you alone: a pulsing glow and ring round the hero says it is ready (not a pale box)
+    ctx.globalAlpha=0.24+0.14*pu;ctx.fillStyle=col;ctx.beginPath();ctx.arc(hx,hy,ts*0.66,0,7);ctx.fill();ctx.globalAlpha=1;
+    ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.arc(hx,hy,ts*(0.6+0.14*pu),0,7);ctx.stroke();ctx.lineWidth=1;}
    if(armed==='cleave'||armed==='nova')for(const e of chebEnemies()){const cx=ox+(e.x+0.5)*ts,cy=oy+(e.y+0.5)*ts,h=ts*0.5-1,L=ts*0.26;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();for(const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ctx.moveTo(cx+sx*h,cy+sy*(h-L));ctx.lineTo(cx+sx*h,cy+sy*h);ctx.lineTo(cx+sx*(h-L),cy+sy*h);}ctx.stroke();ctx.lineCap='butt';ctx.lineWidth=1;}
   }
  }else{
@@ -216,7 +223,7 @@ function render(){
  const x0=Math.max(0,Math.floor(-ox/ts)),x1=Math.min(W-1,Math.ceil((view.cw-ox)/ts)),
        y0=Math.max(0,Math.floor(-oy/ts)),y1=Math.min(H-1,Math.ceil((view.ch-oy)/ts));
  let more0=stepFog(x0,x1,y0,y1,rm);
- const ord=view.order=[],marks=view.marks=[];view.bossBar=null;   // what was drawn in this frame, in order (the art tests read it)
+ const ord=view.order=[],marks=view.marks=[];   // what was drawn in this frame, in order (the art tests read it)
  const wset=waterSet();LUT=tileLut(th,ts);
  // the unexplored dark is a low-contrast rock texture, not a flat black
  {const pat=rockPattern(ts);if(pat){ctx.save();ctx.translate(ox,oy);ctx.fillStyle=pat;ctx.fillRect(-ox,-oy,view.cw,view.ch);ctx.restore();}}
@@ -380,8 +387,9 @@ function render(){
   {const lg=lunges.p;if(lg){const k=(now-lg.t)/150;if(k<0)more0=true;else if(k<1){const o=Math.sin(Math.PI*k)*ts*0.3;hx=lg.dx*o;hy=lg.dy*o;more0=true;}else delete lunges.p;}}
   ctx.strokeStyle='#fff';ctx.globalAlpha=0.8;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx+hx,py+ts*0.9,ts*0.4,ts*0.14,0,0,7);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=1;
   gshadow(cx+hx,py+ts*0.9,ts*0.32,ts*0.075,0.34);
-  if(G.vanish>0)ctx.globalAlpha=0.5;
-  drawSpr(cls.e,px+hx,py-2+hy,ts,'');ctx.globalAlpha=1;
+  {const dk=G.over&&!G.won&&deathT?Math.min(1,(now-deathT)/Math.max(1,BAL.ui.deathMs||1)):0;   // dying: the hero greys out and fades during the death delay
+   if(G.vanish>0)ctx.globalAlpha=0.5;if(dk>0&&!rm){ctx.globalAlpha=1-0.65*dk;if(dk<1)more0=true;}
+   drawSpr(cls.e,px+hx,py-2+hy,ts,dk>0.25&&!rm?'gray':'');ctx.globalAlpha=1;}
   if(G.brace){ctx.strokeStyle='#97c6ff';ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3+Math.PI/6,qx=cx+Math.cos(a)*ts*0.52,qy=py+ts*0.55+Math.sin(a)*ts*0.52;i?ctx.lineTo(qx,qy):ctx.moveTo(qx,qy);}ctx.closePath();ctx.stroke();ctx.lineWidth=1;}
   {const fl=flashes.p;if(fl&&now<fl)more0=true;if(fl&&now>=fl&&now-fl<190){const a=1-(now-fl)/190;ctx.globalAlpha=0.7*a;drawSpr(cls.e,px+hx,py-2+hy,ts,'flash');ctx.fillStyle='rgba(255,70,70,'+(0.4*a)+')';ctx.beginPath();ctx.arc(cx,py+ts*0.55,ts*0.44,0,7);ctx.fill();ctx.globalAlpha=1;more0=true;}}
   if(now<pulseUntil&&!rm){const a=1-(pulseUntil-now)/700;ctx.strokeStyle='rgba(255,220,90,'+(1-a)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,py+ts/2,ts*(0.5+1.4*a),0,7);ctx.stroke();ctx.lineWidth=1;more0=true;}
@@ -419,21 +427,16 @@ function render(){
   badgeRow(e,bx-ts*0.7,by+g.S*0.22,ts*0.3,1.0);
   if(reachOk(e)){ctx.strokeStyle='#ffe066';ctx.lineWidth=2;ctx.setLineDash([4,3]);rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;}
  }
- if(armed){drawArmed(ox,oy,ts,now,x0,x1,y0,y1);more0=true;}
+ if(armed){drawArmed(ox,oy,ts,now,x0,x1,y0,y1);more0=true;
+  if(document.body.classList.contains('kb')){const kc=kcGet();   // the keyboard cursor: a gold frame on the tile the arrows have picked (Enter fires there)
+   if(kc){const px=ox+kc.x*ts,py=oy+kc.y*ts,pu=0.5+0.5*Math.sin(now/180);ctx.fillStyle='rgba(255,201,60,'+(0.16+0.1*pu)+')';ctx.fillRect(px,py,ts,ts);
+    ctx.strokeStyle='#10121f';ctx.lineWidth=6;rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.strokeStyle='#ffc93c';ctx.lineWidth=3;rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.lineWidth=1;view.kc={x:kc.x,y:kc.y};}else view.kc=null;}}
+ else view.kc=null;
  if(drawVfx(ox,oy,ts,now))more0=true;
  // soft light around the player: the far edge of the screen fades into the dark
  {const fb=fogBmp(ts);ctx.drawImage(fb,Math.round(ox+(vx+0.5)*ts-view.cw/2-ts),Math.round(oy+(vy+0.5)*ts-view.ch/2-ts),view.cw+2*ts,view.ch+2*ts);}
  if(cam||armed){view.mm=null;}else{drawEdgeMarks(ox,oy,ts);drawMini(ts);}   // aiming or framing a fight: nothing (not even the minimap) covers a tile
- // the boss bar lives in a fixed strip at the top of the map, never under a neighbour
- if(boss){
-  const e=boss.e,fr=Math.max(0,Math.min(1,e.hp/e.mhp)),col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,nm0=EN[e.t].n,chipsW=($('chips').children.length?52:0);
-  ctx.font='800 13px system-ui,sans-serif';const nw=ctx.measureText(nm0).width,bx0=8+chipsW,bx=bx0+nw+8,mmx=view.mm?view.mm.x-6:view.cw,bw=Math.max(60,Math.min(260,mmx-bx-8)),by=10;
-  ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=3.5;ctx.strokeStyle=INK;ctx.strokeText(nm0,bx0,by+5);ctx.fillStyle='#fff';ctx.fillText(nm0,bx0,by+5);
-  ord.push('bossBar');view.bossBar={x:bx-2,y:by-2,w:bw+4,h:14};
-  ctx.fillStyle=INK;rrect(bx-2,by-2,bw+4,14,7);ctx.fill();ctx.fillStyle='#4a1420';rrect(bx,by,bw,10,5);ctx.fill();
-  if(fr>0){ctx.fillStyle=col;rrect(bx,by,Math.max(10,bw*fr),10,5);ctx.fill();}
-  ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fillRect(bx+bw*0.3-0.5,by,1,10);
- }
+ // the boss bar is a row of the HUD (updateHud), above the map: it can never cover the dragon, its neighbours or a tile
  let more=more0||shk||!!stepAnim;
  // floating labels (laid out when spawned, see effects.js): numbers are bare outlined digits, status words small pills, announcements upper-case pills
  fx=fx.filter(f=>now-f.t<f.d);
@@ -441,7 +444,8 @@ function render(){
  for(const f of fx){
   if(now<f.t){more=true;continue;}
   if(!f.c&&!G.vis[ix(f.x,f.y)]&&!(boss&&boss.e.x===f.x&&boss.e.y===f.y))continue;   // nothing is shown about a tile the player cannot see (an orphan "!" over empty floor)
-  const du=f.d,a=(now-f.t)/du;let px=ox+(f.x+0.5)*ts+(f.dxo||0)*ts,py=oy+(f.y+0.2+(f.off||0))*ts-(rm?0.25:(now-f.t)/800)*ts*0.6;
+  const du=f.d,a=(now-f.t)/du,lt=lblTile(f),fxx=lt[0],fyy=lt[1];
+  let px=ox+(fxx+0.5)*ts+(f.dxo||0)*ts,py=oy+(fyy+0.2+(f.off||0))*ts-(rm?0.25:(now-f.t)/800)*ts*0.6;
   const fs=Math.round(ts*(f.c?0.46:f.sz));
   ctx.font='800 '+fs+'px system-ui,-apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
   if(f.c||f.k!=='n'){ // pill

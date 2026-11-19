@@ -131,7 +131,8 @@ describe('fix3: shop, Heat, blueprints', { concurrency: CONC }, () => {
         return { rows, pairs, pot, gold, lens: [...document.querySelectorAll('#titleBox button, #titleBox .pdesc')].map((e) => e.innerText.split('\n').slice(1).join(' ')).filter((x) => x.length > 0).map((x) => x.length) };
       });
       for (const x of r.rows) { assert.equal(x.bad, null, 'card text == real gain: ' + JSON.stringify(x.bad)); for (let i = 1; i < x.steps.length; i++) assert.ok(x.steps[i] <= x.steps[i - 1], x.k + ' gains never go up again: ' + x.steps); assert.ok(x.steps.every((g) => g >= 1 && Number.isInteger(g)), x.k + ' whole steps: ' + x.steps); }
-      assert.deepEqual(r.rows.find((x) => x.k === 'hp').steps, [8, 8, 8, 8, 8, 4, 4, 4]);
+      assert.deepEqual(r.rows.find((x) => x.k === 'hp').steps, [16, 12, 6, 6, 6, 2, 2, 2], 'the first Hardy levels give the most (they are what a new player buys first); the total stays +52');
+      assert.deepEqual(r.rows.find((x) => x.k === 'atk').steps, [2, 1, 1], 'the first Sharpened level is +2 attack');
       const mainOf = (k) => r.pairs.find((p) => p.k === k);
       assert.match(mainOf('edge').main, /Keen \+2% crit per level/); assert.match(mainOf('edge').other, /Swap: Vicious \+2% damage per level/);
       assert.match(mainOf('vigor').main, /Regrowth .*HP healed per floor per level/); assert.match(mainOf('vigor').other, /Lifedrinker/);

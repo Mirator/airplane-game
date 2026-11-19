@@ -100,6 +100,17 @@ button.armed{background:#6b4f12;border-color:var(--gold);box-shadow:0 0 0 2px va
 .chip.mod{border-color:#ffb04a;background:rgba(58,42,22,.88)}.chip.hard{border-color:#ff6a5a;background:rgba(74,28,36,.88)}
 /* Auto: a strip in the top bar while it plays (indicator, speed, stop) and a thin amber frame round the map */
 #autoBox{display:flex;align-items:center;gap:6px;flex:none}
+#stats{flex:1 1 0}
+#srow{flex-wrap:wrap}
+#bossRow{display:flex;align-items:center;gap:8px;min-height:18px}
+#bossName{font-size:13px;font-weight:800;color:#ffd9a8;flex:none}
+#bossBar{flex:1;height:12px;border-radius:6px;background:#4a1420;border:1px solid #1b0b10;overflow:hidden;position:relative}
+#bossBar::after{content:'';position:absolute;left:30%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.7)}
+#bossFill{display:block;height:100%;width:100%;transition:width .15s}
+#bossHp{font-size:12px;font-weight:800;color:var(--dim);flex:none;min-width:72px;text-align:right}
+#autoNote{align-items:center;gap:4px;font-size:12px;line-height:16px;color:#ffe9a8}
+#autoNote b{color:#fff}
+#stats .hn{font-weight:inherit;display:inline}#stats .hw{font-style:normal}
 #autoTag{font-size:13px;font-weight:800;color:#ffe9a8;letter-spacing:.3px;animation:autop 1.4s ease-in-out infinite;display:inline-flex;align-items:center;gap:4px}
 #autoBtn,#autoSpd{min-height:44px;min-width:44px;padding:0 12px;border-radius:22px;background:#b5731f;border:1px solid #ffd24a;font-size:15px;font-weight:800;color:#fff;line-height:1.05;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:4px}
 #autoSpd{background:rgba(20,22,40,.9);color:#ffe9a8}
@@ -223,52 +234,105 @@ body.kb button[data-key]::before{content:attr(data-key);display:block;position:a
 button.danger{border-color:#ff6a5a;background:#4a1c24;color:#ffd6d0}
 .box.reset button.keep{min-height:60px;font-size:18px;font-weight:800;border-color:var(--accent)}
 @media (min-width:700px){.box{max-width:520px}}
-/* portrait tablet: the bars keep a sane width */
-@media (min-width:700px){#bar,#bar2{width:100%;max-width:600px;margin:0 auto}#log{max-width:600px;margin:0 auto;width:100%}#hud{max-width:600px;margin:0 auto;width:100%}}
-/* landscape windows (>= 640 x 480, wider than tall): map left, side panel right. The panel is compact below 960 px wide and a designed column from 960 up */
-#sight{display:none}
-@media (min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10){
- :root{--pw:clamp(280px,34vw,330px)}
- #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"cv hud" "cv sight" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
- #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:10px 10px 4px}
+/* PORTRAIT TABLET (>= 700 wide, taller than wide): the whole width is used - full-width HUD and bars with larger type and icons, a taller log, the map takes the rest */
+@media (min-width:700px) and (max-aspect-ratio:11/10){
+ #app{max-width:none}
+ #hud{max-width:none;padding:10px 16px 4px;gap:6px}
+ #hrow{gap:10px}
+ #hpbar,#resbar{height:34px;max-width:none}#hptxt{font-size:18px;line-height:34px}#restxt{font-size:16px;line-height:34px}
+ #menuBtn,#gearBtn{min-width:54px;width:54px;min-height:54px}
+ #stats{font-size:18px}
+ #bossName{font-size:15px}#bossHp{font-size:14px}#bossBar{height:14px}
+ #autoNote{font-size:14px}
+ #log{max-width:none;margin:0;width:100%;height:100px;font-size:17px;line-height:23px;padding:6px 20px}
+ #bar,#bar2{max-width:none;width:100%;padding-left:16px;padding-right:16px}
+ #bar button{min-height:80px}#bar2 button{min-height:78px}
+ #bar button small,#bar2 button small,#tray button small{font-size:16px}
+ #bar2 small.sub{font-size:14px}
+ .bi,.ai{height:34px}.bi svg,.ai svg{width:34px;height:34px}
+ #tray button{font-size:22px}
+ .box{max-width:600px}
+}
+/* WIDE WINDOWS (a side panel on the right): wider than tall and at least 560 x 480 - or 560 x 360 for a desktop window (a fine pointer; touch phones get the rotate hint instead).
+   The same query is in render.js (WIDE_Q): keep them equal. Panel compact below 960 px wide, a designed column from 960 up. */
+#sight,#runsum{display:none}
+@media (min-width:560px) and (min-height:480px) and (min-aspect-ratio:11/10),(min-width:560px) and (min-height:360px) and (min-aspect-ratio:11/10) and (pointer:fine){
+ :root{--pw:clamp(260px,34vw,330px)}
+ #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto auto minmax(66px,1fr) auto auto;grid-template-areas:"cv hud" "cv sight" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
+ #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:8px 10px 4px}
+ #hrow{flex-wrap:wrap;row-gap:4px}
+ #hpbar{flex:1 1 0;min-width:120px;max-width:none}#resbar{order:3;flex:1 1 100%;max-width:none}
  #cv{grid-area:cv}
  #logw{grid-area:logw;min-height:0;overflow:hidden}
  #log{max-width:none;margin:0;width:auto;height:100%;padding:6px 12px}
  #tray{top:auto;height:72px}
  #bar2{grid-area:bar2;max-width:none;margin:0;width:auto;padding:4px 10px 0}
- #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 10px 12px}
+ #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 10px 10px}
  #bar button,#bar2 button{max-height:76px}
- #hpbar{max-width:none}#resbar{max-width:none}
 }
-/* >= 960 wide: a larger type scale, the In sight list, the log fills the free height */
-@media (min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10){
+@media (max-height:560px) and (min-width:560px) and (min-aspect-ratio:11/10){#bar button,#bar2 button{min-height:50px}.bi,#bar2 .ai{height:22px}#bar{padding-bottom:6px}#hud{padding-top:6px}}
+/* >= 960 wide: a larger type scale, the In sight list (scrolls, never cut), the log is capped, tall windows add a "This run" box */
+@media (min-width:960px) and (min-height:360px) and (min-aspect-ratio:11/10){
  :root{--pw:clamp(380px,27vw,520px);--fs:15px;--lh:21px}
- #sight{display:block;grid-area:sight;margin:6px 10px 0;padding:6px 8px;border:1px solid var(--line);border-radius:12px;background:#12152a;max-height:34vh;overflow:hidden}
- #sight h3{margin:0 0 4px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
- #sightList{display:flex;flex-direction:column;gap:4px}
+ #app{grid-template-rows:auto minmax(0,auto) minmax(0,1fr) minmax(0,auto) auto auto;grid-template-areas:"cv hud" "cv sight" "cv ." "cv logw" "cv bar2" "cv bar"}   /* In sight and the log hug their content (capped); the free height is plain dark space, not an empty box */
+ #sight{display:flex;flex-direction:column;grid-area:sight;margin:6px 10px 0;padding:6px 8px;border:1px solid var(--line);border-radius:12px;background:#12152a;max-height:min(34vh,330px);min-height:0;overflow:hidden}
+ #sight h3{margin:0 0 4px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);flex:none}
+ #sight h3 b{color:var(--text)}
+ #sightList{display:flex;flex-direction:column;gap:4px;overflow-y:auto;min-height:0;flex:1 1 auto;scrollbar-width:thin}
  #sightList .none{font-size:var(--fs);color:var(--dim);padding:4px 2px}
- #sightList button.srow{min-height:44px;padding:2px 8px;display:flex;align-items:center;gap:8px;width:100%;text-align:left;font-size:var(--fs);box-shadow:none}
+ #sightList button.srow{flex:none;min-height:44px;padding:2px 8px;display:flex;align-items:center;gap:8px;width:100%;text-align:left;font-size:var(--fs);box-shadow:none}
  #sightList .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
  #sightList .sh{flex:none;width:30%;max-width:120px;height:10px;border-radius:5px;background:#3a1420;overflow:hidden}
  #sightList .sh i{display:block;height:100%;background:#d8504a}
  #sightList .sv{flex:none;width:44px;text-align:right;font-size:13px;color:var(--dim);font-weight:700}
+ #hrow{flex-wrap:nowrap}#hpbar{flex:11 1 0;min-width:0}#resbar{order:0;flex:9 1 0}
  #hptxt{font-size:calc(var(--fs) + 1px)}#restxt{font-size:var(--fs)}
  #hpbar,#resbar{height:28px}#hptxt,#restxt{line-height:28px}
  #stats{font-size:calc(var(--fs) + 1px)}
- #logw{margin:6px 10px 0;border:1px solid var(--line);border-radius:12px;background:#10121f;display:flex;flex-direction:column}
- #logw::before{content:'Log';display:block;padding:6px 12px 0;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
- #log{flex:1;min-height:0;height:auto}
- #log{font-size:var(--fs);line-height:var(--lh);padding:8px 12px}
+ #logw{margin:6px 10px 0;border:1px solid var(--line);border-radius:12px;background:#10121f;display:flex;flex-direction:column;max-height:min(34vh,300px);min-height:90px;align-self:end;width:auto}
+ #log{flex:1;min-height:0;height:auto;font-size:var(--fs);line-height:var(--lh);padding:8px 12px}
  #log div{-webkit-line-clamp:3}
  #bar button small,#bar2 button small,#tray button small{font-size:calc(var(--fs) - 2px)}
  #bar2 small.sub{font-size:calc(var(--fs) - 3px)}
  #bar button,#bar2 button{min-height:64px}
 }
+@media (min-width:960px) and (min-height:600px) and (min-aspect-ratio:11/10){#logw::before{content:'Log';display:block;padding:6px 12px 0;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}}
+/* 1024x480 and the like: three log lines and a short In sight list share what the two button rows leave */
+@media (min-width:960px) and (min-height:360px) and (max-height:599px) and (min-aspect-ratio:11/10){
+ #sight{padding:4px 6px;max-height:34%}#sight h3{margin-bottom:2px;font-size:12px}
+ #sightList button.srow{min-height:36px}
+ #bar button,#bar2 button{min-height:52px}
+ #hpbar,#resbar{height:26px}#hptxt,#restxt{line-height:26px}
+ #logw{margin-top:4px}#log{padding:4px 10px}
+}
+/* tall: the log is capped (no big empty box) and the free height shows a "This run" summary */
+@media (min-width:960px) and (min-height:900px) and (min-aspect-ratio:11/10){
+ #app{grid-template-rows:auto minmax(0,auto) minmax(0,1fr) minmax(0,auto) auto auto;grid-template-areas:"cv hud" "cv sight" "cv runsum" "cv logw" "cv bar2" "cv bar"}
+ #logw{max-height:min(30vh,300px);min-height:150px}
+ #sight{max-height:min(30vh,320px)}
+ #runsum{display:block;grid-area:runsum;margin:6px 10px 0;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#12152a;overflow:auto;min-height:0}
+ #runsum h3{margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+ #runInfo{display:flex;flex-direction:column;gap:6px;font-size:var(--fs)}
+ #runInfo .rsh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+ #runInfo .rsh span{color:var(--dim);font-size:calc(var(--fs) - 1px)}
+ #runInfo .rsp{display:flex;flex-wrap:wrap;gap:6px}
+ #runInfo .rsc{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:#232845;border:1px solid #3c4272}
+ #runInfo .rsc i{position:absolute;right:-3px;bottom:-4px;font-style:normal;font-size:11px;font-weight:800;background:#6a3fb5;border-radius:7px;padding:0 4px;line-height:14px}
+ #runInfo .rsg{display:flex;justify-content:space-between;gap:10px;align-items:center}
+ #runInfo .rsg small{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;flex:none}
+ #runInfo .rsg span{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ #runInfo .none{color:var(--dim)}
+}
 @media (min-width:1400px) and (min-height:480px) and (min-aspect-ratio:11/10){:root{--fs:16px;--lh:22px}}
 @media (min-width:1800px) and (min-height:700px) and (min-aspect-ratio:11/10){:root{--fs:17px;--lh:24px}}
+/* Auto strip: icon-only Stop on narrow screens so the purse keeps its room */
+@media (max-width:420px){#autoBtn .stl{display:none}#autoBtn{padding:0;min-width:44px}#stats{gap:10px}#hud.auto #stats .hw{display:none}}   /* the word Heat only gives way while the Auto strip shares the row */
+@media (max-width:959px) and (min-aspect-ratio:11/10){#stats{flex-wrap:wrap;row-gap:2px}}
 /* the two 46 px top buttons: the chip sits on their lower-right corner, outside the icon */
 body.kb #menuBtn[data-key]::before,body.kb #gearBtn[data-key]::before{left:-5px;top:auto;right:auto;bottom:-8px}
-body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before,body.kb #tray button[data-key]::before{left:2px;top:1px}
+body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before{left:50%;top:-7px;transform:translateX(-50%);z-index:4}   /* straddling the top edge: the icon is never under it */
+body.kb #bar button,body.kb #bar2 button{padding-top:8px}   /* room under the chip that straddles the top edge */
+body.kb #tray button[data-key]::before{left:2px;top:1px}
 /* level-up badge on the Equipment button: a pulsing count, never over the map */
 #gearBtn .bd{top:-4px;right:-4px;background:#d4572a;border:1px solid #ffd24a;z-index:2}
 #gearBtn.pick{border-color:var(--gold)}
@@ -280,40 +344,54 @@ body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before,bod
 button:focus-visible{outline:3px solid var(--gold);outline-offset:2px;z-index:3}
 .box button:focus-visible{outline-offset:-3px}
 #sightList button.srow:focus-visible{outline-offset:-3px}
-/* menus on big screens: a wider card, larger type, lists in two columns */
-@media (min-width:1180px) and (min-height:600px){
+/* menus on big screens (tablet portrait, any wide window from 900 px): a wider card, larger type, lists in two columns */
+@media (min-width:760px) and (min-height:600px),(min-width:900px) and (min-aspect-ratio:11/10){
  .box{max-width:620px;font-size:17px}
  .box p,.pl,.rl{font-size:16px}.pl small{font-size:15px}
  .sub,.box button span,.box button.hasic .ct span{font-size:15px!important}
  .box h2{font-size:24px}
  .box button{min-height:54px;font-size:17px}
  #title{align-items:center}#titleBox{margin-top:0;max-height:calc(100% - 4vh)}
- #titleBox{max-width:1000px;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:start}
+ #titleBox{max-width:min(1000px,100%);display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:start}
  #titleBox>*{grid-column:1/-1}
  #titleBox>button.hasic,#titleBox>.pair,#titleBox>.pl,#titleBox>.xslot,#titleBox>.lockrow{grid-column:auto}
  #titleBox h1{font-size:36px}
+ #titleBox>.cls .clsmain{min-height:110px}
+ #titleBox.home{max-width:min(700px,100%)}
+}
+/* Records: the totals and the scoring note span both columns; the class picker is three cards side by side on a wide window */
+@media (min-width:760px) and (min-height:600px),(min-width:900px) and (min-aspect-ratio:11/10){#titleBox.recs>.pl:first-of-type,#titleBox.recs>.pl:last-of-type{grid-column:1/-1}}
+@media (min-width:1100px) and (min-height:600px){#titleBox.pick{grid-template-columns:repeat(3,1fr)}#titleBox.pick>.cls{grid-column:auto}#titleBox.pick .cls{flex-direction:column}#titleBox.pick .cls .clsinfo{width:100%;min-height:44px;flex-direction:row}}
+/* wide windows from 900 px: the title is a picture on the left and the buttons on the right (fits 1024 x 480 without scrolling) */
+@media (min-width:900px) and (min-aspect-ratio:11/10){
  #titleBox.home{max-width:920px;grid-template-rows:repeat(8,auto)}
  #titleBox.home>.logo{grid-column:1;grid-row:1/9;align-self:center;margin:0}
  #titleBox.home>*:not(.logo){grid-column:2}
  #titleBox.home .scene{max-height:none}
- #titleBox>.cls .clsmain{min-height:110px}
+ #titleBox.home h1{font-size:32px}
 }
+@media (min-width:900px) and (min-aspect-ratio:11/10) and (max-height:560px){#titleBox{padding:12px 16px;gap:6px 14px}#titleBox.home h1{font-size:28px}#titleBox button.tri{min-height:56px}}
 @media (min-width:1700px) and (min-height:800px){
  .box{font-size:19px;max-width:700px}.box p,.pl,.rl{font-size:18px}.sub,.box button span,.box button.hasic .ct span{font-size:16px!important}
  #titleBox{max-width:1180px}#titleBox.home{max-width:1060px}
 }
+/* short phones: the class picker (with Heat) fits without covering a card under the Back button */
+@media (max-height:700px){.cls .clsmain{min-height:0;padding:4px 10px;grid-template-columns:46px 1fr;column-gap:8px}.cls .clsmain .hero svg{width:42px;height:42px}.cls .clsmain .ab{margin-top:0}.cls .clsmain .ab svg{width:22px;height:22px}.cls .clsmain b{font-size:17px}.box{gap:8px}#titleBox h1{font-size:24px}#heatInfo em{display:none}}
 
 .nw{white-space:nowrap}
-.box button.hasic:disabled{opacity:.72}
+.box button.hasic:disabled{opacity:.86}
 </style></head><body>
 <div id="app">
  <div id="hud">
   <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><div id="resbar" class="res"><div id="resfill"></div><div id="restxt"></div></div><button id="gearBtn" aria-label="Equipment"></button><button id="menuBtn" aria-label="Menu"></button></div>
   <div id="xpbar"><div id="xpfill"></div></div>
-  <div id="srow"><div id="stats"></div><div id="autoBox" style="display:none"><span id="autoTag"><i data-slot="auto"></i> Auto <b id="autoPay"></b></span><button id="autoSpd" aria-label="Auto speed">1×</button><button id="autoBtn" aria-label="Stop Auto" aria-pressed="true"><i data-slot="stop"></i> Stop</button></div></div>
+  <div id="bossRow" style="display:none"><span id="bossName"></span><div id="bossBar"><i id="bossFill"></i></div><b id="bossHp"></b></div>
+  <div id="srow"><div id="stats"></div><div id="autoBox" style="display:none"><button id="autoSpd" aria-label="Auto speed">1×</button><button id="autoBtn" aria-label="Stop Auto" aria-pressed="true"><i data-slot="stop"></i><span class="stl"> Stop</span></button></div></div>
+  <div id="autoNote" style="display:none"><i data-slot="auto"></i> <span>Auto idle pay <b id="autoPay"></b>, not in your purse</span></div>
  </div>
  <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="toast" aria-live="polite"></div></div>
- <div id="sight"><h3>In sight</h3><div id="sightList"></div></div>
+ <div id="sight"><h3>In sight <b id="sightN"></b></h3><div id="sightList"></div></div>
+ <div id="runsum"><h3>This run</h3><div id="runInfo"></div></div>
  <div id="logw"><div id="log"></div><div id="tray" style="display:none"></div></div>
  <div id="bar2"></div>
  <div id="bar"></div>
@@ -352,14 +430,14 @@ const BAL = {
   enemy: {
     hpPerFloor: 0.78, atkPerFloor: 0.73,        // +78% / +73% of base per floor above 1
     rangedHpFactor: 0.6, rangedAtkFactor: 0.7,  // ranged enemies scale slower
-    early: [1, 0.92, 0.9, 0.93],                        // extra hp / attack multiplier on floors 1-4 (a smoother start; rewards are untouched, so levels and gold keep pace)
+    early: [1, 0.85, 0.8, 0.78],                        // extra hp / attack multiplier on floors 1-4 (a smoother start; rewards are untouched, so levels and gold keep pace)
     eliteHpMul: 2, eliteAtkMul: 1.2, eliteAtkAdd: 1
   },
   spawn: {
     enemyBase: 5, enemyPerFloor: 1.0, enemyExtraMax: 2, ratLastFloor: 5,
-    earlyCut: [2, 1],         // fewer enemy groups on floors 1 and 2 (later floors are untouched, so XP and gold keep their pace)
+    earlyCut: [2, 1, 1],         // fewer enemy groups on floors 1 and 2 (later floors are untouched, so XP and gold keep their pace)
     goldPiles: 3, goldMin: 3, goldMax: 6, goldPerFloor: 2,
-    extraPotionChance: 0.4,
+    extraPotionChance: 0.65,
     weaponChance: 0.5, weaponMin: 1, weaponMax: 2, weaponPerFloor: 0.7,
     armorChance: 0.5, armorRand: 2, armorDiv: 2, armorBase: 1,
     fireChance: 0.5, teleChance: 0.35
@@ -424,7 +502,8 @@ const BAL = {
     backstab: { cd: 5, mul: 2.4, weakMul: 0.5 },
     vanish:   { cd: 8, turns: 3 },
     knife:    { cd: 0, max: 4, mul: 0.7, add: 1, range: 6 },
-    smoke:    { cd: 11, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 }   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
+    smoke:    { cd: 11, range: 5, radius: 1, turns: 4, blindTurns: 3, miss: 0.75 },   // radius 1 = 3x3 cloud; blindTurns = how long enemies stay blind after impact
+    shot:     { cd: 0 }   // the Mage's free shot armed from the keyboard (its numbers are BAL.shot)
   },
   // --- off-hand and charm numbers (items.js, abilities.js) ---
   offhand: {
@@ -521,8 +600,8 @@ const BAL = {
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
 // the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give less (diminishing returns) but always a whole, honest step: what a card says for the next level is what it gives; int = whole numbers. pct = a percentage. =====
 const UPG=[
- {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,4]],int:1,late:5},
- {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1]],int:1,late:3},
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[1,16],[1,12],[3,6],[3,2]],int:1,late:5},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[1,2],[2,1]],int:1,late:3},
  {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1]],int:1,late:3},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
  {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1,late:4},
@@ -569,8 +648,8 @@ const EN={
  cultist:{n:'Cultist',e:'cultist',hp:14,atk:5,range:6,cdmax:2,kite:true,heal:true,xp:12,minF:4,tr:'Heals allies, else blasts from 6 tiles. Kill first.'},
  bat:{n:'Bat',e:'bat',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
  warlock:{n:'Warlock',e:'warlock',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
- whelp:{n:'Whelp',e:'whelp',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
- dragon:{n:'Dragon',e:'dragon',hp:1700,atk:68,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
+ whelp:{n:'Whelp',e:'whelp',hp:12,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
+ dragon:{n:'Dragon',e:'dragon',hp:2200,atk:60,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
@@ -1607,7 +1686,8 @@ const ENAMES=['Gorak','Vexa','Morn','Sable','Thrain','Ilsa','Brakk','Nyx'],ETITL
 const ABIL={
  bash:{e:'ab_bash',n:'Bash',tg:'adj'},cleave:{e:'ab_cleave',n:'Cleave',tg:'self'},charge:{e:'ab_charge',n:'Charge',tg:'line'},brace:{e:'ab_brace',n:'Brace',tg:'self'},
  bolt:{e:'ab_bolt',n:'Bolt',tg:'enemy'},nova:{e:'ab_nova',n:'Nova',tg:'self'},blink:{e:'ab_blink',n:'Blink',tg:'tile'},fire:{e:'ab_fire',n:'Fireball',tg:'tile'},
- backstab:{e:'ab_backstab',n:'Backstab',tg:'adj'},vanish:{e:'ab_vanish',n:'Vanish',tg:'self'},knife:{e:'ab_knife',n:'Knife',tg:'enemy'},smoke:{e:'ab_smoke',n:'Smoke',tg:'tile'}
+ backstab:{e:'ab_backstab',n:'Backstab',tg:'adj'},vanish:{e:'ab_vanish',n:'Vanish',tg:'self'},knife:{e:'ab_knife',n:'Knife',tg:'enemy'},smoke:{e:'ab_smoke',n:'Smoke',tg:'tile'},
+ shot:{e:'ab_bolt',n:'Shot',tg:'enemy'}   // not on any button: the Mage's free shot, armed by the F key so a keyboard cursor can pick its target
 };
 // ---- descriptive text: every number below is read from BAL / the tables, never hand-copied ----
 const pct=x=>Math.round(x*100)+'%',sgn=n=>(n>=0?'+':'')+n;
@@ -1709,7 +1789,7 @@ function charmRule(k){
 
 // core.js - storage keys, DOM handles and the shared mutable state that every other module reads/writes.
 
-const RUN_KEY='dcr_run_v2',OLD_RUN_KEYS=['dcr_run_v1'],SAVE_VER=3,RUN_VERS=[2,3],META_KEY='dcr_meta_v1',IDB_NAME='dcr_run_mirror';
+const GEN_KEY='dcr_gen',RUN_KEY='dcr_run_v2',OLD_RUN_KEYS=['dcr_run_v1'],SAVE_VER=3,RUN_VERS=[2,3],META_KEY='dcr_meta_v1',IDB_NAME='dcr_run_mirror';
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 let noticeOld=false,G=null,fx=[],flashUntil=0,rafPending=false,view={ts:40,ox:0,oy:0,cw:300,ch:300,dpr:1},walkTok=0,dest=null,tapMark=null,bigMap=false,armed=null,inChain=false;
@@ -1717,6 +1797,8 @@ let AC=null,flashes={},shakeUntil=0,shakeAmt=0,puffs=[],pulseUntil=0,stepAnim=nu
 let shrineQ=false,bannerText='',bannerUntil=0,wsc={arr:null,set:new Set()},toastQ=[],toastBusy=false,chipHtml='';
 let gearQ=null,insp=null,lp=null,lpAt=-1e9,lpDone=false,guard=null,hpLow=false,hpLowG=null,eliteSeen=new Set(),eliteG=null;
 let claimed=new Set(),goneT=new Map(),lastAtk=null,frameT=null,modalAt=0,lastDown=0,modalGrace=0;
+let kcur=null;   // keyboard cursor {a,f,x,y} on a target tile while a targeted ability (or the Mage shot) is armed
+let deathT=0;   // when the run ended in death (the hero fades during BAL.ui.deathMs)
 let LOGN=3;   // message-log lines shown (3 in the bottom bar layout, more in the wide side panel)
 let spendNow=false;   // simulator bots: spend a level-up pick at once, like Auto (the player picks later through the badge)
 
@@ -1736,7 +1818,8 @@ function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCo
 function withStream(seed,fn){const keep=rngS;rngS={a:seed>>>0};try{return fn();}finally{rngS=keep;}}
 function rnd(a,b){return a+Math.floor(rf()*(b-a+1));}
 function pick(a){return a[Math.floor(rf()*a.length)];}
-function shuf(a){return a.sort(()=>rf()-0.5);}
+// Fisher-Yates (a sort with a random comparator is biased and engine dependent)
+function shuf(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(rf()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function rmo(){try{return !!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);}catch(e){return false;}}
 const ix=(x,y)=>y*W+x;
 const inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
@@ -1820,17 +1903,23 @@ function toast(text,ms){
  toastQ.push({t:text,ms:ms||3200});if(!toastBusy)nextToast();
 }
 // a toast never covers a dialog or the map while an ability is being aimed: it waits (polling) until both are gone; a new run or the end of a run drops the queue
-let toastGen=0;
-function toastClear(){toastQ=[];toastBusy=false;toastGen++;const el=$('toast');if(el)el.style.opacity='0';}
+let toastGen=0,toastCur=null;
+function toastClear(){toastQ=[];toastCur=null;toastBusy=false;toastGen++;const el=$('toast');if(el)el.style.opacity='0';}
+// a dialog opens or an ability is armed while a toast is on screen: it goes back to the head of the queue and comes again once the way is clear (never lost)
+function toastHold(){
+ const el=$('toast');if(!el)return;
+ if(toastCur){toastQ.unshift(toastCur);toastCur=null;toastGen++;toastBusy=false;el.style.opacity='0';nextToast();}
+ else if(!toastBusy)el.style.opacity='0';
+}
 function nextToast(){
  const el=$('toast');if(!el)return;
  if(!toastQ.length){toastBusy=false;el.style.opacity='0';return;}
  const gen=toastGen;
  if(modalOpen()||armed){toastBusy=true;el.style.opacity='0';setTimeout(function(){if(gen===toastGen)nextToast();},250);return;}
  const t=toastQ.shift();
- toastBusy=true;el.textContent=t.t;el.style.opacity='1';
+ toastCur=t;toastBusy=true;el.textContent=t.t;el.style.opacity='1';
  el.style.top=(performance.now()<bannerUntil&&view.mm?Math.max(56,Math.round(Math.max(view.ch*0.16,view.mm.y+view.mm.h+13)+42+8)):56)+'px';   // never touches the floor banner
- setTimeout(function(){if(gen!==toastGen)return;el.style.opacity='0';setTimeout(function(){if(gen===toastGen)nextToast();},260);},t.ms);
+ setTimeout(function(){if(gen!==toastGen)return;toastCur=null;el.style.opacity='0';setTimeout(function(){if(gen===toastGen)nextToast();},260);},t.ms);
 }
 
 // save.js - permanent meta save (banked gold, shop levels, unlocks), achievements, and the run autosave / Continue.
@@ -1840,8 +1929,15 @@ let meta={seenHelp:0,gold:0,wins:0,best:0,unl:{}};
 // mv = meta version: 1 (no field) had the flat shop (hp atk pot goldp def) and the Hard toggle, 2 has meta.up / pv (upgrade levels, pair variants), bp (blueprints),
 // heat / heatSel, exp (expeditions).
 const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0,aruns:0,up:{},pv:{},bp:{},leg:{},heat:0,heatSel:0,bestM:0,exp:{}});
+// Reset writes a GENERATION number into storage (GEN_KEY) before it erases anything. Every tab remembers the generation it booted with, stamps it into everything it writes (meta.gen, run.gen)
+// and compares it with the stored one before every write: a newer stored generation means the tab's data is from before a reset, so it writes nothing and reloads to the title.
+// Whatever such a tab managed to write before it noticed carries the old number and is thrown away on load (and by the tabs that see it arrive). No event timing is involved.
+function readGen(){try{return Math.max(0,Math.floor(+localStorage.getItem(GEN_KEY))||0);}catch(e){return 0;}}
+function genOfStr(s){try{return Math.max(0,Math.floor(+JSON.parse(s).gen)||0);}catch(e){return 0;}}
+let staleTab=false,myGen=readGen(),resetting=false;
 let metaRaw=null,metaDirty=false;
 try{metaRaw=JSON.parse(localStorage.getItem(META_KEY));}catch(e){}
+if(metaRaw&&typeof metaRaw==='object'&&(+metaRaw.gen||0)<myGen){metaRaw=null;try{localStorage.removeItem(META_KEY);}catch(e){}}   // written by a tab that was still open across a reset
 const hadMeta=!!(metaRaw&&typeof metaRaw==='object'&&!Array.isArray(metaRaw));
 if(hadMeta)Object.assign(meta,metaRaw);
 if(!meta.unl||typeof meta.unl!=='object'||Array.isArray(meta.unl))meta.unl={};
@@ -1890,11 +1986,16 @@ function cleanMeta(){
 }
 cleanMeta();
 // Another tab erased the progress (Reset): this tab still holds the old meta and run in memory and would write them straight back with its next save. It stops writing and reloads.
-let staleTab=false;
-function saveMeta(){if(staleTab)return;try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+function genOk(){
+ if(staleTab)return false;
+ if(!resetting&&readGen()>myGen){staleTab=true;try{location.reload();}catch(e){}return false;}
+ return true;
+}
+function saveMeta(){if(!genOk())return;meta.gen=myGen;try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
 window.addEventListener('storage',function(ev){
  if(resetting||staleTab)return;
- if(ev.key===null||(ev.key===META_KEY&&ev.newValue===null)){staleTab=true;try{location.reload();}catch(e){}}
+ if(ev.key===GEN_KEY?readGen()>myGen:(ev.key===null||(ev.key===META_KEY&&ev.newValue===null))){staleTab=true;try{location.reload();}catch(e){}return;}
+ if((ev.key===META_KEY||ev.key===RUN_KEY)&&ev.newValue&&genOfStr(ev.newValue)<myGen){try{localStorage.removeItem(ev.key);}catch(e){}}   // a stale tab's last write after our reset: gone again
 });
 function checkAch(){
  let any=checkAchievements();
@@ -1907,8 +2008,8 @@ function checkAch(){
 checkAch();if(migrated)saveMeta();
 // run saves are versioned (SAVE_VER). A run saved by an older version is discarded on boot (no migration) and the title shows a notice.
 try{for(const k of OLD_RUN_KEYS){if(localStorage.getItem(k)!==null){localStorage.removeItem(k);noticeOld=true;}}}catch(e){}
-function runStrOk(s){try{const o=JSON.parse(s);return !!o&&RUN_VERS.indexOf(o.ver)>=0&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H;}catch(e){return false;}}
-try{const r=localStorage.getItem(RUN_KEY);if(r&&!runStrOk(r)){localStorage.removeItem(RUN_KEY);noticeOld=true;}}catch(e){}
+function runStrOk(s){try{const o=JSON.parse(s);return !!o&&RUN_VERS.indexOf(o.ver)>=0&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H&&(+o.gen||0)>=readGen();}catch(e){return false;}}
+try{const r=localStorage.getItem(RUN_KEY);if(r&&!runStrOk(r)){localStorage.removeItem(RUN_KEY);if(genOfStr(r)>=readGen())noticeOld=true;}}catch(e){}
 // Chromium commits localStorage to disk in batches at most about once a minute, so after a hard kill of the browser (crash,
 // OS killing the tab/app, "restart") the newest run saves - up to the whole run - are gone and Continue is missing. The run is
 // therefore mirrored into IndexedDB, which commits per transaction and survives a kill. Value: JSON string, or '' = "cleared".
@@ -1934,12 +2035,12 @@ function idbFlush(){
 }
 function idbPutRun(v){idbWant=v;idbFlush();}
 function save(){
- if(!G||G.over||staleTab)return;if(metaDirty){saveMeta();metaDirty=false;}
- if(rngS)G.rs=rngS.a;G.ts=Date.now();let js;try{js=JSON.stringify(G);}catch(e){return;}
+ if(!G||G.over||!genOk())return;if(metaDirty){saveMeta();metaDirty=false;}
+ if(rngS)G.rs=rngS.a;G.ts=Date.now();G.gen=myGen;let js;try{js=JSON.stringify(G);}catch(e){return;}
  try{localStorage.setItem(RUN_KEY,js);}catch(e){}
  idbPutRun(js);
 }
-function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}idbPutRun('');}
+function clearSave(){if(!genOk())return;try{localStorage.removeItem(RUN_KEY);}catch(e){}idbPutRun('');}
 // boot: if the IndexedDB mirror is newer than (or contradicts) localStorage, adopt it and refresh the title screen
 function syncRunFromIdb(){
  idbOpen(function(db){if(!db)return;let g;try{g=db.transaction('s','readonly').objectStore('s').get('run2');}catch(e){return;}g.onsuccess=function(){
@@ -1966,6 +2067,7 @@ function continueRun(){
   G.perks=G.perks||{};for(const k of Object.keys(G.perks))if(!PERKS.some(q=>q.id===k))delete G.perks[k];   // a removed perk (Trapfinder) is dropped silently
   G.syn=G.syn||{};G.vanish=G.vanish||0;
   {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0,t:Math.max(0,Math.floor(+a.t)||0)};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
+  G.fm=(G.fm&&isFinite(+G.fm.t)&&isFinite(+G.fm.a))?{t:G.fm.t|0,a:G.fm.a|0}:{t:G.turn|0,a:autoTurns(G)};   // the floor-start marks the bestM gate reads: a save without them counts from now
   if(!CLS[G.p.cls])G.p.cls='warrior';
   G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
   for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}
@@ -1983,7 +2085,6 @@ function continueRun(){
 }
 
 // ---- reset: wipes everything this game stored (meta save, run save, Auto speed; localStorage and the IndexedDB mirror) and nothing else on the origin
-let resetting=false;
 function freshMeta(){
  for(const k of Object.keys(meta))delete meta[k];
  Object.assign(meta,{seenHelp:0,gold:0,wins:0,best:0,unl:{}},META_DEFAULTS());
@@ -1991,6 +2092,7 @@ function freshMeta(){
 }
 function wipeAll(done){
  resetting=true;idbWant=undefined;
+ try{myGen=Math.max(myGen,readGen())+1;localStorage.setItem(GEN_KEY,String(myGen));}catch(e){}   // first: every other tab is now stale
  try{for(const k of [META_KEY,RUN_KEY].concat(OLD_RUN_KEYS,[AUTO_SPEED_KEY]))localStorage.removeItem(k);}catch(e){}
  freshMeta();noticeOld=false;G=null;armed=null;
  try{AUTO.speed=BAL.auto.speeds[0];}catch(e){}
@@ -2287,7 +2389,8 @@ function floatFx(x,y,text,color,big){
   }
  }
  const live=fx.filter(g=>!g.c&&now<g.t+g.d).length;
- const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={x:x,y:y,text:text,color:col,big:!!big,t:t,t0:t0,k:k,sz:sz,d:k==='n'&&live>4?550:LBL_MS[k],off:base,dxo:dxo,n:1};
+ const fe=!mine&&G&&G.enemies?G.enemies.find(e=>e.x===x&&e.y===y&&!e.dead&&e.hp>0):null;
+ const sz=LBL_SZ[k]*(k==='n'&&big?1.4:1),f={fid:fe?fe.id:0,x:x,y:y,text:text,color:col,big:!!big,t:t,t0:t0,k:k,sz:sz,d:k==='n'&&live>4?550:LBL_MS[k],off:base,dxo:dxo,n:1};
  const w=lblW(text,sz,k),h=sz*(k==='n'?1.15:1.5),step=Math.max(0.3,h);
  let row=-1;
  for(let tries=0;tries<12&&row<0;tries++){
@@ -2880,7 +2983,7 @@ function summonWhelps(e){
  const c=[];
  for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=e.x+dx,y=e.y+dy;
   if(inb(x,y)&&G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!(x===G.p.x&&y===G.p.y))c.push([x,y]);}
- c.sort(()=>rf()-0.5);
+ shuf(c);
  let n=0;
  for(const t of c){if(n>=BAL.enemyAi.summonN)break;const w=makeEnemy('whelp',t[0],t[1],G.floor);w.awake=true;n++;}
  msg('The '+EN[e.t].n+' calls its brood: '+n+' whelps!');floatFx(e.x,e.y,'BROOD','#f95',true);
@@ -3229,10 +3332,18 @@ function showShrine(){
  opts.push({k:'leave',esc:1,label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
  showModal('Shrine','',opts,'shrine',ic('shrine',30));
 }
+// why a merchant row cannot be bought right now ('' = it can)
+function shopWhy(it,p){
+ if(it.sold)return '';
+ if(it.k==='pot'&&G.inv.pot>=p.potCap)return 'Your potion belt is full ('+G.inv.pot+'/'+p.potCap+').';
+ if(it.k==='perk'&&pc(it.id)>=perkById(it.id).max)return 'You already have the most of this perk.';
+ if(p.gold<it.price)return 'Need '+(it.price-p.gold)+' more gold.';
+ return '';
+}
 function showShop(){
  if(!G||G.over||!G.merchant)return;walkTok++;
  const m=G.merchant,p=G.p;
- const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' <span class="nw">- <span class="gold">'+it.price+' '+ic('coin',14)+'</span></span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
+ const btns=m.stock.map(function(it,i){const why=shopWhy(it,p);return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' <span class="nw">- <span class="gold">'+it.price+' '+ic('coin',14)+'</span></span></b><span>'+(why?'<em class="why">'+why+'</em>':it.d)+'</span>',off:!!it.sold||!!why,fn:function(){buy(i);}};});
  btns.push({k:'leave',esc:1,label:'Leave',c:1,fn:closeModal});
  showModal('Merchant','<p class="sub">You have <span class="gold">'+p.gold+' '+ic('coin',14)+'</span></p>',btns,'shop',ic('merchant',30));
 }
@@ -3318,6 +3429,7 @@ function targetTiles(k){
   case 'charge':return chargeLines().map(c=>[c.e.x,c.e.y]);
   case 'bolt':return enemyShots(BAL.ability.bolt.range).map(e=>[e.x,e.y]);
   case 'knife':return enemyShots(BAL.ability.knife.range).map(e=>[e.x,e.y]);
+  case 'shot':return G.enemies.filter(canShoot).map(e=>[e.x,e.y]);
   case 'blink':return blinkTiles();
   case 'fire':return groundTiles(BAL.ability.fire.range);
   case 'smoke':return groundTiles(BAL.ability.smoke.range);
@@ -3479,6 +3591,7 @@ const DO={
   for(const e of G.enemies)e.awake=false;
   vfxAdd('vanish',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'vanish','#cfc');msg('You vanish.');endTurn();
  },
+ shot:function(tx,ty){mageShot(enemyAt(tx,ty));},
  knife:function(tx,ty){
   const e=enemyAt(tx,ty),a=BAL.ability.knife,p=G.p;spend('knife');breakVanish();
   vfxAdd('knife',p.x,p.y,tx,ty);
@@ -3522,12 +3635,13 @@ function useAbility(k,tx,ty){
  DO[k](tx,ty);
  return true;
 }
-function toggleAbility(k){
+function toggleAbility(k,kb){
  walkTok++;if(!G||G.over||modalOpen())return;
  if(armed===k){if(ABIL[k].tg==='self'){useAbility(k);return;}cancelTarget();return;}   // armed self ability: the second tap uses it
  const why=whyNot(k);
  if(why){msg(why);if(armed){armed=null;}render();return;}
- armed=k;msg(ABIL[k].n+(ABIL[k].tg==='self'?': tap again to use.':': tap a target.'));render();
+ armed=k;kcur=null;bannerUntil=0;toastHold();
+ msg(ABIL[k].n+(ABIL[k].tg==='self'?(kb?': Enter or '+(kit().indexOf(k)+1)+' to use, Esc to cancel.':': tap again to use.'):(kb?': arrows move the cursor, Tab next foe, Enter fires, Esc cancels.':': tap a target.')));render();
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- the Mage's free shot: a weak ranged attack on a visible foe within BAL.shot.range (also next to you: the Mage never melees). No mana, no cooldown, one turn.
@@ -3744,7 +3858,7 @@ function finish(kind){
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<div class="portrait">'+ic(clsOf(p).e,56)+'</div><p class="recap"><b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'</p><div class="chips3"><span>Floor <b>'+G.floor+'</b></span><span><b>'+G.turn+'</b> turns</span><span><b>'+G.kills+'</b> kills</span></div>'+
   '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Heat '+heat+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turn'+(autoTurns(G)===1?'':'s')+': idle pay '+idle+' gold'+(share<1?', plus your share of the run gold':'')+'.</p>':'')+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' of '+G.turn+' turn'+(G.turn===1?'':'s')+'. <b>Purse '+p.gold+' gold</b> (the HUD number): your '+Math.round((1-share)*100)+'% of it banks '+(banked-idle)+'. <b>Idle pay '+idle+' gold</b> for Auto\'s turns. Banked in all: <b>'+banked+'</b>.</p>':'')+
   (bpD?'<p class="recap" id="bpRecap">'+ic(bpIcon(bpD),20)+' Blueprint found: <b>'+bpD.n+'</b></p>':'')+
   (heatUp?'<p class="recap" id="heatRecap">'+ic('skull',16)+' <b>Heat '+heatUp+'</b> unlocked: '+HEAT[heatUp].n+'.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
@@ -3755,7 +3869,12 @@ function finish(kind){
  $('modalBox').classList.add(dead?'dead':won?'win':'x');
  };
  // the lethal hit is seen first: the death card follows after BAL.ui.deathMs (input is locked meanwhile: G.over)
- if(dead&&BAL.ui.deathMs>0)setTimeout(function(){if(G&&G.over&&$('modal').style.display==='none')showEnd();},BAL.ui.deathMs);else showEnd();
+ deathT=performance.now();
+ if(dead&&BAL.ui.deathMs>0)setTimeout(function(){
+  if(!G||!G.over)return;
+  if($('modal').style.display!=='none'&&$('modalBox').dataset.kind==='end')return;   // already showing
+  closeModal();showEnd();   // whatever else is open (a dialog that was up when the blow landed) gives way: the death card is never skipped
+ },BAL.ui.deathMs);else showEnd();
  toastClear();
 }
 
@@ -3819,17 +3938,30 @@ function startWalk(path,opts){
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
   if(!G||G.over||G.floor!==f0||p.hp<hp0||G.stopWalk||modalOpen()){stop();return;}
   const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0)){frameSight();stop();return;}
-  if(opts.explore&&G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){frameSight();stop();return;}
+  if(opts.explore&&exploreBlockers(true).length){frameSight();stop();return;}
   if(path.length)setTimeout(step,70);else{stop();if(opts.done&&G&&!G.over&&!modalOpen())opts.done();}
  };
  if(path.length){const l=path[path.length-1];dest={x:l[0],y:l[1],tok:tok};}
  step();
 }
+// The awake foes in sight that stop Explore. One that neither can walk to you nor can be walked to by you (and cannot shoot you) is not one of them: Explore goes on elsewhere
+// and says so once for that foe (a bat behind a gap would otherwise block Explore for ever).
+function exploreBlockers(quiet){
+ const p=G.p,vis=G.enemies.filter(e=>e.awake&&!e.dead&&G.vis[ix(e.x,e.y)]);
+ if(!vis.length)return vis;
+ const dist=bfsDist(p.x,p.y),out=[];
+ for(const e of vis){
+  const d=EN[e.t],shoots=!!d.range&&manh(e,p)<=d.range&&los(e.x,e.y,p.x,p.y,true);
+  if(shoots||dist[ix(e.x,e.y)]<9999||bfsPath(p.x,p.y,e.x,e.y))out.push(e);
+  else if(!quiet){const n=G.exn||(G.exn={});if(!n[e.id]){n[e.id]=1;msg('The '+nm(e)+" cannot reach you and you cannot reach it. Exploring on.");}}
+ }
+ return out;
+}
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  if(armed){cancelTarget();return;}   // like Wait: with an ability armed the bar button only cancels
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
+ if(exploreBlockers().length){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
@@ -3974,7 +4106,7 @@ function onTap(tx,ty){
   const d=EN[e.t];   // short log line; hold the foe for the full card (trait, state)
   msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'.'+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
   const path=bfsPath(p.x,p.y,tx,ty);
-  if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
+  if(path&&path.length>1){path.pop();startWalk(path);}else msg(bfsDist(p.x,p.y)[ix(tx,ty)]<9999?'Something is in the way. Wait for it to come.':"Can't reach it.");
   return;
  }
  const it=itemAt(tx,ty);if(it)msg(itemName(it)+'.');
@@ -4027,18 +4159,19 @@ function modalBlocked(e){
 function showModal(title,html,buttons,kind,icon,opt){
  const wasOpen=$('modal').style.display!=='none';
  const keepIdx=wasOpen&&$('modalBox').contains(document.activeElement)?dlgButtons($('modalBox')).indexOf(document.activeElement):-1;   // a dialog rebuilt in place (the merchant after a purchase) keeps the focused row
- modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]&&!(opt&&opt.nograce)?BAL.ui.modalGraceMs:0;
- armed=null;{const tt=$('toast');if(tt)tt.style.opacity='0';}if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
+ const prevKind=wasOpen?$('modalBox').dataset.kind:'';   // a dialog that REPLACES another of a different kind is a new dialog (grace); the same kind rebuilt (the merchant after a purchase) is not
+ modalAt=performance.now();modalGrace=(!wasOpen||prevKind!==(kind||''))&&GRACE_KINDS[kind]&&!(opt&&opt.nograce)?BAL.ui.modalGraceMs:0;
+ armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
  const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
   const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;if(bt.esc)el.dataset.esc='1';if(bt.def)el.dataset.def='1';
-  el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
+  el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}if(bt.tall)el.style.minHeight='68px';   // room for the two-line terms: the buttons below never jump
   el.addEventListener('click',function(e){e.stopPropagation();if(modalBlocked(e))return;bt.fn(el);});
   b.appendChild(el);
  }
  $('modal').style.alignItems=kind==='help'?'flex-start':'';   // an open section must not move the headings under the finger
- $('modal').style.display='flex';
+ $('modal').style.display='flex';toastHold();
  if(keepIdx>=0){const bs=dlgButtons(b);(bs[Math.min(keepIdx,bs.length-1)]||bs[0]||b).focus();}else focusFirst(b);
 }
 function closeModal(){{const a=document.activeElement;if(a&&a!==document.body&&$('modalBox').contains(a))a.blur();}   // focus leaves with the dialog at once (a hidden button must not keep taking Enter / Space)
@@ -4070,8 +4203,8 @@ function showPerk(manual){
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {k:pk.id,html:cardHtml(pk.id,'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>'),cls:'hasic',fn:function(){
    addPerk(pk.id);G.picks.shift();G.pending=G.picks.length;closeModal();save();render();
-   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk(true);else afterModals();
-  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){showPerk(true);});}},{k:'later',esc:1,label:'Later',c:1,fn:closeModal}]),'perk',null,{nograce:!!manual});
+   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk();else afterModals();   // chained: the next pick keeps its own grace (a double click must never take two perks)
+  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){showPerk();});}},{k:'later',esc:1,label:'Later',c:1,fn:closeModal}]),'perk',null,{nograce:!!manual});
 }
 // equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
@@ -4119,7 +4252,7 @@ function showMenu(){
  const arm={v:false},armAuto={v:false};
  showModal('Menu','',[
   {esc:1,html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
-  {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(el){
+  {k:'auto',label:ic('auto',20)+' Auto play',c:1,tall:1,fn:function(el){
    // the cost is stated BEFORE the first activation: the first tap only says it, the second starts (no alert / confirm)
    if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' Pays '+autoRateText()+', not run gold. Tap again';return;}
    closeModal();autoStart();}},
@@ -4174,7 +4307,7 @@ function showHelp(back){
    r('equip','Top bar','Gear and stats, then the menu. A badge on gear counts waiting level-up perks: tap it (or P).')+
    r('heart','Bars','Red HP, then Rage / Mana / Knives. Thin bar = XP.')+
    r('map','Minimap','Tap for the big map.'))+
-  sec('Keyboard','<p class="sub">Arrows or WASD move and attack. 1-4 abilities (again to use). Space wait, E explore, I items, Q potion, P perk, Enter stairs, Esc cancel or menu. Right-click inspects.</p>')+
+  sec('Keyboard','<p class="sub">Arrows or WASD move and attack. 1-4 arm an ability. Aimed ones show a cursor: arrows move it, Tab picks the next foe, Enter or the same number fires, Esc cancels. Cleave, Nova, Brace, Vanish: Enter or the number uses it. F: the Mage shot, aimed the same way. Space wait, E explore, I items, Q potion, P perk, Enter stairs, Esc cancel or menu. Right-click inspects.</p>')+
   sec('Fighting',
    r('guard','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them or hit from behind.')+
    (!G||G.over||G.p.cls==='mage'?r('ab_bolt','Mage shot','Tap a foe within '+BAL.shot.range+' tiles, or move toward it in line: a free shot, about 40% of a Bolt.'):'')+
@@ -4223,7 +4356,7 @@ function showClassDetails(k,mode){
 }
 function showClassPicker(mode){
  mode=mode||{};
- const t=$('titleBox');t.innerHTML='';t.className='box';
+ const t=$('titleBox');t.innerHTML='';t.className='box pick';
  const h=document.createElement('h1');h.textContent=mode.daily?'Daily: pick a class':'Pick a class';t.appendChild(h);
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
  else if(heatMax()>=1){
@@ -4373,7 +4506,10 @@ function showUpgrades(tab){
   sw.innerHTML=ic('reload',20)+'<small>'+other.n+'</small>'+(fee?'<small class="gold">'+fee+' '+ic('coin',11)+'</small>':'<small>free</small>');
   sw.setAttribute('aria-label','Switch '+q.n+' to '+other.n+(fee?' for '+fee+' gold':''));
   sw.style.width='76px';sw.style.minWidth='76px';
-  sw.addEventListener('click',function(){if(pairSwitch(q.k))showUpgrades('upg');});
+  sw.addEventListener('click',function(){
+   // a swap that costs gold needs a second tap on the same button (a free one does not)
+   if(fee>0&&!sw.dataset.arm){sw.dataset.arm='1';sw.innerHTML=ic('reload',20)+'<small>Tap again</small><small class="gold">'+fee+' '+ic('coin',11)+'</small>';sw.setAttribute('aria-label','Tap again to switch '+q.n+' to '+other.n+' for '+fee+' gold');sw.classList.add('armed');return;}
+   if(pairSwitch(q.k))showUpgrades('upg');});
   row.appendChild(sw);
   const od=document.createElement('small');od.className='pdesc';od.dataset.other=q.k;od.textContent='Swap: '+pairPer(q,other)+(fee?'':' (free now)');row.appendChild(od);
  }
@@ -4419,7 +4555,7 @@ function recLine(r){
  return 'Floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest <b>'+(r.fast?r.fast+'t':'-')+'</b> &middot; Score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> '+r.awins+'/'+r.aruns:'');
 }
 function showRecords(){
- const t=screenFrame('Records'),add=(html,style)=>{const d=document.createElement('div');d.className='pl';d.innerHTML=html;if(style)d.style.cssText=style;t.appendChild(d);return d;};
+ const t=screenFrame('Records');t.classList.add('recs');const add=(html,style)=>{const d=document.createElement('div');d.className='pl';d.innerHTML=html;if(style)d.style.cssText=style;t.appendChild(d);return d;};
  const wr=meta.runs?Math.round(100*(meta.wins/Math.max(1,meta.runs))):0;
  add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) '+(heatMax()>=1?' &middot; Heat 1+ wins <b>'+meta.hwins+'</b>':'')+'<br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
  for(const k of Object.keys(CLS)){
@@ -4561,13 +4697,13 @@ const BTNS=[
   if(trayOpen()){setTray(false);return;}
   const n=G.inv.pot+G.inv.fire+G.inv.tele;
   if(n<=0){msg('No items.');render();return;}
-  armed=null;setTray(true);render();}},
+  if(armed){armed=null;msg('Cancelled.');}setTray(true);render();}},
  {id:'b_exp',fn:explore},
  {id:'b_wait',fn:act(function(){if(armed){cancelTarget();return;}wait();})},   // armed: Wait is a cancel, no turn spent
  {id:'b_down',fn:act(descend)}
 ];
 const TRAYBTNS=[{id:'b_pot',fn:act(drink)},{id:'b_fire',fn:act(fireball)},{id:'b_tele',fn:act(teleport)}];
-const KEYS={b_items:'I',b_exp:'E',b_wait:'␣',b_down:'↵',b_pot:'Q'};   // Space / Enter as one-glyph chips, so they never reach the icon
+const KEYS={b_items:'I',b_exp:'E',b_wait:'Spc',b_down:'↵',b_pot:'Q'};   // the chips straddle the top edge of the button, so a three-letter one never reaches the icon
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.dataset.key=KEYS[b.id];el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;if(KEYS[b.id])el.dataset.key=KEYS[b.id];el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
 function trayOpen(){return $('tray').style.display!=='none';}
@@ -4644,25 +4780,59 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';setH(rt,'Mana '+Math.floor(p.mana||0)+'/'+m);}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';setH(rt,ic('knife',16)+' Knives '+(G.knives||0)+'/'+m);}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+p.gold+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
+ setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+p.gold+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+'<span><span class="hw">Heat </span>'+Math.max(1,G.heat|0)+'</b></span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
  {const n=G.pending|0,b=$('perkBadge'),t=n>0?String(n):'';if(b._t!==t){b._t=t;b.textContent=t;b.style.display=t?'':'none';$('gearBtn').classList.toggle('pick',n>0);$('gearBtn').setAttribute('aria-label',n>0?'Pick a perk ('+n+' waiting)':'Equipment');}}
- autoUi();sightUpdate();
+ bossUpdate();autoUi();sightUpdate();
  {const ir=!G.over;if(ir!==inRunCls){inRunCls=ir;document.body.classList.toggle('inrun',ir);}}
+}
+// the boss bar: a HUD row while the boss is in sight (or any tile of its 3x3 body is)
+function bossUpdate(){
+ const b=G.over?null:G.enemies.find(e=>EN[e.t].boss&&!e.dead&&e.hp>0&&(G.vis[ix(e.x,e.y)]||bossFoot(e)));
+ const row=$('bossRow'),on=!!b;
+ if(row._on!==on){row._on=on;row.style.display=on?'flex':'none';}
+ if(!b)return;
+ const fr=Math.max(0,Math.min(1,b.hp/b.mhp)),f=$('bossFill'),col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,w=(100*fr)+'%';
+ if(f._w!==w){f._w=w;f.style.width=w;}if(f._c!==col){f._c=col;f.style.background=col;}
+ setH($('bossName'),EN[b.t].n);const t=b.hp+'/'+b.mhp;if($('bossHp')._t!==t){$('bossHp')._t=t;$('bossHp').textContent=t;}
 }
 // the wide side panel's "In sight" list: every visible foe by distance (icon, name, HP bar); a click inspects it and rings it on the map
 let hlFoe=null;
+// rows are kept per foe and updated in place (a width / a number); a row is only created, moved or removed when a foe enters, leaves or changes its rank, so a focused row keeps its focus
+const sightRows=new Map();
 function sightUpdate(){
  if(!isBig())return;
- const el=$('sightList'),vis=G.over?[]:G.enemies.filter(e=>!e.dead&&e.hp>0&&G.vis[ix(e.x,e.y)]).sort((a,b)=>manh(a,G.p)-manh(b,G.p));
- let h='';
- if(!vis.length)h='<div class="none">Nothing in sight.</div>';
- else{
-  for(const e of vis.slice(0,6)){const d=EN[e.t];
-   h+='<button class="srow" data-id="'+e.id+'" aria-label="'+d.n+' '+e.hp+' of '+e.mhp+' HP">'+ic(d.e,24)+'<span class="sn">'+(e.elite&&e.name?e.name:d.n)+(e.awake?'':' (asleep)')+'</span><span class="sh"><i style="width:'+Math.max(0,Math.min(100,100*e.hp/e.mhp))+'%"></i></span><span class="sv">'+e.hp+'</span></button>';}
-  if(vis.length>6)h+='<div class="none">+'+(vis.length-6)+' more</div>';
+ const el=$('sightList'),vis=G.over?[]:G.enemies.filter(e=>!e.dead&&e.hp>0&&G.vis[ix(e.x,e.y)]).sort((a,b)=>manh(a,G.p)-manh(b,G.p)||a.id-b.id);
+ const n=$('sightN'),nt=vis.length?'('+vis.length+')':'';if(n._t!==nt){n._t=nt;n.textContent=nt;}
+ let none=el.querySelector('.none');
+ if(!vis.length){
+  if(sightRows.size||!none){sightRows.clear();el.innerHTML='<div class="none">Nothing in sight.</div>';}
+  runsumUpdate();return;
  }
- if(el._h!==h){el._h=h;el.innerHTML=h;}
+ if(none)none.remove();
+ const want=new Set(vis.map(e=>e.id));
+ for(const [id,row] of sightRows)if(!want.has(id)||!row.isConnected){row.remove();sightRows.delete(id);}
+ vis.forEach(function(e,i){
+  const d=EN[e.t];let row=sightRows.get(e.id);
+  if(!row){row=document.createElement('button');row.className='srow';row.dataset.id=e.id;row.innerHTML=ic(d.e,24)+'<span class="sn"></span><span class="sh"><i></i></span><span class="sv"></span>';sightRows.set(e.id,row);}
+  const nm1=(e.elite&&e.name?e.name:d.n)+(e.awake?'':' (asleep)'),c=row.children;
+  if(row._n!==nm1){row._n=nm1;c[1].textContent=nm1;}
+  const w=Math.max(0,Math.min(100,100*e.hp/e.mhp))+'%';if(row._w!==w){row._w=w;c[2].firstChild.style.width=w;}
+  const v=String(e.hp);if(row._v!==v){row._v=v;c[3].textContent=v;}
+  const al=d.n+' '+e.hp+' of '+e.mhp+' HP';if(row._a!==al){row._a=al;row.setAttribute('aria-label',al);}
+  if(el.children[i]!==row)el.insertBefore(row,el.children[i]||null);
+ });
+ runsumUpdate();
+}
+// the tall wide panel's "This run" box (class, perks, gear): shown by CSS only on tall windows, so it is only filled when it is visible
+function runsumUpdate(){
+ const rs=$('runsum');if(!rs.offsetParent&&!rs.getClientRects().length)return;
+ const p=G.p,C=clsOf(p);
+ let h='<div class="rsh"><b>'+ic(C.e,28)+' '+C.n+'</b><span>Lv '+p.lvl+' · floor '+G.floor+'/'+MAXF+'</span></div>';
+ const own=PERKS.filter(pk=>pc(pk.id)>0);
+ h+='<div class="rsp">'+(own.length?own.map(pk=>'<span class="rsc" title="'+pk.n+'">'+ic(CARD_IC[pk.id]||'perk',20)+(pc(pk.id)>1?'<i>'+pc(pk.id)+'</i>':'')+'</span>').join(''):'<span class="none">No perks yet.</span>')+'</div>';
+ for(const sl of SLOTS){const it=p.eq[sl];h+='<div class="rsg"><small>'+SLOT_LABEL[sl]+'</small><span>'+(it?ic(itemIcon(it),18)+' '+gearName(it):'None')+'</span></div>';}
+ setH($('runInfo'),h);
 }
 function sightFoe(ev){const b=ev.target.closest&&ev.target.closest('button.srow');return b&&G?G.enemies.find(e=>e.id===+b.dataset.id):null;}
 $('sightList').addEventListener('click',function(ev){
@@ -4702,11 +4872,20 @@ document.addEventListener('click',function(ev){if(ev.detail>0&&ev.target&&ev.tar
 // ---- dialogs by keyboard. The top dialog (a modal, else the title-side screen) owns every key: Tab / arrows move a gold focus ring between its enabled buttons
 // (focus never leaves the dialog), Enter presses the focused one, Esc presses the one marked data-esc (Back, Leave, Later, Stay here, Cancel...; the end card has none).
 function dlgRoot(){return $('modal').style.display!=='none'?$('modalBox'):$('title').style.display!=='none'?$('titleBox'):null;}
-function dlgButtons(root){return [...root.querySelectorAll('button')].filter(b=>!b.disabled&&b.getClientRects().length>0);}
+function dlgButtons(root){return [...root.querySelectorAll('button,summary')].filter(b=>!b.disabled&&b.getClientRects().length>0);}   // a folded help section (summary) is a stop too: Enter / Space open it
 function focusFirst(root){
  if(!document.body.classList.contains('kb'))return;   // the ring only appears for keyboard users (the first real key press sets body.kb)
  const bs=dlgButtons(root),d=bs.find(b=>b.dataset.def)||bs[0];
  if(d){try{d.focus({preventScroll:true});}catch(e){d.focus();}}
+}
+// the button nearest in the pressed direction (rects overlap across the other axis), -1 when none: the caller falls back to the list order
+function geoNext(bs,i,k){
+ const c=bs[i].getBoundingClientRect(),v=k==='ArrowDown'||k==='ArrowUp';let best=-1,bd=1e9;
+ for(let j=0;j<bs.length;j++){if(j===i)continue;const r=bs[j].getBoundingClientRect();
+  const ov=v?Math.min(c.right,r.right)-Math.max(c.left,r.left):Math.min(c.bottom,r.bottom)-Math.max(c.top,r.top);if(ov<=4)continue;
+  const d=k==='ArrowDown'?r.top-c.bottom:k==='ArrowUp'?c.top-r.bottom:k==='ArrowRight'?r.left-c.right:c.left-r.right;
+  if(d>=-2&&d<bd){bd=d;best=j;}}
+ return best;
 }
 function dlgKey(ev,root){
  const k=ev.key,bs=dlgButtons(root),ae=document.activeElement,i=bs.indexOf(ae);
@@ -4714,14 +4893,16 @@ function dlgKey(ev,root){
   if(root===$('modalBox')&&root.dataset.kind==='end')return;
   const b=[...root.querySelectorAll('button[data-esc]')].reverse().find(x=>!x.disabled);
   if(b){ev.preventDefault();b.click();}return;}
+ if((k==='ArrowDown'||k==='ArrowUp')&&bs.length<=1&&root.scrollHeight>root.clientHeight+2){ev.preventDefault();root.scrollBy(0,k==='ArrowDown'?60:-60);return;}   // one button (Back) and a long text: the arrows scroll it
  if(k==='Tab'||k==='ArrowDown'||k==='ArrowUp'||k==='ArrowLeft'||k==='ArrowRight'){
   ev.preventDefault();if(!bs.length)return;
   const back=k==='ArrowUp'||k==='ArrowLeft'||(k==='Tab'&&ev.shiftKey);
-  const n=i<0?(back?bs.length-1:0):(i+(back?-1:1)+bs.length)%bs.length;
+  let n=i<0?(back?bs.length-1:0):(i+(back?-1:1)+bs.length)%bs.length;
+  if(i>=0&&k!=='Tab'){const g=geoNext(bs,i,k);if(g>=0)n=g;}   // two-column screens: Down is the button below, not the one in the other column
   bs[n].focus();return;}
  if(k==='Enter'||k===' '){
   if(ev.repeat){ev.preventDefault();return;}   // a held key never presses a second dialog's button
-  if(ae&&ae.tagName==='BUTTON'&&root.contains(ae)){
+  if(ae&&(ae.tagName==='BUTTON'||ae.tagName==='SUMMARY')&&root.contains(ae)){
    // the key press itself clicks the focused button (a trusted click: the open-grace of an event dialog applies to it); a disabled / hidden one is ignored
    return;}
   const b=bs.find(x=>x.dataset.def)||bs[0];
@@ -4753,23 +4934,54 @@ function keyStep(dx,dy,ev){
  if(insp)clearInspect();
  tryMove(dx,dy);
 }
-// aiming: an arrow key fires at the nearest target in a straight line that way
-function keyAim(dx,dy){
- const p=G.p,A=ABIL[armed];if(!A||A.tg==='tile')return;
- if(A.tg==='self'){msg('Enter or '+(kit().indexOf(armed)+1)+' to use, Esc to cancel.');render();return;}
- const tg=view.tg||targetTiles(armed);let best=null,bd=1e9;
- for(const t of tg){const ox=t[0]-p.x,oy=t[1]-p.y;
-  if((dx&&oy===0&&Math.sign(ox)===dx)||(dy&&ox===0&&Math.sign(oy)===dy)){const d=Math.abs(ox)+Math.abs(oy);if(d<bd){bd=d;best=t;}}}
+// aiming by keyboard: an armed targeted ability (and the Mage shot, armed by F) has a CURSOR on one of its valid lit tiles. It starts on the nearest target (a ground ability: the nearest
+// foe, if any), the arrows / WASD move it to the next valid tile that way (no straight-line rule), Tab / Shift+Tab step through the foes, Enter or the ability's own key fires, Esc cancels.
+function kcOn(){return !!armed&&!!ABIL[armed]&&ABIL[armed].tg!=='self';}
+function kcGet(){
+ if(!G||!kcOn()){kcur=null;return null;}
+ const tg=targetTiles(armed);
+ if(!tg.length){kcur=null;return null;}
+ if(kcur&&kcur.a===armed&&kcur.f===G.floor&&tg.some(t=>t[0]===kcur.x&&t[1]===kcur.y))return kcur;
+ const p=G.p,foes=tg.filter(t=>enemyAt(t[0],t[1])),own=t=>t[0]===p.x&&t[1]===p.y;
+ const pool=(ABIL[armed].tg==='tile'&&foes.length&&armed!=='blink')?foes:tg.filter(t=>!own(t)).length?tg.filter(t=>!own(t)):tg;
+ let best=pool[0],bd=1e9;
+ for(const t of pool){const d=Math.abs(t[0]-p.x)+Math.abs(t[1]-p.y)+0.01*Math.max(Math.abs(t[0]-p.x),Math.abs(t[1]-p.y));if(d<bd){bd=d;best=t;}}
+ kcur={a:armed,f:G.floor,x:best[0],y:best[1]};return kcur;
+}
+function kcMove(dx,dy){
+ const c=kcGet();if(!c){msg(armed&&ABIL[armed]?ABIL[armed].n+': no target.':'No target.');render();return;}
+ let best=null,bs=1e9;
+ for(const t of targetTiles(armed)){const ox=t[0]-c.x,oy=t[1]-c.y;if(!ox&&!oy)continue;
+  const along=dx?ox*dx:oy*dy,perp=dx?Math.abs(oy):Math.abs(ox);if(along<=0)continue;
+  const s=along+2*perp;if(s<bs){bs=s;best=t;}}
  if(!best){msg('No target that way.');render();return;}
- useAbility(armed,best[0],best[1]);render();
+ kcur={a:armed,f:G.floor,x:best[0],y:best[1]};render();
+}
+function kcTab(back){
+ const c=kcGet();if(!c){msg(armed&&ABIL[armed]?ABIL[armed].n+': no target.':'No target.');render();return;}
+ const p=G.p,foes=targetTiles(armed).filter(t=>enemyAt(t[0],t[1])).sort((a,b)=>(Math.abs(a[0]-p.x)+Math.abs(a[1]-p.y))-(Math.abs(b[0]-p.x)+Math.abs(b[1]-p.y))||a[1]-b[1]||a[0]-b[0]);
+ if(!foes.length)return;
+ let i=foes.findIndex(t=>t[0]===c.x&&t[1]===c.y);i=i<0?(back?foes.length-1:0):(i+(back?-1:1)+foes.length)%foes.length;
+ kcur={a:armed,f:G.floor,x:foes[i][0],y:foes[i][1]};render();
+}
+function kcConfirm(){
+ const c=kcGet();if(!c){msg(armed&&ABIL[armed]?ABIL[armed].n+': no target.':'No target.');render();return;}
+ useAbility(armed,c.x,c.y);render();
+}
+function keyAim(dx,dy){
+ if(!armed||!ABIL[armed])return;
+ if(ABIL[armed].tg==='self'){msg('Enter or '+(kit().indexOf(armed)+1)+' to use, Esc to cancel.');render();return;}
+ kcMove(dx,dy);
 }
 document.addEventListener('keydown',function(ev){
  if(ev.ctrlKey||ev.metaKey||ev.altKey)return;
- const tg=ev.target&&ev.target.tagName;
  {const root=dlgRoot();if(root){dlgKey(ev,root);return;}}
- if((ev.key==='Enter'||ev.key===' ')&&tg==='BUTTON')return;   // a Tab-focused button does its own press
  if(!G||G.over)return;
  const k=ev.key.length===1?ev.key.toLowerCase():ev.key;let d=null;
+ // in a run the game keys always win: a panel button that took the focus (Tab, or a click) never turns Space / Enter / arrows into a button press (only the open Items tray keeps its buttons)
+ {const ae=document.activeElement;
+  if(ae&&ae!==document.body&&ae.tagName==='BUTTON'&&!(ae.closest&&ae.closest('#tray')&&(k==='Enter'||k===' '))&&/^(Enter| |ArrowUp|ArrowDown|ArrowLeft|ArrowRight|w|a|s|d|e|q|i|p|f|\.|>|[1-4])$/.test(k)){try{ae.blur();}catch(e){}}}
+ if(k==='Tab'&&kcOn()){ev.preventDefault();if(!ev.repeat)kcTab(ev.shiftKey);return;}
  if(k==='Escape'){
   ev.preventDefault();
   if(bigMap){bigMap=false;render();}else if(insp){clearInspect();render();}else if(armed)cancelTarget();else if(trayOpen())setTray(false);else showMenu();
@@ -4778,14 +4990,15 @@ document.addEventListener('keydown',function(ev){
  else if(k==='ArrowLeft'||k==='a')d=[-1,0];else if(k==='ArrowRight'||k==='d')d=[1,0];
  else if(k===' '||k==='.'){ev.preventDefault();if(ev.repeat)return;walkTok++;if(armed){cancelTarget();return;}wait();return;}
  else if(k==='e'){if(!ev.repeat)explore();return;}
- else if(k>='1'&&k<='4'&&k.length===1){if(!ev.repeat)toggleAbility(kit()[+k-1]);return;}
+ else if(k>='1'&&k<='4'&&k.length===1){if(ev.repeat)return;const ak=kit()[+k-1];if(armed&&armed===ak&&kcOn()){kcConfirm();return;}toggleAbility(ak,true);return;}
+ else if(k==='f'){if(ev.repeat)return;if(G.p.cls!=='mage'){msg('Only the Mage shoots.');render();return;}if(armed==='shot'){kcConfirm();return;}toggleAbility('shot',true);return;}
  else if(k==='q'){if(!ev.repeat){walkTok++;drink();}return;}
  else if(k==='p'){if(!ev.repeat)gearOrPick();return;}
  else if(k==='i'){if(!ev.repeat)$('b_items').click();return;}
- else if(k==='>'||k==='Enter'){ev.preventDefault();if(ev.repeat)return;walkTok++;if(armed){if(ABIL[armed].tg==='self')useAbility(armed);else{msg(ABIL[armed].n+': pick a lit tile, or Esc to cancel.');render();}return;}if(G.map[ix(G.p.x,G.p.y)]===2)descend();return;}
+ else if(k==='>'||k==='Enter'){ev.preventDefault();if(ev.repeat)return;walkTok++;if(armed){if(ABIL[armed].tg==='self')useAbility(armed);else kcConfirm();return;}if(G.map[ix(G.p.x,G.p.y)]===2)descend();return;}
  if(d){
   ev.preventDefault();walkTok++;
-  if(armed){if(!ev.repeat)keyAim(d[0],d[1]);return;}
+  if(armed){if(!ev.repeat||kcOn())keyAim(d[0],d[1]);return;}
   keyStep(d[0],d[1],ev);}
 });
 $('menuBtn').addEventListener('click',showMenu);
@@ -4989,9 +5202,9 @@ function autoSpeedCycle(){
 // the top-bar strip (indicator, speed, stop; shown only while Auto runs) and the thin amber frame (called from updateHud, so it follows every render)
 function autoUi(){
  const on=!!G&&!G.over&&!!(G.auto&&G.auto.on),key=(on?1:0)+'|'+AUTO.speed;
- if(on){const ap=$('autoPay'),t='+'+runBank(G,false).idle+' pay';if(ap&&ap._t!==t){ap._t=t;ap.textContent=t;}}   // Auto's idle pay so far, separate from the gold purse in the stats row
+ if(on){const ap=$('autoPay'),t='+'+runBank(G,false).idle;if(ap&&ap._t!==t){ap._t=t;ap.textContent=t;}}   // Auto's idle pay so far: its own small line under the stats, never a part of the strip that holds the purse
  if(key===AUTO.uiKey)return;AUTO.uiKey=key;
- $('autoBox').style.display=on?'flex':'none';
+ $('autoBox').style.display=on?'flex':'none';$('autoNote').style.display=on?'flex':'none';$('hud').classList.toggle('auto',on);
  $('autoBtn').setAttribute('aria-pressed',on?'true':'false');
  $('autoSpd').textContent=AUTO.speed+'×';
  $('cv').classList.toggle('auto',on);
@@ -5406,7 +5619,9 @@ function drawMini(){
 // render.js - canvas sizing and the main render() pass: tiles (pre-rendered, blitted), sprites (pre-rendered, blitted), effects overlays, fog, banner.
 
 // wide layout (side panel) is decided by CSS; the log shows more lines there
-const wideMq=window.matchMedia?window.matchMedia('(min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null,bigMq=window.matchMedia?window.matchMedia('(min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null;
+// WIDE_Q is the side-panel query of styles.css (keep them equal; a test compares them)
+const WIDE_Q='(min-width:560px) and (min-height:480px) and (min-aspect-ratio:11/10),(min-width:560px) and (min-height:360px) and (min-aspect-ratio:11/10) and (pointer:fine)',BIG_Q='(min-width:960px) and (min-height:360px) and (min-aspect-ratio:11/10)';
+const wideMq=window.matchMedia?window.matchMedia(WIDE_Q):null,bigMq=window.matchMedia?window.matchMedia(BIG_Q):null;
 function isWide(){return !!(wideMq&&wideMq.matches);}
 function isBig(){return !!(bigMq&&bigMq.matches);}
 // base tile size: about 11.5 tiles across the short side, never below 28 and never above BAL.ui.camMaxTs (sprites stay crisp, big screens show more map instead)
@@ -5531,6 +5746,8 @@ function drawDanger(dz,x0,x1,y0,y1,ox,oy,ts,now,am,clip){
 // Explore / a walk met a foe) has to be on screen and tappable: if some of it falls outside the normal view, the camera frames the player plus all of
 // it - panning to the middle of that box and, when the box is bigger than the view, zooming out down to BAL.ui.camMinTs. Sight is 7 tiles, so a
 // box never needs more than 15 x 15 tiles. The frame holds while the ability stays armed, or until the next turn for the sight case.
+// where a floating label is drawn, in tile units: a damage number rides with the foe it hit (the foe may step away while the number rises)
+function lblTile(f){const s=f.fid&&fdraw[f.fid];return s&&s.g===G?[s.dx,s.dy]:[f.x,f.y];}
 function frameOn(){return !!frameT&&frameT.g===G&&frameT.t===G.turn&&frameT.f===G.floor;}
 function frameSight(){if(G)frameT={g:G,t:G.turn,f:G.floor};}
 function seenAwake(){return G.enemies.filter(e=>e.awake&&!e.dead&&G.vis[ix(e.x,e.y)]);}
@@ -5567,7 +5784,7 @@ function drawEdgeMarks(ox,oy,ts){
 }
 // targeting: enemy targets get a bracket reticle; ground abilities get their reachable area as one shape with a single outline
 function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
- const col={cleave:'#ffb04a',nova:'#9fe8ff',brace:'#9cf',vanish:'#c9a0ff',bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile',self=ABIL[armed].tg==='self';
+ const col={cleave:'#ffb04a',nova:'#9fe8ff',brace:'#9cf',vanish:'#c9a0ff',bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',shot:'#cfe3ff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile',self=ABIL[armed].tg==='self';
  if(ground||self){
   const set=new Set(tg.map(t=>ix(t[0],t[1])));
   ctx.globalAlpha=0.14;ctx.fillStyle=col;for(const t of tg)ctx.fillRect(ox+t[0]*ts,oy+t[1]*ts,ts,ts);ctx.globalAlpha=1;
@@ -5581,6 +5798,9 @@ function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
   if(self){   // what it will hit: brackets on the foes; the hero's own tile is ringed (tap it to use)
    const q=G.p,hx=ox+(q.x+0.5)*ts,hy=oy+(q.y+0.5)*ts;
    ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(hx,hy,ts*0.46,0,7);ctx.stroke();ctx.lineWidth=1;
+   if(armed==='brace'||armed==='vanish'){const pu=0.5+0.5*Math.sin(now/220);   // Brace / Vanish act on you alone: a pulsing glow and ring round the hero says it is ready (not a pale box)
+    ctx.globalAlpha=0.24+0.14*pu;ctx.fillStyle=col;ctx.beginPath();ctx.arc(hx,hy,ts*0.66,0,7);ctx.fill();ctx.globalAlpha=1;
+    ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.arc(hx,hy,ts*(0.6+0.14*pu),0,7);ctx.stroke();ctx.lineWidth=1;}
    if(armed==='cleave'||armed==='nova')for(const e of chebEnemies()){const cx=ox+(e.x+0.5)*ts,cy=oy+(e.y+0.5)*ts,h=ts*0.5-1,L=ts*0.26;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();for(const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ctx.moveTo(cx+sx*h,cy+sy*(h-L));ctx.lineTo(cx+sx*h,cy+sy*h);ctx.lineTo(cx+sx*(h-L),cy+sy*h);}ctx.stroke();ctx.lineCap='butt';ctx.lineWidth=1;}
   }
  }else{
@@ -5621,7 +5841,7 @@ function render(){
  const x0=Math.max(0,Math.floor(-ox/ts)),x1=Math.min(W-1,Math.ceil((view.cw-ox)/ts)),
        y0=Math.max(0,Math.floor(-oy/ts)),y1=Math.min(H-1,Math.ceil((view.ch-oy)/ts));
  let more0=stepFog(x0,x1,y0,y1,rm);
- const ord=view.order=[],marks=view.marks=[];view.bossBar=null;   // what was drawn in this frame, in order (the art tests read it)
+ const ord=view.order=[],marks=view.marks=[];   // what was drawn in this frame, in order (the art tests read it)
  const wset=waterSet();LUT=tileLut(th,ts);
  // the unexplored dark is a low-contrast rock texture, not a flat black
  {const pat=rockPattern(ts);if(pat){ctx.save();ctx.translate(ox,oy);ctx.fillStyle=pat;ctx.fillRect(-ox,-oy,view.cw,view.ch);ctx.restore();}}
@@ -5785,8 +6005,9 @@ function render(){
   {const lg=lunges.p;if(lg){const k=(now-lg.t)/150;if(k<0)more0=true;else if(k<1){const o=Math.sin(Math.PI*k)*ts*0.3;hx=lg.dx*o;hy=lg.dy*o;more0=true;}else delete lunges.p;}}
   ctx.strokeStyle='#fff';ctx.globalAlpha=0.8;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx+hx,py+ts*0.9,ts*0.4,ts*0.14,0,0,7);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=1;
   gshadow(cx+hx,py+ts*0.9,ts*0.32,ts*0.075,0.34);
-  if(G.vanish>0)ctx.globalAlpha=0.5;
-  drawSpr(cls.e,px+hx,py-2+hy,ts,'');ctx.globalAlpha=1;
+  {const dk=G.over&&!G.won&&deathT?Math.min(1,(now-deathT)/Math.max(1,BAL.ui.deathMs||1)):0;   // dying: the hero greys out and fades during the death delay
+   if(G.vanish>0)ctx.globalAlpha=0.5;if(dk>0&&!rm){ctx.globalAlpha=1-0.65*dk;if(dk<1)more0=true;}
+   drawSpr(cls.e,px+hx,py-2+hy,ts,dk>0.25&&!rm?'gray':'');ctx.globalAlpha=1;}
   if(G.brace){ctx.strokeStyle='#97c6ff';ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3+Math.PI/6,qx=cx+Math.cos(a)*ts*0.52,qy=py+ts*0.55+Math.sin(a)*ts*0.52;i?ctx.lineTo(qx,qy):ctx.moveTo(qx,qy);}ctx.closePath();ctx.stroke();ctx.lineWidth=1;}
   {const fl=flashes.p;if(fl&&now<fl)more0=true;if(fl&&now>=fl&&now-fl<190){const a=1-(now-fl)/190;ctx.globalAlpha=0.7*a;drawSpr(cls.e,px+hx,py-2+hy,ts,'flash');ctx.fillStyle='rgba(255,70,70,'+(0.4*a)+')';ctx.beginPath();ctx.arc(cx,py+ts*0.55,ts*0.44,0,7);ctx.fill();ctx.globalAlpha=1;more0=true;}}
   if(now<pulseUntil&&!rm){const a=1-(pulseUntil-now)/700;ctx.strokeStyle='rgba(255,220,90,'+(1-a)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,py+ts/2,ts*(0.5+1.4*a),0,7);ctx.stroke();ctx.lineWidth=1;more0=true;}
@@ -5824,21 +6045,16 @@ function render(){
   badgeRow(e,bx-ts*0.7,by+g.S*0.22,ts*0.3,1.0);
   if(reachOk(e)){ctx.strokeStyle='#ffe066';ctx.lineWidth=2;ctx.setLineDash([4,3]);rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;}
  }
- if(armed){drawArmed(ox,oy,ts,now,x0,x1,y0,y1);more0=true;}
+ if(armed){drawArmed(ox,oy,ts,now,x0,x1,y0,y1);more0=true;
+  if(document.body.classList.contains('kb')){const kc=kcGet();   // the keyboard cursor: a gold frame on the tile the arrows have picked (Enter fires there)
+   if(kc){const px=ox+kc.x*ts,py=oy+kc.y*ts,pu=0.5+0.5*Math.sin(now/180);ctx.fillStyle='rgba(255,201,60,'+(0.16+0.1*pu)+')';ctx.fillRect(px,py,ts,ts);
+    ctx.strokeStyle='#10121f';ctx.lineWidth=6;rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.strokeStyle='#ffc93c';ctx.lineWidth=3;rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.lineWidth=1;view.kc={x:kc.x,y:kc.y};}else view.kc=null;}}
+ else view.kc=null;
  if(drawVfx(ox,oy,ts,now))more0=true;
  // soft light around the player: the far edge of the screen fades into the dark
  {const fb=fogBmp(ts);ctx.drawImage(fb,Math.round(ox+(vx+0.5)*ts-view.cw/2-ts),Math.round(oy+(vy+0.5)*ts-view.ch/2-ts),view.cw+2*ts,view.ch+2*ts);}
  if(cam||armed){view.mm=null;}else{drawEdgeMarks(ox,oy,ts);drawMini(ts);}   // aiming or framing a fight: nothing (not even the minimap) covers a tile
- // the boss bar lives in a fixed strip at the top of the map, never under a neighbour
- if(boss){
-  const e=boss.e,fr=Math.max(0,Math.min(1,e.hp/e.mhp)),col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,nm0=EN[e.t].n,chipsW=($('chips').children.length?52:0);
-  ctx.font='800 13px system-ui,sans-serif';const nw=ctx.measureText(nm0).width,bx0=8+chipsW,bx=bx0+nw+8,mmx=view.mm?view.mm.x-6:view.cw,bw=Math.max(60,Math.min(260,mmx-bx-8)),by=10;
-  ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=3.5;ctx.strokeStyle=INK;ctx.strokeText(nm0,bx0,by+5);ctx.fillStyle='#fff';ctx.fillText(nm0,bx0,by+5);
-  ord.push('bossBar');view.bossBar={x:bx-2,y:by-2,w:bw+4,h:14};
-  ctx.fillStyle=INK;rrect(bx-2,by-2,bw+4,14,7);ctx.fill();ctx.fillStyle='#4a1420';rrect(bx,by,bw,10,5);ctx.fill();
-  if(fr>0){ctx.fillStyle=col;rrect(bx,by,Math.max(10,bw*fr),10,5);ctx.fill();}
-  ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fillRect(bx+bw*0.3-0.5,by,1,10);
- }
+ // the boss bar is a row of the HUD (updateHud), above the map: it can never cover the dragon, its neighbours or a tile
  let more=more0||shk||!!stepAnim;
  // floating labels (laid out when spawned, see effects.js): numbers are bare outlined digits, status words small pills, announcements upper-case pills
  fx=fx.filter(f=>now-f.t<f.d);
@@ -5846,7 +6062,8 @@ function render(){
  for(const f of fx){
   if(now<f.t){more=true;continue;}
   if(!f.c&&!G.vis[ix(f.x,f.y)]&&!(boss&&boss.e.x===f.x&&boss.e.y===f.y))continue;   // nothing is shown about a tile the player cannot see (an orphan "!" over empty floor)
-  const du=f.d,a=(now-f.t)/du;let px=ox+(f.x+0.5)*ts+(f.dxo||0)*ts,py=oy+(f.y+0.2+(f.off||0))*ts-(rm?0.25:(now-f.t)/800)*ts*0.6;
+  const du=f.d,a=(now-f.t)/du,lt=lblTile(f),fxx=lt[0],fyy=lt[1];
+  let px=ox+(fxx+0.5)*ts+(f.dxo||0)*ts,py=oy+(fyy+0.2+(f.off||0))*ts-(rm?0.25:(now-f.t)/800)*ts*0.6;
   const fs=Math.round(ts*(f.c?0.46:f.sz));
   ctx.font='800 '+fs+'px system-ui,-apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
   if(f.c||f.k!=='n'){ // pill
@@ -5903,12 +6120,15 @@ syncRunFromIdb();
 window.__dbg=function(){return G;};
 window.__dbg.setSpendNow=function(v){spendNow=!!v;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
-window.__dbg.fn={showPerk:showPerk,onTap:onTap,render:render,frameSight:frameSight,genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){const s=dangerSet();for(const k of crackSet())s.add(k);return Array.from(s);},goDown:goDown,rollOpts:rollOpts,crackTick:crackTick,buildFloor:buildFloor,computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,hurtPlayer:hurtPlayer,hurtEnemy:hurtEnemy,use:useAbility,whyNot:whyNot,targetTiles:targetTiles,reachOk:reachOk,reachAttack:reachAttack,playerAttack:playerAttack,toggleAbility:toggleAbility,canShoot:canShoot,shoot:function(x,y){const e=enemyAt(x,y);return !!e&&mageShot(e);},summonWhelps:summonWhelps,bossPhase:bossPhase,dim:{W:W,H:H,MAXF:MAXF}};
+window.__dbg.fn={showPerk:showPerk,onTap:onTap,render:render,frameSight:frameSight,genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){const s=dangerSet();for(const k of crackSet())s.add(k);return Array.from(s);},goDown:goDown,rollOpts:rollOpts,crackTick:crackTick,buildFloor:buildFloor,computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,hurtPlayer:hurtPlayer,hurtEnemy:hurtEnemy,use:useAbility,whyNot:whyNot,targetTiles:targetTiles,reachOk:reachOk,reachAttack:reachAttack,playerAttack:playerAttack,toggleAbility:toggleAbility,canShoot:canShoot,shoot:function(x,y){const e=enemyAt(x,y);return !!e&&mageShot(e);},summonWhelps:summonWhelps,shuf:shuf,exploreBlockers:exploreBlockers,bossPhase:bossPhase,dim:{W:W,H:H,MAXF:MAXF}};
 window.__dbg.api={perkPool:perkPool,needXp:needXp,gainXp:gainXp,vt:function(){const n=performance.now();return {pflash:flashes.p?flashes.p-n:null,labels:fx.map(f=>({text:f.text,c:!!f.c,at:f.t-n,x:f.x,y:f.y}))};},floatFx:floatFx,labelBoxes:function(T){return fx.filter(f=>!f.c&&T>=f.t&&T<f.t+f.d).map(f=>{const p=lblPos(f,T),w=lblW(f.text,f.sz,f.k),h=f.sz*(f.k==='n'?1.15:1.5);return {text:f.text,k:f.k,l:p[0]-w/2,r:p[0]+w/2,t:p[1]-h/2,b:p[1]+h/2};});},flash:function(){return {full:flashFull,amt:flashAmt,on:flashUntil>performance.now()};},sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt};
 window.__dbg.mods={MODS:MODS,ACH:ACH,HARD_RULES:HARD_RULES,showBranch:showBranch,earn:earn,checkAchievements:checkAchievements,scoreOf:scoreOf,recordRun:recordRun,recOf:recOf,hardUnlocked:hardUnlocked,hardOn:hardOn,todayKey:todayKey,toast:toast,showRecords:showRecords,showAchievements:showAchievements,showDailyPicker:function(){showClassPicker({daily:true});},waterSet:function(){return Array.from(waterSet());},hashStr:hashStr,setForce:function(id){dbgForce=id||null;}};
 window.__dbg.auto={state:function(){return AUTO;},start:function(sync){return autoStart(!!sync);},stop:function(why){autoStop(why||'stopped');},toggle:autoToggle,speed:autoSpeedCycle,step:function(){return autoStep(true);},tick:autoTick,
  runSync:function(cap){cap=cap||12000;let n=0;while(AUTO.on&&G&&!G.over&&n++<cap)autoStep(true);return n;},timers:function(){return AUTO.tm?1:0;},choose:autoChoose,gearScore:autoGearScore,watch:autoWatch};
 window.__dbg.insp=function(){return insp;};window.__dbg.view=function(){return view;};window.__dbg.callout=callout;window.__dbg.callouts=function(){const n=performance.now();return fx.filter(f=>f.c&&n-f.t<f.d).map(f=>f.text);};window.__dbg.banner=function(){return bannerUntil>performance.now();};window.__dbg.guard=function(){return guard;};window.__dbg.lowHp=function(){return hpLow;};
+window.__dbg.layout=function(){return {wide:isWide(),big:isBig()};};   // which side-panel layout the media queries picked (tests compare it with the CSS)
+window.__dbg.labelTiles=function(){const n=performance.now();return fx.filter(f=>!f.c).map(f=>({text:f.text,anchor:[f.x,f.y],drawn:lblTile(f),follows:!!f.fid}));};
+window.__dbg.kcursor=function(){return kcGet();};
 window.__dbg.walking=function(){return !!dest;};   // a tap-walk / Explore is in progress (tests poll this instead of sleeping)
 window.__dbg.hl=function(){return hlFoe;};
 window.__dbg.perkIds=PERKS.map(p=>p.id);

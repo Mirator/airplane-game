@@ -180,7 +180,7 @@ describe('ui', { concurrency: CONC }, () => {
     try {
       const all = await page.evaluate(() => {
         const D = window.__dbg, T = D.tables, X = D.text, o = [], add = (g, k, s) => o.push({ g, k, s: String(s), n: String(s).replace(/<[^>]+>/g, '').length });
-        for (const a in T.ABIL) add('line', 'ability ' + a, X.abilityDesc(a));
+        for (const a in T.ABIL) if (a !== 'shot') add('line', 'ability ' + a, X.abilityDesc(a));   // 'shot' is on no button / card
         for (const p of T.PERKS) add('line', 'perk ' + p.id, p.d);
         for (const s of T.SYN) add('line', 'synergy ' + s.id, s.d);
         for (const k in T.TR) add('line', 'trait ' + k, T.TR[k].d);

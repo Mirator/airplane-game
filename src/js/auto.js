@@ -46,9 +46,9 @@ function autoSpeedCycle(){
 // the top-bar strip (indicator, speed, stop; shown only while Auto runs) and the thin amber frame (called from updateHud, so it follows every render)
 function autoUi(){
  const on=!!G&&!G.over&&!!(G.auto&&G.auto.on),key=(on?1:0)+'|'+AUTO.speed;
- if(on){const ap=$('autoPay'),t='+'+runBank(G,false).idle+' pay';if(ap&&ap._t!==t){ap._t=t;ap.textContent=t;}}   // Auto's idle pay so far, separate from the gold purse in the stats row
+ if(on){const ap=$('autoPay'),t='+'+runBank(G,false).idle;if(ap&&ap._t!==t){ap._t=t;ap.textContent=t;}}   // Auto's idle pay so far: its own small line under the stats, never a part of the strip that holds the purse
  if(key===AUTO.uiKey)return;AUTO.uiKey=key;
- $('autoBox').style.display=on?'flex':'none';
+ $('autoBox').style.display=on?'flex':'none';$('autoNote').style.display=on?'flex':'none';$('hud').classList.toggle('auto',on);
  $('autoBtn').setAttribute('aria-pressed',on?'true':'false');
  $('autoSpd').textContent=AUTO.speed+'×';
  $('cv').classList.toggle('auto',on);

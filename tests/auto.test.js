@@ -47,7 +47,7 @@ describe('auto', { concurrency: CONC }, () => {
       assert.equal(await page.evaluate(() => window.__dbg().auto.on), 1);
       assert.equal(await page.evaluate(() => document.getElementById('modal').style.display), 'none', 'the menu closed');
       assert.ok(await page.locator('#autoSpd').isVisible());
-      assert.ok(await page.locator('#autoTag').isVisible());
+      assert.ok(await page.locator('#autoNote').isVisible(), 'the idle pay has its own small line');
       assert.match(await page.locator('#autoBtn').getAttribute('aria-label'), /Stop Auto/);
       const t0 = (await snap(page)).turn;
       await page.waitForFunction((t) => window.__dbg().turn >= t + 2, t0, { timeout: 15000 });   // turns advance by themselves at 1x
@@ -358,7 +358,7 @@ describe('auto', { concurrency: CONC }, () => {
       assert.equal(aut.banked, Math.round(aut.rate), '3000 turns of Auto = 3000 turns at the idle rate; the 101 run gold is not paid');
       assert.ok(aut.rate > 5, 'best floor 4 pays a few gold for 3000 turns: ' + aut.rate);
       assert.ok(/\b101\b/.test(aut.hud), 'the HUD shows the purse (101: what the merchant spends), not the banked number: ' + aut.hud);
-      assert.equal(aut.recap, true); assert.match(aut.text, /Auto played 3000 turns: idle pay \d+ gold/); assert.ok(aut.text.includes('+' + aut.banked), 'the recap says the banked number');
+      assert.equal(aut.recap, true); assert.match(aut.text, /Auto played 3000 of 3000 turns\. Purse 101 gold \(the HUD number\): your 0% of it banks 0\. Idle pay \d+ gold for Auto's turns\. Banked in all: \d+/); assert.ok(aut.text.includes('+' + aut.banked), 'the recap says the banked number');
       assert.equal(aut.aruns, 1); assert.equal(aut.runs, 1, 'the run counts in the records'); assert.equal(aut.on, 0);
       const lists = await page.evaluate(() => { document.getElementById('modalBox').querySelector('button').click(); window.__dbg.mods.showRecords(); return document.getElementById('titleBox').innerHTML; });
       assert.match(lists, /Auto<\/em>/, 'Records list shows the Auto tag');
@@ -451,17 +451,19 @@ describe('auto', { concurrency: CONC }, () => {
     const { page, ctx } = await fresh('warrior', 42);
     try {
       await freezeAuto(page);   // layout only: Auto is switched on but takes no turn, so no dialog can appear
-      await page.evaluate(() => { const G = window.__dbg(); G.daily = '2026-01-01'; G.hard = 1; G.mod = 'cursed'; });
+      await page.evaluate(() => { const G = window.__dbg(); G.daily = '2026-01-01'; G.hard = 1; G.heat = 1; G.mod = 'cursed'; G.p.gold = 1234; G.keys = 1; });
       await autoOn(page); await page.click('#autoSpd');
-      await page.waitForFunction(() => document.getElementById('autoTag').offsetParent !== null && document.querySelectorAll('#chips .chip').length === 1);
+      await page.waitForFunction(() => document.getElementById('autoNote').offsetParent !== null && document.querySelectorAll('#chips .chip').length === 1);
       const L = await page.evaluate(() => {
         const r = (e) => { const b = (typeof e === 'string' ? document.querySelector(e) : e).getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
-        return { btn: r('#autoBtn'), spd: r('#autoSpd'), tag: r('#autoTag'), chip: r('#chips .chip'), hud: r('#hud'), log: r('#log'), cv: r('#cv'), stats: document.getElementById('stats').textContent, statIcons: [...document.querySelectorAll('#stats [data-ic]')].map((e) => e.dataset.ic),
+        return { btn: r('#autoBtn'), spd: r('#autoSpd'), tag: r('#autoNote'), statsW: [document.getElementById('stats').scrollWidth, document.getElementById('stats').clientWidth], statsTxt: document.getElementById('stats').innerText, chip: r('#chips .chip'), hud: r('#hud'), log: r('#log'), cv: r('#cv'), stats: document.getElementById('stats').textContent, statIcons: [...document.querySelectorAll('#stats [data-ic]')].map((e) => e.dataset.ic),
           onMap: document.querySelectorAll('#cv button').length, scroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight] };
       });
       assert.ok(L.btn.h >= 44 && L.btn.w >= 44 && L.spd.h >= 44 && L.spd.w >= 44 && L.chip.h >= 44 && L.chip.w >= 44);
       assert.ok(L.btn.b <= L.hud.b + 0.5 && L.spd.b <= L.hud.b + 0.5 && L.hud.b <= L.cv.t + 0.5, 'the Auto strip is in the top bar, above the map');
-      assert.ok(L.btn.r <= 391 && L.spd.l >= L.tag.r, 'indicator, speed and stop fit side by side');
+      assert.ok(L.btn.r <= 391 && L.btn.l >= L.spd.r - 0.5, 'speed and stop fit side by side');
+      assert.ok(/1234/.test(L.statsTxt) && L.statsW[0] <= L.statsW[1] + 1, 'the purse (and the key count) stay visible while Auto runs: ' + L.statsTxt + ' ' + L.statsW);
+      assert.ok(L.tag.t >= L.btn.t && L.tag.b <= L.hud.b + 0.5, 'the idle pay is its own small line, inside the top bar');
       assert.equal(L.onMap, 1, 'the map carries one button: the modifier icon');
       assert.ok(L.statIcons.includes('cal') && L.statIcons.includes('skull'));   // Daily / Hard moved to the top bar
       assert.ok(L.cv.b <= L.log.t + 0.5 && L.cv.r <= 391);

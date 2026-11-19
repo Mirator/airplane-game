@@ -173,7 +173,7 @@ function finish(kind){
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<div class="portrait">'+ic(clsOf(p).e,56)+'</div><p class="recap"><b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'</p><div class="chips3"><span>Floor <b>'+G.floor+'</b></span><span><b>'+G.turn+'</b> turns</span><span><b>'+G.kills+'</b> kills</span></div>'+
   '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Heat '+heat+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turn'+(autoTurns(G)===1?'':'s')+': idle pay '+idle+' gold'+(share<1?', plus your share of the run gold':'')+'.</p>':'')+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' of '+G.turn+' turn'+(G.turn===1?'':'s')+'. <b>Purse '+p.gold+' gold</b> (the HUD number): your '+Math.round((1-share)*100)+'% of it banks '+(banked-idle)+'. <b>Idle pay '+idle+' gold</b> for Auto\'s turns. Banked in all: <b>'+banked+'</b>.</p>':'')+
   (bpD?'<p class="recap" id="bpRecap">'+ic(bpIcon(bpD),20)+' Blueprint found: <b>'+bpD.n+'</b></p>':'')+
   (heatUp?'<p class="recap" id="heatRecap">'+ic('skull',16)+' <b>Heat '+heatUp+'</b> unlocked: '+HEAT[heatUp].n+'.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
@@ -184,7 +184,12 @@ function finish(kind){
  $('modalBox').classList.add(dead?'dead':won?'win':'x');
  };
  // the lethal hit is seen first: the death card follows after BAL.ui.deathMs (input is locked meanwhile: G.over)
- if(dead&&BAL.ui.deathMs>0)setTimeout(function(){if(G&&G.over&&$('modal').style.display==='none')showEnd();},BAL.ui.deathMs);else showEnd();
+ deathT=performance.now();
+ if(dead&&BAL.ui.deathMs>0)setTimeout(function(){
+  if(!G||!G.over)return;
+  if($('modal').style.display!=='none'&&$('modalBox').dataset.kind==='end')return;   // already showing
+  closeModal();showEnd();   // whatever else is open (a dialog that was up when the blow landed) gives way: the death card is never skipped
+ },BAL.ui.deathMs);else showEnd();
  toastClear();
 }
 

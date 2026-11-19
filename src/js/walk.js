@@ -33,17 +33,30 @@ function startWalk(path,opts){
   if(!tryMove(nx-p.x,ny-p.y)){stop();return;}
   if(!G||G.over||G.floor!==f0||p.hp<hp0||G.stopWalk||modalOpen()){stop();return;}
   const v1=visIds();if(v1.some(id=>v0.indexOf(id)<0)){frameSight();stop();return;}
-  if(opts.explore&&G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){frameSight();stop();return;}
+  if(opts.explore&&exploreBlockers(true).length){frameSight();stop();return;}
   if(path.length)setTimeout(step,70);else{stop();if(opts.done&&G&&!G.over&&!modalOpen())opts.done();}
  };
  if(path.length){const l=path[path.length-1];dest={x:l[0],y:l[1],tok:tok};}
  step();
 }
+// The awake foes in sight that stop Explore. One that neither can walk to you nor can be walked to by you (and cannot shoot you) is not one of them: Explore goes on elsewhere
+// and says so once for that foe (a bat behind a gap would otherwise block Explore for ever).
+function exploreBlockers(quiet){
+ const p=G.p,vis=G.enemies.filter(e=>e.awake&&!e.dead&&G.vis[ix(e.x,e.y)]);
+ if(!vis.length)return vis;
+ const dist=bfsDist(p.x,p.y),out=[];
+ for(const e of vis){
+  const d=EN[e.t],shoots=!!d.range&&manh(e,p)<=d.range&&los(e.x,e.y,p.x,p.y,true);
+  if(shoots||dist[ix(e.x,e.y)]<9999||bfsPath(p.x,p.y,e.x,e.y))out.push(e);
+  else if(!quiet){const n=G.exn||(G.exn={});if(!n[e.id]){n[e.id]=1;msg('The '+nm(e)+" cannot reach you and you cannot reach it. Exploring on.");}}
+ }
+ return out;
+}
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
  if(armed){cancelTarget();return;}   // like Wait: with an ability armed the bar button only cancels
  const p=G.p;
- if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
+ if(exploreBlockers().length){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
@@ -188,7 +201,7 @@ function onTap(tx,ty){
   const d=EN[e.t];   // short log line; hold the foe for the full card (trait, state)
   msg((e.elite?'ELITE '+d.n+' '+e.name:d.n)+' HP '+e.hp+'/'+e.mhp+', ATK '+e.atk+'.'+(e.wind?' WINDING UP!':'')+(e.awake?'':' Unaware.'));
   const path=bfsPath(p.x,p.y,tx,ty);
-  if(path&&path.length>1){path.pop();startWalk(path);}else msg("Can't reach it.");
+  if(path&&path.length>1){path.pop();startWalk(path);}else msg(bfsDist(p.x,p.y)[ix(tx,ty)]<9999?'Something is in the way. Wait for it to come.':"Can't reach it.");
   return;
  }
  const it=itemAt(tx,ty);if(it)msg(itemName(it)+'.');

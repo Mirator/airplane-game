@@ -46,7 +46,7 @@ function summonWhelps(e){
  const c=[];
  for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=e.x+dx,y=e.y+dy;
   if(inb(x,y)&&G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!(x===G.p.x&&y===G.p.y))c.push([x,y]);}
- c.sort(()=>rf()-0.5);
+ shuf(c);
  let n=0;
  for(const t of c){if(n>=BAL.enemyAi.summonN)break;const w=makeEnemy('whelp',t[0],t[1],G.floor);w.awake=true;n++;}
  msg('The '+EN[e.t].n+' calls its brood: '+n+' whelps!');floatFx(e.x,e.y,'BROOD','#f95',true);

@@ -9,13 +9,13 @@ const BTNS=[
   if(trayOpen()){setTray(false);return;}
   const n=G.inv.pot+G.inv.fire+G.inv.tele;
   if(n<=0){msg('No items.');render();return;}
-  armed=null;setTray(true);render();}},
+  if(armed){armed=null;msg('Cancelled.');}setTray(true);render();}},
  {id:'b_exp',fn:explore},
  {id:'b_wait',fn:act(function(){if(armed){cancelTarget();return;}wait();})},   // armed: Wait is a cancel, no turn spent
  {id:'b_down',fn:act(descend)}
 ];
 const TRAYBTNS=[{id:'b_pot',fn:act(drink)},{id:'b_fire',fn:act(fireball)},{id:'b_tele',fn:act(teleport)}];
-const KEYS={b_items:'I',b_exp:'E',b_wait:'␣',b_down:'↵',b_pot:'Q'};   // Space / Enter as one-glyph chips, so they never reach the icon
+const KEYS={b_items:'I',b_exp:'E',b_wait:'Spc',b_down:'↵',b_pot:'Q'};   // the chips straddle the top edge of the button, so a three-letter one never reaches the icon
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.dataset.key=KEYS[b.id];el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;if(KEYS[b.id])el.dataset.key=KEYS[b.id];el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
 function trayOpen(){return $('tray').style.display!=='none';}
@@ -92,25 +92,59 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';setH(rt,'Mana '+Math.floor(p.mana||0)+'/'+m);}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';setH(rt,ic('knife',16)+' Knives '+(G.knives||0)+'/'+m);}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+p.gold+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
+ setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+p.gold+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+'<span><span class="hw">Heat </span>'+Math.max(1,G.heat|0)+'</b></span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
  {const n=G.pending|0,b=$('perkBadge'),t=n>0?String(n):'';if(b._t!==t){b._t=t;b.textContent=t;b.style.display=t?'':'none';$('gearBtn').classList.toggle('pick',n>0);$('gearBtn').setAttribute('aria-label',n>0?'Pick a perk ('+n+' waiting)':'Equipment');}}
- autoUi();sightUpdate();
+ bossUpdate();autoUi();sightUpdate();
  {const ir=!G.over;if(ir!==inRunCls){inRunCls=ir;document.body.classList.toggle('inrun',ir);}}
+}
+// the boss bar: a HUD row while the boss is in sight (or any tile of its 3x3 body is)
+function bossUpdate(){
+ const b=G.over?null:G.enemies.find(e=>EN[e.t].boss&&!e.dead&&e.hp>0&&(G.vis[ix(e.x,e.y)]||bossFoot(e)));
+ const row=$('bossRow'),on=!!b;
+ if(row._on!==on){row._on=on;row.style.display=on?'flex':'none';}
+ if(!b)return;
+ const fr=Math.max(0,Math.min(1,b.hp/b.mhp)),f=$('bossFill'),col=fr>0.6?PAL.hpHi:fr>0.3?PAL.hpMid:PAL.hpLow,w=(100*fr)+'%';
+ if(f._w!==w){f._w=w;f.style.width=w;}if(f._c!==col){f._c=col;f.style.background=col;}
+ setH($('bossName'),EN[b.t].n);const t=b.hp+'/'+b.mhp;if($('bossHp')._t!==t){$('bossHp')._t=t;$('bossHp').textContent=t;}
 }
 // the wide side panel's "In sight" list: every visible foe by distance (icon, name, HP bar); a click inspects it and rings it on the map
 let hlFoe=null;
+// rows are kept per foe and updated in place (a width / a number); a row is only created, moved or removed when a foe enters, leaves or changes its rank, so a focused row keeps its focus
+const sightRows=new Map();
 function sightUpdate(){
  if(!isBig())return;
- const el=$('sightList'),vis=G.over?[]:G.enemies.filter(e=>!e.dead&&e.hp>0&&G.vis[ix(e.x,e.y)]).sort((a,b)=>manh(a,G.p)-manh(b,G.p));
- let h='';
- if(!vis.length)h='<div class="none">Nothing in sight.</div>';
- else{
-  for(const e of vis.slice(0,6)){const d=EN[e.t];
-   h+='<button class="srow" data-id="'+e.id+'" aria-label="'+d.n+' '+e.hp+' of '+e.mhp+' HP">'+ic(d.e,24)+'<span class="sn">'+(e.elite&&e.name?e.name:d.n)+(e.awake?'':' (asleep)')+'</span><span class="sh"><i style="width:'+Math.max(0,Math.min(100,100*e.hp/e.mhp))+'%"></i></span><span class="sv">'+e.hp+'</span></button>';}
-  if(vis.length>6)h+='<div class="none">+'+(vis.length-6)+' more</div>';
+ const el=$('sightList'),vis=G.over?[]:G.enemies.filter(e=>!e.dead&&e.hp>0&&G.vis[ix(e.x,e.y)]).sort((a,b)=>manh(a,G.p)-manh(b,G.p)||a.id-b.id);
+ const n=$('sightN'),nt=vis.length?'('+vis.length+')':'';if(n._t!==nt){n._t=nt;n.textContent=nt;}
+ let none=el.querySelector('.none');
+ if(!vis.length){
+  if(sightRows.size||!none){sightRows.clear();el.innerHTML='<div class="none">Nothing in sight.</div>';}
+  runsumUpdate();return;
  }
- if(el._h!==h){el._h=h;el.innerHTML=h;}
+ if(none)none.remove();
+ const want=new Set(vis.map(e=>e.id));
+ for(const [id,row] of sightRows)if(!want.has(id)||!row.isConnected){row.remove();sightRows.delete(id);}
+ vis.forEach(function(e,i){
+  const d=EN[e.t];let row=sightRows.get(e.id);
+  if(!row){row=document.createElement('button');row.className='srow';row.dataset.id=e.id;row.innerHTML=ic(d.e,24)+'<span class="sn"></span><span class="sh"><i></i></span><span class="sv"></span>';sightRows.set(e.id,row);}
+  const nm1=(e.elite&&e.name?e.name:d.n)+(e.awake?'':' (asleep)'),c=row.children;
+  if(row._n!==nm1){row._n=nm1;c[1].textContent=nm1;}
+  const w=Math.max(0,Math.min(100,100*e.hp/e.mhp))+'%';if(row._w!==w){row._w=w;c[2].firstChild.style.width=w;}
+  const v=String(e.hp);if(row._v!==v){row._v=v;c[3].textContent=v;}
+  const al=d.n+' '+e.hp+' of '+e.mhp+' HP';if(row._a!==al){row._a=al;row.setAttribute('aria-label',al);}
+  if(el.children[i]!==row)el.insertBefore(row,el.children[i]||null);
+ });
+ runsumUpdate();
+}
+// the tall wide panel's "This run" box (class, perks, gear): shown by CSS only on tall windows, so it is only filled when it is visible
+function runsumUpdate(){
+ const rs=$('runsum');if(!rs.offsetParent&&!rs.getClientRects().length)return;
+ const p=G.p,C=clsOf(p);
+ let h='<div class="rsh"><b>'+ic(C.e,28)+' '+C.n+'</b><span>Lv '+p.lvl+' · floor '+G.floor+'/'+MAXF+'</span></div>';
+ const own=PERKS.filter(pk=>pc(pk.id)>0);
+ h+='<div class="rsp">'+(own.length?own.map(pk=>'<span class="rsc" title="'+pk.n+'">'+ic(CARD_IC[pk.id]||'perk',20)+(pc(pk.id)>1?'<i>'+pc(pk.id)+'</i>':'')+'</span>').join(''):'<span class="none">No perks yet.</span>')+'</div>';
+ for(const sl of SLOTS){const it=p.eq[sl];h+='<div class="rsg"><small>'+SLOT_LABEL[sl]+'</small><span>'+(it?ic(itemIcon(it),18)+' '+gearName(it):'None')+'</span></div>';}
+ setH($('runInfo'),h);
 }
 function sightFoe(ev){const b=ev.target.closest&&ev.target.closest('button.srow');return b&&G?G.enemies.find(e=>e.id===+b.dataset.id):null;}
 $('sightList').addEventListener('click',function(ev){

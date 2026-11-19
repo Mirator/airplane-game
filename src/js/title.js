@@ -12,7 +12,7 @@ function showClassDetails(k,mode){
 }
 function showClassPicker(mode){
  mode=mode||{};
- const t=$('titleBox');t.innerHTML='';t.className='box';
+ const t=$('titleBox');t.innerHTML='';t.className='box pick';
  const h=document.createElement('h1');h.textContent=mode.daily?'Daily: pick a class':'Pick a class';t.appendChild(h);
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
  else if(heatMax()>=1){
@@ -162,7 +162,10 @@ function showUpgrades(tab){
   sw.innerHTML=ic('reload',20)+'<small>'+other.n+'</small>'+(fee?'<small class="gold">'+fee+' '+ic('coin',11)+'</small>':'<small>free</small>');
   sw.setAttribute('aria-label','Switch '+q.n+' to '+other.n+(fee?' for '+fee+' gold':''));
   sw.style.width='76px';sw.style.minWidth='76px';
-  sw.addEventListener('click',function(){if(pairSwitch(q.k))showUpgrades('upg');});
+  sw.addEventListener('click',function(){
+   // a swap that costs gold needs a second tap on the same button (a free one does not)
+   if(fee>0&&!sw.dataset.arm){sw.dataset.arm='1';sw.innerHTML=ic('reload',20)+'<small>Tap again</small><small class="gold">'+fee+' '+ic('coin',11)+'</small>';sw.setAttribute('aria-label','Tap again to switch '+q.n+' to '+other.n+' for '+fee+' gold');sw.classList.add('armed');return;}
+   if(pairSwitch(q.k))showUpgrades('upg');});
   row.appendChild(sw);
   const od=document.createElement('small');od.className='pdesc';od.dataset.other=q.k;od.textContent='Swap: '+pairPer(q,other)+(fee?'':' (free now)');row.appendChild(od);
  }

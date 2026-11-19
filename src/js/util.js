@@ -14,7 +14,8 @@ function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCo
 function withStream(seed,fn){const keep=rngS;rngS={a:seed>>>0};try{return fn();}finally{rngS=keep;}}
 function rnd(a,b){return a+Math.floor(rf()*(b-a+1));}
 function pick(a){return a[Math.floor(rf()*a.length)];}
-function shuf(a){return a.sort(()=>rf()-0.5);}
+// Fisher-Yates (a sort with a random comparator is biased and engine dependent)
+function shuf(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(rf()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function rmo(){try{return !!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);}catch(e){return false;}}
 const ix=(x,y)=>y*W+x;
 const inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H;

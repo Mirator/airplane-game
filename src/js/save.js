@@ -5,8 +5,15 @@ let meta={seenHelp:0,gold:0,wins:0,best:0,unl:{}};
 // mv = meta version: 1 (no field) had the flat shop (hp atk pot goldp def) and the Hard toggle, 2 has meta.up / pv (upgrade levels, pair variants), bp (blueprints),
 // heat / heatSel, exp (expeditions).
 const META_DEFAULTS=()=>({rec:{n:{},h:{}},ach:{},dly:{},dlyN:0,mods:{},runs:0,streak:0,bstreak:0,hwins:0,hardOn:0,aruns:0,up:{},pv:{},bp:{},leg:{},heat:0,heatSel:0,bestM:0,exp:{}});
+// Reset writes a GENERATION number into storage (GEN_KEY) before it erases anything. Every tab remembers the generation it booted with, stamps it into everything it writes (meta.gen, run.gen)
+// and compares it with the stored one before every write: a newer stored generation means the tab's data is from before a reset, so it writes nothing and reloads to the title.
+// Whatever such a tab managed to write before it noticed carries the old number and is thrown away on load (and by the tabs that see it arrive). No event timing is involved.
+function readGen(){try{return Math.max(0,Math.floor(+localStorage.getItem(GEN_KEY))||0);}catch(e){return 0;}}
+function genOfStr(s){try{return Math.max(0,Math.floor(+JSON.parse(s).gen)||0);}catch(e){return 0;}}
+let staleTab=false,myGen=readGen(),resetting=false;
 let metaRaw=null,metaDirty=false;
 try{metaRaw=JSON.parse(localStorage.getItem(META_KEY));}catch(e){}
+if(metaRaw&&typeof metaRaw==='object'&&(+metaRaw.gen||0)<myGen){metaRaw=null;try{localStorage.removeItem(META_KEY);}catch(e){}}   // written by a tab that was still open across a reset
 const hadMeta=!!(metaRaw&&typeof metaRaw==='object'&&!Array.isArray(metaRaw));
 if(hadMeta)Object.assign(meta,metaRaw);
 if(!meta.unl||typeof meta.unl!=='object'||Array.isArray(meta.unl))meta.unl={};
@@ -55,11 +62,16 @@ function cleanMeta(){
 }
 cleanMeta();
 // Another tab erased the progress (Reset): this tab still holds the old meta and run in memory and would write them straight back with its next save. It stops writing and reloads.
-let staleTab=false;
-function saveMeta(){if(staleTab)return;try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+function genOk(){
+ if(staleTab)return false;
+ if(!resetting&&readGen()>myGen){staleTab=true;try{location.reload();}catch(e){}return false;}
+ return true;
+}
+function saveMeta(){if(!genOk())return;meta.gen=myGen;try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
 window.addEventListener('storage',function(ev){
  if(resetting||staleTab)return;
- if(ev.key===null||(ev.key===META_KEY&&ev.newValue===null)){staleTab=true;try{location.reload();}catch(e){}}
+ if(ev.key===GEN_KEY?readGen()>myGen:(ev.key===null||(ev.key===META_KEY&&ev.newValue===null))){staleTab=true;try{location.reload();}catch(e){}return;}
+ if((ev.key===META_KEY||ev.key===RUN_KEY)&&ev.newValue&&genOfStr(ev.newValue)<myGen){try{localStorage.removeItem(ev.key);}catch(e){}}   // a stale tab's last write after our reset: gone again
 });
 function checkAch(){
  let any=checkAchievements();
@@ -72,8 +84,8 @@ function checkAch(){
 checkAch();if(migrated)saveMeta();
 // run saves are versioned (SAVE_VER). A run saved by an older version is discarded on boot (no migration) and the title shows a notice.
 try{for(const k of OLD_RUN_KEYS){if(localStorage.getItem(k)!==null){localStorage.removeItem(k);noticeOld=true;}}}catch(e){}
-function runStrOk(s){try{const o=JSON.parse(s);return !!o&&RUN_VERS.indexOf(o.ver)>=0&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H;}catch(e){return false;}}
-try{const r=localStorage.getItem(RUN_KEY);if(r&&!runStrOk(r)){localStorage.removeItem(RUN_KEY);noticeOld=true;}}catch(e){}
+function runStrOk(s){try{const o=JSON.parse(s);return !!o&&RUN_VERS.indexOf(o.ver)>=0&&!!o.p&&!!o.p.eq&&Array.isArray(o.map)&&o.map.length===W*H&&(+o.gen||0)>=readGen();}catch(e){return false;}}
+try{const r=localStorage.getItem(RUN_KEY);if(r&&!runStrOk(r)){localStorage.removeItem(RUN_KEY);if(genOfStr(r)>=readGen())noticeOld=true;}}catch(e){}
 // Chromium commits localStorage to disk in batches at most about once a minute, so after a hard kill of the browser (crash,
 // OS killing the tab/app, "restart") the newest run saves - up to the whole run - are gone and Continue is missing. The run is
 // therefore mirrored into IndexedDB, which commits per transaction and survives a kill. Value: JSON string, or '' = "cleared".
@@ -99,12 +111,12 @@ function idbFlush(){
 }
 function idbPutRun(v){idbWant=v;idbFlush();}
 function save(){
- if(!G||G.over||staleTab)return;if(metaDirty){saveMeta();metaDirty=false;}
- if(rngS)G.rs=rngS.a;G.ts=Date.now();let js;try{js=JSON.stringify(G);}catch(e){return;}
+ if(!G||G.over||!genOk())return;if(metaDirty){saveMeta();metaDirty=false;}
+ if(rngS)G.rs=rngS.a;G.ts=Date.now();G.gen=myGen;let js;try{js=JSON.stringify(G);}catch(e){return;}
  try{localStorage.setItem(RUN_KEY,js);}catch(e){}
  idbPutRun(js);
 }
-function clearSave(){try{localStorage.removeItem(RUN_KEY);}catch(e){}idbPutRun('');}
+function clearSave(){if(!genOk())return;try{localStorage.removeItem(RUN_KEY);}catch(e){}idbPutRun('');}
 // boot: if the IndexedDB mirror is newer than (or contradicts) localStorage, adopt it and refresh the title screen
 function syncRunFromIdb(){
  idbOpen(function(db){if(!db)return;let g;try{g=db.transaction('s','readonly').objectStore('s').get('run2');}catch(e){return;}g.onsuccess=function(){
@@ -131,6 +143,7 @@ function continueRun(){
   G.perks=G.perks||{};for(const k of Object.keys(G.perks))if(!PERKS.some(q=>q.id===k))delete G.perks[k];   // a removed perk (Trapfinder) is dropped silently
   G.syn=G.syn||{};G.vanish=G.vanish||0;
   {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0,t:Math.max(0,Math.floor(+a.t)||0)};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
+  G.fm=(G.fm&&isFinite(+G.fm.t)&&isFinite(+G.fm.a))?{t:G.fm.t|0,a:G.fm.a|0}:{t:G.turn|0,a:autoTurns(G)};   // the floor-start marks the bestM gate reads: a save without them counts from now
   if(!CLS[G.p.cls])G.p.cls='warrior';
   G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
   for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}
@@ -148,7 +161,6 @@ function continueRun(){
 }
 
 // ---- reset: wipes everything this game stored (meta save, run save, Auto speed; localStorage and the IndexedDB mirror) and nothing else on the origin
-let resetting=false;
 function freshMeta(){
  for(const k of Object.keys(meta))delete meta[k];
  Object.assign(meta,{seenHelp:0,gold:0,wins:0,best:0,unl:{}},META_DEFAULTS());
@@ -156,6 +168,7 @@ function freshMeta(){
 }
 function wipeAll(done){
  resetting=true;idbWant=undefined;
+ try{myGen=Math.max(myGen,readGen())+1;localStorage.setItem(GEN_KEY,String(myGen));}catch(e){}   // first: every other tab is now stale
  try{for(const k of [META_KEY,RUN_KEY].concat(OLD_RUN_KEYS,[AUTO_SPEED_KEY]))localStorage.removeItem(k);}catch(e){}
  freshMeta();noticeOld=false;G=null;armed=null;
  try{AUTO.speed=BAL.auto.speeds[0];}catch(e){}

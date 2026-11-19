@@ -20,7 +20,7 @@ function showHelp(back){
    r('equip','Top bar','Gear and stats, then the menu. A badge on gear counts waiting level-up perks: tap it (or P).')+
    r('heart','Bars','Red HP, then Rage / Mana / Knives. Thin bar = XP.')+
    r('map','Minimap','Tap for the big map.'))+
-  sec('Keyboard','<p class="sub">Arrows or WASD move and attack. 1-4 abilities (again to use). Space wait, E explore, I items, Q potion, P perk, Enter stairs, Esc cancel or menu. Right-click inspects.</p>')+
+  sec('Keyboard','<p class="sub">Arrows or WASD move and attack. 1-4 arm an ability. Aimed ones show a cursor: arrows move it, Tab picks the next foe, Enter or the same number fires, Esc cancels. Cleave, Nova, Brace, Vanish: Enter or the number uses it. F: the Mage shot, aimed the same way. Space wait, E explore, I items, Q potion, P perk, Enter stairs, Esc cancel or menu. Right-click inspects.</p>')+
   sec('Fighting',
    r('guard','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them or hit from behind.')+
    (!G||G.over||G.p.cls==='mage'?r('ab_bolt','Mage shot','Tap a foe within '+BAL.shot.range+' tiles, or move toward it in line: a free shot, about 40% of a Bolt.'):'')+

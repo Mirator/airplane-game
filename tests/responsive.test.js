@@ -68,12 +68,12 @@ describe('layout at every size', { concurrency: CONC }, () => {
         for (const z of [p, q]) assert.equal(await page.evaluate(([x, y]) => document.elementFromPoint(x, y).id, [z.x, z.y]), 'c');
         // menus: title, upgrades, a modal; boxes centered, inside the viewport, last button reachable
         await page.click('#menuBtn'); await settle(page, 60);
-        let b = await rect(page, '#modalBox'); assert.ok(b.l >= 0 && b.r <= w && b.t >= 0 && b.b <= h && b.w <= (w >= 1700 ? 720 : w >= 1180 ? 640 : 540), 'modal box fits ' + JSON.stringify(b));
+        let b = await rect(page, '#modalBox'); assert.ok(b.l >= 0 && b.r <= w && b.t >= 0 && b.b <= h && b.w <= (w >= 1700 ? 720 : (w >= 1180 || (w >= 760 && h >= 600)) ? 640 : 540), 'modal box fits ' + JSON.stringify(b));
         assert.ok(Math.abs((b.l + b.r) / 2 - w / 2) <= 2, 'modal centered');
         await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; window.__dbg.api.showTitle(); });
         for (const [sel, name] of [['#titleBox', 'title'], ['', 'upgrades']]) {
           if (!sel) { await page.click('#btnUpg'); await settle(page, 60); }
-          const t = await rect(page, '#titleBox'); assert.ok(t.l >= 0 && t.r <= w && t.t >= 0 && t.b <= h && t.w <= (w >= 1700 ? 1200 : w >= 1180 ? 1020 : 540), name + ' box fits ' + JSON.stringify(t));
+          const t = await rect(page, '#titleBox'); assert.ok(t.l >= 0 && t.r <= w && t.t >= 0 && t.b <= h && t.w <= (w >= 1700 ? 1200 : (w >= 1180 || (w >= 760 && h >= 600)) ? 1020 : 540), name + ' box fits ' + JSON.stringify(t));
           assert.ok(Math.abs((t.l + t.r) / 2 - w / 2) <= 2, name + ' centered');
           const sc = await page.evaluate(() => { const e = document.getElementById('titleBox'); const bs = [...e.querySelectorAll('button')].filter((x) => x.offsetParent); const last = bs[bs.length - 1].getBoundingClientRect(); return { last: last.bottom, scrolls: e.scrollHeight > e.clientHeight, ov: document.getElementById('title').scrollWidth > innerWidth }; });
           assert.ok((sc.last <= h + 0.5 || sc.scrolls) && !sc.ov, name + ' last button reachable (fits or scrolls)');
@@ -219,7 +219,7 @@ describe('mouse and keyboard', { concurrency: CONC }, () => {
       assert.equal(await hint('b_wait'), 'none', 'hidden before a key');
       const h0 = await page.evaluate(() => document.getElementById('b_wait').innerHTML);
       await page.keyboard.press('ArrowUp'); await settle(page, 50);
-      assert.equal(await hint('b_wait'), '"␣"'); assert.equal(await hint('a_0'), '"1"'); assert.equal(await hint('menuBtn'), '"Esc"');
+      assert.equal(await hint('b_wait'), '"Spc"'); assert.equal(await hint('a_0'), '"1"'); assert.equal(await hint('menuBtn'), '"Esc"');
       assert.equal(await page.evaluate(() => document.getElementById('b_wait').innerHTML), h0, 'markup untouched');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
     const t = await dprPage(820, 1180, 2, { hasTouch: true, isMobile: true });

@@ -97,7 +97,7 @@ describe('armed abilities: one set of rules', { concurrency: CONC }, () => {
       let s = await S(page); assert.match(s.log, /Enter or \d to use, Esc to cancel/); assert.equal(s.turn, t0); await page.keyboard.press('Escape');
       await page.evaluate(() => { const G = window.__dbg(); G.map[G.p.y * 30 + G.p.x] = 2; window.__dbg.fn.render(); });
       await quiet(page); await page.click('#a_' + ibash); await frames(page); await page.keyboard.press('Enter'); await frames(page);
-      s = await S(page); assert.equal(s.kind, null, 'no path dialog'); assert.match(s.log, /lit tile/);
+      s = await S(page); assert.equal(s.kind, null, 'no path dialog'); assert.match(s.log, /Bash|stunned/, 'Enter fires the aimed ability at the cursor (the foe next to you)');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
 });
@@ -206,7 +206,7 @@ describe('deferred perk picks, second pass', { concurrency: CONC }, () => {
       assert.doesNotMatch(await page.locator('#modalBox').innerText(), /unspent/, 'no picks, no line');
       await page.locator('#modalBox button').click(); await page.evaluate(() => window.__dbg.fn.startRun('warrior')); await closeModal(page);
       await page.evaluate(() => { const G = window.__dbg(); G.turn = 5; G.auto = { on: 0, used: 1, noticed: 1, t: 1 }; window.__dbg.api.finish('abandon'); });
-      assert.match(await page.locator('#modalBox').innerText(), /Auto played 1 turn: idle pay/, 'singular');
+      assert.match(await page.locator('#modalBox').innerText(), /Auto played 1 of 5 turns\. Purse \d+ gold/, 'the recap says purse gold and idle pay apart');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
 });
@@ -241,7 +241,7 @@ describe('Heat, purse, Auto pay, expedition gate', { concurrency: CONC }, () => 
         const D = window.__dbg, G = D(); G.p.gold = 100; G.turn = 400; G.auto = { on: 1, used: 1, noticed: 1, t: 300 }; D.api.meta().bestM = 3; D.fn.render();
         return { hud: document.querySelectorAll('#stats span')[2].textContent.trim(), pay: document.getElementById('autoPay').textContent, bank: D.idle.runBank(G, false), purse: G.p.gold };
       });
-      assert.equal(+r.hud.replace(/\D/g, ''), r.purse, 'HUD = purse: ' + r.hud); assert.match(r.pay, new RegExp('\\+' + r.bank.idle + ' pay'));
+      assert.equal(+r.hud.replace(/\D/g, ''), r.purse, 'HUD = purse: ' + r.hud); assert.equal(r.pay, '+' + r.bank.idle, 'the idle pay is its own small line');
       assert.notEqual(r.bank.banked, r.purse, 'the projected bank differs from the purse here, so the test can tell them apart');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
@@ -359,7 +359,7 @@ describe('reset across tabs, clock and save details', { concurrency: CONC }, () 
       await dom('#btnMore'); await dom('#btnReset'); await dom('#modalBox button[data-k="reset1"]'); await dom('#modalBox button[data-k="reset2"]');
       await page.waitForFunction(() => document.getElementById('title').style.display !== 'none' && document.getElementById('modal').style.display === 'none' && !document.getElementById('btnContinue'));
       const store = await page.evaluate(() => ({ ls: Object.keys(localStorage).filter((k) => /^dcr_/.test(k)), gold: window.__dbg.api.meta().gold, unl: Object.keys(window.__dbg.api.meta().unl), heat: window.__dbg.api.meta().heat, up: window.__dbg.api.meta().up.hp, sound: window.__dbg.api.meta().sound }));
-      assert.deepEqual(store.ls.filter((k) => k !== 'dcr_meta_v1'), [], 'no run / settings key is left'); assert.equal(store.gold, 0); assert.deepEqual(store.unl, []); assert.equal(store.heat, 0); assert.equal(store.up, 0); assert.equal(store.sound, 0);
+      assert.deepEqual(store.ls.filter((k) => k !== 'dcr_meta_v1' && k !== 'dcr_gen'), [], 'no run / settings key is left'); assert.ok(await page.evaluate(() => +localStorage.getItem('dcr_gen') >= 1), 'the reset left its generation number behind'); assert.equal(store.gold, 0); assert.deepEqual(store.unl, []); assert.equal(store.heat, 0); assert.equal(store.up, 0); assert.equal(store.sound, 0);
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
   it('while an erase runs both reset buttons are disabled', async () => {
@@ -484,8 +484,8 @@ describe('every dialog by keyboard', { concurrency: CONC }, () => {
       await page.keyboard.press('Enter'); assert.equal(await page.locator('#modal').isVisible(), false, 'Resume');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
-  it('key-hint chips never cover an icon: the chip box (from the computed ::before) misses the icon box of every hinted button', async () => {
-    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 66, w: 1366, h: 768 });
+  for (const [cw, chh] of [[1366, 768], [1920, 1080], [1024, 480], [700, 520], [960, 480]]) it(`${cw}x${chh}: key-hint chips never cover an icon: the chip box (from the computed ::before) misses the icon box of every hinted button`, async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 66, w: cw, h: chh });
     try {
       await page.keyboard.press('ArrowUp'); await frames(page);
       const bad = await page.evaluate(() => {
@@ -495,7 +495,8 @@ describe('every dialog by keyboard', { concurrency: CONC }, () => {
           const cs = getComputedStyle(b, '::before'); if (cs.display === 'none') continue;
           const r = b.getBoundingClientRect(); const px = (v) => parseFloat(v);
           const w = px(cs.width), h = px(cs.height);
-          const l = cs.left !== 'auto' ? r.left + px(cs.left) : r.right - px(cs.right) - w, t = cs.top !== 'auto' ? r.top + px(cs.top) : r.bottom - px(cs.bottom) - h;
+          const tx = cs.transform && cs.transform !== 'none' ? new DOMMatrix(cs.transform).e : 0;   // the chip is centred with translateX(-50%)
+          const l = (cs.left !== 'auto' ? r.left + px(cs.left) : r.right - px(cs.right) - w) + tx, t = cs.top !== 'auto' ? r.top + px(cs.top) : r.bottom - px(cs.bottom) - h;
           const chip = { l, t, r: l + w, b: t + h };
           for (const ic of b.querySelectorAll('svg, .bi, .ai')) { const q = ic.getBoundingClientRect(); if (!q.width) continue;
             const ox = Math.min(chip.r, q.right) - Math.max(chip.l, q.left), oy = Math.min(chip.b, q.bottom) - Math.max(chip.t, q.top);
@@ -524,8 +525,10 @@ describe('wide layout', { concurrency: CONC }, () => {
         const rows = await page.evaluate(() => [...document.querySelectorAll('#sightList button.srow')].map((b) => ({ txt: b.textContent, svg: !!b.querySelector('svg'), bar: !!b.querySelector('.sh i'), h: b.getBoundingClientRect().height })));
         assert.equal(rows.length, 2, 'two foes in sight'); assert.ok(rows.every((r) => r.svg && r.bar && r.h >= 44), JSON.stringify(rows)); assert.match(rows[0].txt, /Rat/);
         const sight = await rect(page, '#sight'), logw = await rect(page, '#logw'), hud = await rect(page, '#hud'), bar2 = await rect(page, '#bar2');
-        assert.ok(sight.t - hud.b < 16 && logw.t - sight.b < 16 && bar2.t - logw.b < 16, 'panel sections are packed, no hole: ' + JSON.stringify({ a: sight.t - hud.b, b: logw.t - sight.b, c: bar2.t - logw.b }));
-        assert.ok(logw.h >= 150, 'the log takes the free height: ' + logw.h);
+        assert.ok(sight.t - hud.b < 16 && bar2.t - logw.b < 16, 'In sight sits under the HUD, the log right above the buttons: ' + JSON.stringify({ a: sight.t - hud.b, c: bar2.t - logw.b }));
+        assert.ok(logw.h >= 90 && logw.h <= Math.min(0.34 * h, 300) + 2, 'the log is capped, not a big empty box: ' + logw.h);
+        assert.ok(sight.b <= logw.t + 0.5, 'In sight and the log never overlap');
+        if (h >= 900) { const rs = await rect(page, '#runsum'); assert.ok(rs.h >= 100 && rs.b <= logw.t + 0.5, 'a This run box fills the free height on a tall window: ' + JSON.stringify(rs)); const tx = await page.locator('#runInfo').innerText(); assert.match(tx, /Mage/); assert.match(tx, /WEAPON/i); } else assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('runsum')).display), 'none');
         await page.locator('#sightList button.srow').first().click(); await frames(page);
         const insp = await page.evaluate(() => ({ i: !!window.__dbg.insp(), hl: window.__dbg.hl() }));
         assert.equal(insp.i, true, 'click inspects'); assert.ok(insp.hl && insp.hl.id, 'and rings the foe on the map');
