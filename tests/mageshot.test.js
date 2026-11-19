@@ -75,6 +75,7 @@ describe('mage free shot', { concurrency: CONC }, () => {
   it('a tap on the tile of a foe that just died is ignored; Warrior and Rogue taps are unchanged (walk / melee, no shot)', async () => {
     const m = await openRun(browser, 'mage', { seed: 14, w: 1366, h: 768 });
     try {
+      await m.page.evaluate(() => { window.__dbg.tables.BAL.ui.staleMs = 600000; window.__dbg.tables.BAL.ui.burstMs = 600000; });   // stretched: the pace of the two real taps cannot matter
       await hall(m.page); await foe(m.page, 'rat', 2, 0, { hp: 1 }); await click(m.page, 2, 0);
       const k = await S(m.page); assert.equal(k.foes.length, 0, 'killed'); const t0 = k.turn;
       await click(m.page, 2, 0); const k2 = await S(m.page); assert.equal(k2.x, k.x, 'the stale tap did not walk'); assert.equal(k2.turn, t0);

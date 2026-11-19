@@ -342,7 +342,7 @@ describe('idle', { concurrency: CONC }, () => {
         p = fresh(null); G().items.push({ x: p.x + 1, y: p.y, t: 'gold', v: 20 }); p.goldMul = 1; F.tryMove(1, 0); out.noGild = p.hp - 50;
         p = fresh('frenzy'); const a0 = D.gear.statVec().attack; for (let i = 0; i < 6; i++) { const e = T.foe('rat', 1, 0, true); e.hp = 1; F.tryMove(1, 0); } out.frenzy = D.gear.statVec().attack - a0;
         F.newFloor(2); out.reset = G().fz;
-        p = fresh('laststand'); const e = T.foe('goblin', 1, 0, true); p.hp = 32; F.hurtPlayer(e, 5, true, 'hits'); out.lastHp = p.hp; const before = p.hp; F.hurtPlayer(e, 1, true, 'hits'); out.second = before - p.hp;
+        p = fresh('laststand'); const e = T.foe('goblin', 1, 0, true); p.hp = 32; F.hurtPlayer(e, 5, true, 'hits'); out.lastHp = p.hp; p.hp = 32; F.hurtPlayer(e, 5, true, 'hits'); out.second = 32 - p.hp;   // below the threshold again: once a floor means no second rally
         p = fresh('aegis'); p.mhp = 100; p.hp = 100; const e2 = T.foe('goblin', 1, 0, true); F.hurtPlayer(e2, 90, true, 'hits'); out.aegis = 100 - p.hp;
         p = fresh(null); p.mhp = 100; p.hp = 100; F.hurtPlayer(e2, 90, true, 'hits'); out.noAegis = 100 - p.hp;
         p = fresh('cinder'); const k = T.foe('rat', 1, 0, true); k.hp = 1; const nb = T.foe('troll', 1, 1, true); nb.hp = nb.mhp = 200; const nh = nb.hp; F.tryMove(1, 0); out.cinder = nh - nb.hp;
@@ -350,7 +350,7 @@ describe('idle', { concurrency: CONC }, () => {
       });
       assert.equal(r.gilded, 5); assert.equal(r.noGild, 0);
       assert.equal(r.frenzy, 4, 'capped at +4'); assert.equal(r.reset, 0, 'a new floor starts clean');
-      assert.ok(r.lastHp >= 32 + 25, 'Last Stand rallied: ' + r.lastHp); assert.ok(r.second >= 1 && r.second <= 2, 'only once a floor');
+      assert.ok(r.lastHp >= 32 + 25, 'Last Stand rallied: ' + r.lastHp); assert.ok(r.second >= 3 && r.second <= 6, 'only once a floor: the second lethal-range hit is not rallied (' + r.second + ')');
       assert.equal(r.aegis, 30); assert.ok(r.noAegis > 60);
       assert.ok(r.cinder >= 3, 'burned the neighbour: ' + r.cinder);
       assert.deepEqual(errors, []);

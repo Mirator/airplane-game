@@ -53,7 +53,7 @@ describe('armed abilities: one set of rules', { concurrency: CONC }, () => {
       await page.keyboard.press('q'); await frames(page);
       s = await S(page); assert.deepEqual(s.armed, [], 'a potion turn disarms'); assert.ok(s.turn > t0);
       await page.evaluate(() => { const G = window.__dbg(); G.enemies = []; G.opts = null; G.map[G.p.y * 30 + G.p.x] = 2; window.__dbg.fn.computeVis(); });
-      await page.evaluate(() => window.__dbg.fn.toggleAbility('bash')); await page.evaluate(() => window.__dbg.fn.goDown({ mod: null, v: 0 }));
+      await page.evaluate(() => window.__dbg.fn.toggleAbility('brace')); assert.deepEqual((await S(page)).armed.length, 1, 'Brace is armed (it needs no foe)'); await page.evaluate(() => window.__dbg.fn.goDown({ mod: null, v: 0 }));
       assert.deepEqual((await S(page)).armed, [], 'descending clears an armed ability');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
@@ -281,70 +281,86 @@ describe('death card and toasts', { concurrency: CONC }, () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 57, grace: true });
     try {
       await page.evaluate(() => window.__dbg.fn.startRun('warrior')); await closeModal(page);
-      await page.clock.install({ time: Date.now() });
+      await page.clock.install({ time: Date.now() }); await page.evaluate(() => { window.__dbg.tables.BAL.ui.modalGraceMs = 3000; });   // a wide grace: the real pace of the key presses cannot leave it
       await page.evaluate(() => { const G = window.__dbg(); G.p.hp = 0; window.__dbg.api.finish('dead'); });
       assert.equal(await page.locator('#modal').isVisible(), false, 'not in the same frame as the hit');
       await page.evaluate(() => document.getElementById('c').click()); assert.equal(await page.locator('#modal').isVisible(), false, 'the map takes no input while it waits');
       await page.clock.runFor(700);
       assert.equal(await page.evaluate(() => document.getElementById('modalBox').dataset.kind), 'end');
       await page.keyboard.press('Enter'); await page.clock.runFor(100);
-      assert.equal(await page.evaluate(() => document.getElementById('modalBox').dataset.kind), 'end', 'Enter inside the grace is ignored (no button focused yet)');
-      await page.clock.runFor(500); await page.keyboard.press('Enter'); await page.clock.runFor(50);
+      assert.equal(await page.evaluate(() => document.getElementById('modal').style.display !== 'none' && document.getElementById('modalBox').dataset.kind), 'end', 'Enter inside the grace is ignored (no button focused yet)');
+      await page.clock.runFor(3000); await page.keyboard.press('Enter'); await page.clock.runFor(50);
       assert.equal(await page.locator('#title').isVisible(), true, 'after the grace Enter goes back to the title');
       // a keyboard player (a key was pressed before): the card takes the focus, and its native Enter press is held back by the same grace
       await page.evaluate(() => window.__dbg.fn.startRun('warrior')); await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; });
       await page.evaluate(() => { const G = window.__dbg(); G.p.hp = 0; window.__dbg.api.finish('dead'); }); await page.clock.runFor(700);
       assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.tagName), 'BUTTON', 'the card holds the focus for keyboard users');
       await page.keyboard.press('Enter'); await page.clock.runFor(100);
-      assert.equal(await page.evaluate(() => document.getElementById('modalBox').dataset.kind), 'end', 'the focused button ignores Enter inside the grace too');
-      await page.clock.runFor(500); await page.keyboard.press('Enter'); await page.clock.runFor(50);
+      assert.equal(await page.evaluate(() => document.getElementById('modal').style.display !== 'none' && document.getElementById('modalBox').dataset.kind), 'end', 'the focused button ignores Enter inside the grace too');
+      await page.clock.runFor(3000); await page.keyboard.press('Enter'); await page.clock.runFor(50);
       assert.equal(await page.locator('#title').isVisible(), true);
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
-  it('a toast waits while a dialog is open or an ability is armed, never sits over the map then, and a new run drops queued toasts', async () => {
+  it('a toast waits while a dialog is open or an ability is armed, never sits over the map then, and a new run drops queued toasts (page clock)', async () => {
     const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 58, w: 1366, h: 768 });
     try {
       await hall(page); await foe(page, 'goblin', 1, 0, { hp: 90 });
-      const op = () => page.evaluate(() => getComputedStyle(document.getElementById('toast')).opacity);
+      const op = () => page.evaluate(() => document.getElementById('toast').style.opacity);   // the inline value the game sets (the CSS fade is not on the page clock)
+      { const t = Date.now(); await page.clock.install({ time: t }); await page.clock.pauseAt(t + 1000); }   // frozen: only runFor() moves the page clock
       await page.evaluate(() => window.__dbg.fn.toggleAbility('cleave')); await page.evaluate(() => window.__dbg.mods.toast('an achievement', 1000));
-      await page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
+      await page.clock.runFor(900);
       assert.equal(await op(), '0', 'held while armed');
-      await page.keyboard.press('Escape');
-      await page.waitForFunction(() => getComputedStyle(document.getElementById('toast')).opacity === '1');
-      await page.click('#menuBtn'); await page.waitForFunction(() => getComputedStyle(document.getElementById('toast')).opacity === '0');   // a dialog hides it
-      await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; window.__dbg.mods.toast('queued', 5000); document.getElementById('menuBtn').click(); });
-      await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+      await page.evaluate(() => { window.__dbg.fn.toggleAbility('cleave'); });   // cancel
+      await page.clock.runFor(400);
+      assert.equal(await op(), '1', 'shown once nothing is armed');
+      await page.evaluate(() => { document.getElementById('menuBtn').click(); });
+      assert.equal(await op(), '0', 'a dialog hides it');
+      await page.evaluate(() => window.__dbg.mods.toast('queued', 5000));   // raised while the dialog is open
+      await page.clock.runFor(1000);
       assert.equal(await op(), '0', 'held while a dialog is open');
-      await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; window.__dbg.fn.startRun('warrior'); });
-      await page.evaluate(() => new Promise((r) => setTimeout(r, 700)));
-      assert.equal(await op(), '0', 'a new run cleared the queue');
+      await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; });
+      await page.clock.runFor(400);
+      assert.equal(await op(), '1', 'shown when the dialog is gone');
+      await page.evaluate(() => window.__dbg.mods.toast('second', 5000)); await page.evaluate(() => { window.__dbg.fn.startRun('warrior'); });
+      await page.clock.runFor(1500);
+      assert.equal(await op(), '0', 'a new run cleared the toast and the queue');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
 });
 
 // ---------------------------------------------------------------- reset, save details
 describe('reset across tabs, clock and save details', { concurrency: CONC }, () => {
-  it('a reset in one tab makes the other tab stop saving and reload empty (storage event); each stored thing is gone', async () => {
-    const a = await newPage(browser, { seed: 59, meta: { seenHelp: 1, gold: 777, wins: 2, heat: 2, unl: { rogue: 1, mage: 1 }, up: { hp: 3 } } });
+  it('a reset in another tab (a storage event for the meta key being removed) makes this tab stop saving and reload; other keys do not', async () => {
+    // Two real tabs were checked by hand (the event does reach a second file:// page); the browser's delivery to a background tab is not something a test can time reliably, so the event is dispatched here
+    const { page, ctx, errors } = await newPage(browser, { seed: 59, meta: { seenHelp: 1, gold: 777, wins: 2, heat: 2, unl: { rogue: 1, mage: 1 } } });
     try {
-      const b = await a.ctx.newPage(); const errs = []; b.on('pageerror', (e) => errs.push(e.message));
-      await b.addInitScript(() => { try { const first = window.name !== 'seeded'; window.name = 'seeded'; if (first && localStorage.getItem('dcr_meta_v1') === null) { localStorage.setItem('dcr_meta_v1', JSON.stringify({ seenHelp: 1, gold: 777, wins: 2, heat: 2, unl: { rogue: 1, mage: 1 }, up: { hp: 3 } })); } } catch (e) { /* blocked */ } });   // seeds only the first load: a reload after the reset must find the storage empty
-      await b.goto(a.page.url()); await b.waitForFunction(() => !!window.__dbg, null, { polling: 100 });
-      await b.evaluate(() => { window.__marker = 1; window.__dbg.fn.startRun('warrior'); });
-      assert.equal(await b.evaluate(() => window.__dbg.api.meta().gold), 777);
-      await a.page.evaluate(() => window.__dbg.fn.startRun('warrior')); await closeModal(a.page);
-      await a.page.evaluate(() => { document.getElementById('modal').style.display = 'none'; window.__dbg.api.showTitle(); });
-      // tab A is in the background (tab B was opened last): its dialogs are pressed through the DOM
-      const dom = (sel) => a.page.evaluate((s) => document.querySelector(s).click(), sel);
+      await page.evaluate(() => { window.__marker = 1; });
+      await page.evaluate(() => window.dispatchEvent(new StorageEvent('storage', { key: 'some_other_game', newValue: null })));
+      await frames(page); assert.equal(await page.evaluate(() => window.__marker), 1, 'a foreign key changes nothing');
+      await page.evaluate(() => window.dispatchEvent(new StorageEvent('storage', { key: 'dcr_meta_v1', newValue: '{"gold":1}' })));
+      await frames(page); assert.equal(await page.evaluate(() => window.__marker), 1, 'another tab SAVING the meta does not reload this one');
+      // the other tab erased everything: this tab's storage is empty now, its memory still holds the old progress
+      await page.evaluate(() => {
+        localStorage.removeItem('dcr_meta_v1');
+        window.dispatchEvent(new StorageEvent('storage', { key: 'dcr_meta_v1', newValue: null }));
+        window.__dbg.api.saveMeta(); window.__dbg.fn.save();                   // after the event this tab no longer writes
+        window.name = '__res:' + localStorage.getItem('dcr_meta_v1') + '|' + localStorage.getItem('dcr_run_v2');   // read after the reload
+      });
+      await page.waitForFunction(() => !!window.__dbg && window.__marker !== 1 && window.name.indexOf('__res:') === 0, null, { timeout: 30000 });
+      assert.equal(await page.evaluate(() => window.name), '__res:null|null', 'the stale tab did not write the old save back');
+      // (the harness re-seeds the meta on every document load, so the reloaded tab's contents say nothing: the reload itself and the untouched storage are the point)
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
+  });
+  it('Reset wipes every store: gold, unlocks, Heat, upgrades, the saved run and the settings', async () => {
+    const { page, ctx, errors } = await newPage(browser, { seed: 59, meta: { seenHelp: 1, gold: 777, wins: 2, heat: 2, unl: { rogue: 1, mage: 1 }, up: { hp: 3 }, sound: 1 } });
+    try {
+      await page.evaluate(() => window.__dbg.fn.startRun('warrior')); await closeModal(page); await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; window.__dbg.api.showTitle(); });
+      const dom = (sel) => page.evaluate((s) => document.querySelector(s).click(), sel);
       await dom('#btnMore'); await dom('#btnReset'); await dom('#modalBox button[data-k="reset1"]'); await dom('#modalBox button[data-k="reset2"]');
-      await a.page.waitForFunction(() => document.getElementById('title').style.display !== 'none' && document.getElementById('modal').style.display === 'none' && !document.getElementById('btnContinue'), null, { polling: 100, timeout: 60000 });
-      const store = await a.page.evaluate(() => ({ metaRaw: localStorage.getItem('dcr_meta_v1'), ls: Object.keys(localStorage), gold: window.__dbg.api.meta().gold, unl: Object.keys(window.__dbg.api.meta().unl), heat: window.__dbg.api.meta().heat, up: window.__dbg.api.meta().up.hp }));
-      assert.deepEqual(store.ls.filter((k) => /^dcr_/.test(k) && k !== 'dcr_meta_v1'), [], 'no run / settings key is left (the other tab may already have booted a fresh, empty meta)'); assert.equal(store.metaRaw === null || (JSON.parse(store.metaRaw).gold === 0 && !(JSON.parse(store.metaRaw).unl || {}).rogue), true, 'the stored meta is empty or fresh: ' + store.metaRaw); assert.equal(store.gold, 0); assert.deepEqual(store.unl, []); assert.equal(store.heat, 0); assert.equal(store.up, 0);
-      await b.bringToFront(); await b.waitForFunction(() => window.__marker !== 1, null, { timeout: 60000, polling: 100 });   // the other tab reloaded itself
-      assert.equal(await b.evaluate(() => window.__dbg.api.meta().gold), 0, 'and booted from the empty storage');
-      assert.equal(await b.evaluate(() => localStorage.getItem('dcr_meta_v1') === null || JSON.parse(localStorage.getItem('dcr_meta_v1')).gold === 0), true, 'the stale tab did not write the old save back');
-      assert.deepEqual(errs, []);
-    } finally { await a.ctx.close(); }
+      await page.waitForFunction(() => document.getElementById('title').style.display !== 'none' && document.getElementById('modal').style.display === 'none' && !document.getElementById('btnContinue'));
+      const store = await page.evaluate(() => ({ ls: Object.keys(localStorage).filter((k) => /^dcr_/.test(k)), gold: window.__dbg.api.meta().gold, unl: Object.keys(window.__dbg.api.meta().unl), heat: window.__dbg.api.meta().heat, up: window.__dbg.api.meta().up.hp, sound: window.__dbg.api.meta().sound }));
+      assert.deepEqual(store.ls.filter((k) => k !== 'dcr_meta_v1'), [], 'no run / settings key is left'); assert.equal(store.gold, 0); assert.deepEqual(store.unl, []); assert.equal(store.heat, 0); assert.equal(store.up, 0); assert.equal(store.sound, 0);
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
   it('while an erase runs both reset buttons are disabled', async () => {
     const { page, ctx, errors } = await newPage(browser, { seed: 60, meta: { seenHelp: 1, gold: 5, unl: {} } });
@@ -526,6 +542,7 @@ describe('wide layout', { concurrency: CONC }, () => {
       const logo = await rect(page, '#titleBox .logo'), btn = await rect(page, '#btnNew'); assert.ok(logo.r <= btn.l + 1, 'art left of the buttons: ' + JSON.stringify([logo, btn]));
       const fs = await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById('btnNew')).fontSize)); assert.ok(fs >= 17, 'button type ' + fs);
       await page.locator('#btnUpg').click(); await page.waitForSelector('#tabBp');
+      assert.ok((await rect(page, '#titleBox')).w >= 800, 'the Upgrades card is wide too: ' + (await rect(page, '#titleBox')).w);
       const cards = await page.evaluate(() => [...document.querySelectorAll('#titleBox > button.hasic')].slice(0, 4).map((b) => Math.round(b.getBoundingClientRect().left)));
       assert.ok(new Set(cards).size === 2, 'two columns: ' + cards);
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
@@ -540,6 +557,101 @@ describe('wide layout', { concurrency: CONC }, () => {
         assert.equal(await page.locator('#rot').isVisible(), false);
       }
       await page.setViewportSize({ width: 844, height: 400 }); await frames(page, 3); assert.equal(await page.locator('#rot').isVisible(), false, 'no rotate hint for a mouse window');
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
+  });
+});
+
+// ---------------------------------------------------------------- danger guard, burst taps, slot gate, Dark sight (mutation survivors of the first full run)
+describe('danger guard and tap windows (page clock)', { concurrency: CONC }, () => {
+  const corridor = (page) => page.evaluate(() => {
+    const G = window.__dbg(), W = 30, ox = 3, oy = 8; G.enemies = []; G.items = []; G.shrine = null; G.merchant = null; G.cracks = []; G.opts = null;
+    for (let k = 0; k < 900; k++) { G.map[k] = 0; G.seen[k] = false; G.exp[k] = false; }
+    for (let x = 0; x < 14; x++) { const k = oy * W + ox + x; G.map[k] = 1; G.seen[k] = true; G.exp[k] = true; }
+    G.p.x = ox; G.p.y = oy; const e = window.__dbg.fn.makeEnemy('rat', ox + 12, oy, 1); e.awake = false;   // a sleeper far away carries the wind-up marks
+    window.__dbg.fn.computeVis(); window.__dbg.fn.render(); return { x: ox, y: oy };
+  });
+  const mark = (page, dx) => page.evaluate((dx) => { const G = window.__dbg(); G.enemies[0].wind = { k: 'breath', tiles: [[G.p.x + dx, G.p.y]] }; window.__dbg.fn.render(); }, dx);
+  const tap = (page, dx) => page.evaluate((dx) => { const G = window.__dbg(); window.__dbg.fn.onTap(G.p.x + dx, G.p.y); }, dx);
+  it('a red tile needs a second tap: the first only marks it, the second walks next to it and steps on it; the mark expires (page clock); a way blocked by it is walked up to', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 70, w: 1366, h: 768 });
+    try {
+      { const t = Date.now(); await page.clock.install({ time: t }); await page.clock.pauseAt(t + 1000); }   // frozen: only runFor() moves the page clock, so the real pace of the test cannot matter
+      const a = await corridor(page); await mark(page, 3);
+      await tap(page, 3);
+      assert.ok(await page.evaluate(() => window.__dbg.guard()), 'the first tap marks it'); assert.equal((await S(page)).x, a.x, 'and does not walk'); assert.match((await S(page)).log, /Danger: tap again/);
+      await page.clock.runFor(4500);   // the mark expires
+      await tap(page, 3); assert.equal((await S(page)).x, a.x, 'a second tap after the mark expired only marks again'); assert.match((await S(page)).log, /Danger: tap again/);
+      await tap(page, 3);               // inside the window: confirmed
+      await page.waitForFunction(() => !window.__dbg.walking() || true); await page.clock.runFor(1200);
+      assert.equal((await S(page)).x, a.x + 3, 'the confirming tap walked next to the tile and stepped on it');
+      // a corridor with the mark in the middle and the goal beyond it: the walk goes up to the mark and stops in front of it
+      const b = await corridor(page); await mark(page, 3);
+      await tap(page, 6); await page.clock.runFor(1200);
+      assert.equal((await S(page)).x, b.x + 2, 'walked up to the red tile and stopped'); assert.ok(await page.evaluate(() => window.__dbg().log.some((l) => /Danger in the way/.test(l))), 'and said why');
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
+  });
+  it('an ignored burst tap renews the window: a tap 0.7 x the window after the last ignored one is still ignored (page clock)', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 71, w: 1366, h: 768 });
+    try {
+      await hall(page); { const t = Date.now(); await page.clock.install({ time: t }); await page.clock.pauseAt(t + 1000); }   // frozen: only runFor() moves the page clock
+      await page.evaluate(() => { const B = window.__dbg.tables.BAL.ui; B.burstMs = 900; B.staleMs = 10; });
+      await foe(page, 'rat', 1, 0, { hp: 1 });
+      const x0 = (await S(page)).x;
+      await page.evaluate(() => { const G = window.__dbg(); window.__dbg.fn.onTap(G.p.x + 1, G.p.y); });   // kills the rat
+      assert.equal((await S(page)).foes.length, 0);
+      await page.clock.runFor(600); await page.evaluate(() => { const G = window.__dbg(); window.__dbg.fn.onTap(G.p.x + 1, G.p.y); });   // ignored, renews the window
+      assert.equal((await S(page)).x, x0, 'ignored inside the window');
+      await page.clock.runFor(600); await page.evaluate(() => { const G = window.__dbg(); window.__dbg.fn.onTap(G.p.x + 1, G.p.y); });   // 1200 after the kill, 600 after the last ignored tap
+      assert.equal((await S(page)).x, x0, 'still ignored: the ignored tap extended the window');
+      await page.clock.runFor(1000); await page.evaluate(() => { const G = window.__dbg(); window.__dbg.fn.onTap(G.p.x + 1, G.p.y); }); await page.clock.runFor(300);
+      assert.equal((await S(page)).x, x0 + 1, 'after a full quiet window a tap walks');
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
+  });
+  it('locked blueprint perks are never in the perk pool; a win below the top Heat never moves the unlock back; Vicious multiplies damage', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 74 });
+    try {
+      const r = await page.evaluate(() => {
+        const D = window.__dbg, I = D.idle, m = D.api.meta(), G = D(), out = {};
+        m.bp = {}; out.locked = D.api.perkPool().filter((pk) => pk.bp).map((pk) => pk.id);
+        const bpPerk = D.tables.PERKS.find((pk) => pk.bp && !pk.cls); m.bp[bpPerk.id] = 2; out.unlocked = D.api.perkPool().some((pk) => pk.id === bpPerk.id);
+        m.wins = 3; m.heat = 3; out.back = I.heatAfterWin(1); out.heatAfter = m.heat; out.top = I.heatAfterWin(3); out.heatTop = m.heat;
+        D.tables.BAL.combat.dmgVar = 0; G.p.crit = 0; G.p.dmgMul = 1; const e = D.fn.makeEnemy('ogre', G.p.x + 1, G.p.y, 1); e.hp = e.mhp = 4000; e.awake = true;
+        D.fn.playerAttack(e); const d1 = 4000 - e.hp; e.hp = 4000; G.p.dmgMul = 2; D.fn.playerAttack(e); const d2 = 4000 - e.hp; out.dmg = [d1, d2];
+        return out;
+      });
+      assert.deepEqual(r.locked, [], 'no locked blueprint perk is offered'); assert.equal(r.unlocked, true, 'a bought one is');
+      assert.equal(r.back, 0); assert.equal(r.heatAfter, 3, 'winning at Heat 1 with Heat 3 open changes nothing'); assert.equal(r.top, 4); assert.equal(r.heatTop, 4);
+      assert.ok(r.dmg[1] >= r.dmg[0] * 1.8, 'a damage multiplier of 2 doubles the hit: ' + r.dmg);
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
+  });
+  it('an expedition result is a pure function of its record and the clock: forty calls at a half-delve boundary give one answer', async () => {
+    const { page, ctx, errors } = await newPage(browser, { seed: 75, meta: { seenHelp: 1, gold: 0, unl: {} } });
+    try {
+      const r = await page.evaluate(() => {
+        const I = window.__dbg.idle, D = window.__dbg.tables.BAL.exp.delveMin, now = Date.now(), rec = { cls: 'warrior', dur: 480, t0: now - 7.5 * D * 60000, seed: 5, pw: 0, bf: 3 };
+        return new Set(Array.from({ length: 40 }, () => JSON.stringify(I.expResult(rec, now)))).size;
+      });
+      assert.equal(r, 1, 'no call may reroll the delves');
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
+  });
+  it('the second expedition slot cannot be used before it is bought', async () => {
+    const { page, ctx, errors } = await newPage(browser, { seed: 72, meta: { seenHelp: 1, gold: 0, unl: {} } });
+    try {
+      const r = await page.evaluate(() => { const I = window.__dbg.idle, m = window.__dbg.api.meta(); const a = I.expSend(1, 'warrior', 30); m.exp.s2 = 1; const b = I.expSend(1, 'warrior', 30); return { a, b }; });
+      assert.deepEqual(r, { a: false, b: true });
+    } finally { assert.deepEqual(errors, []); await ctx.close(); }
+  });
+  it('Dark floors shorten the sight radius: in an open hall the dark floor shows fewer tiles than a plain one, none beyond the dark radius', async () => {
+    const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 73 });
+    try {
+      const r = await page.evaluate(() => {
+        const D = window.__dbg, G = D(), W = 30; G.enemies = []; G.shrine = null; G.merchant = null;
+        for (let k = 0; k < 900; k++) { G.map[k] = 0; } for (let y = 2; y < 28; y++) for (let x = 2; x < 28; x++) G.map[y * W + x] = 1;
+        G.p.x = 15; G.p.y = 15; const out = {};
+        for (const m of [null, 'dark']) { G.mod = m; D.fn.computeVis(); let n = 0, far = 0; for (let y = 0; y < 30; y++) for (let x = 0; x < W; x++) if (G.vis[y * W + x]) { n++; far = Math.max(far, Math.hypot(x - 15, y - 15)); } out[m || 'plain'] = { n, far }; }
+        out.R = D.tables.BAL.mod.dark.sight; return out;
+      });
+      assert.ok(r.dark.n < r.plain.n * 0.8, 'fewer tiles on a dark floor: ' + JSON.stringify(r)); assert.ok(r.dark.far <= r.R + 1.2, 'nothing beyond the dark radius ' + r.dark.far);
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
 });
