@@ -127,7 +127,7 @@ window.T = {
     const G = () => window.__dbg(), W = 30;
     for (let attempt = 0; attempt < 40; attempt++) {
       const g = G();
-      g.enemies = []; g.items = []; g.traps = []; g.shrine = null; g.merchant = null;
+      g.enemies = []; g.items = []; g.shrine = null; g.merchant = null;
       for (let y = 2; y < 28; y++) for (let x = 2; x < 28 - n; x++) {
         let ok = true;
         for (let k = -1; k <= n && ok; k++) { const t = g.map[y * W + x + k]; if (t !== 1) ok = false; }

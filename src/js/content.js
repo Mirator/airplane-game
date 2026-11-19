@@ -2,6 +2,7 @@
 
 const SFX={
  hit:[[190,.07,'square',.07,95]],
+ shot:[[620,.04,'sine',.05,440]],
  crit:[[330,.05,'square',.08],[560,.1,'square',.08,280]],
  hurt:[[150,.14,'sawtooth',.08,70]],
  pickup:[[660,.05,'sine',.07],[880,.08,'sine',.07]],
@@ -54,7 +55,7 @@ function classBlurb(k){return CLASS_TAG[k]||'';}
 function classDetail(k){
  const C=CLS[k],R=BAL.rage,M=BAL.mana;
  if(k==='warrior')return C.hp+' HP, +'+C.def+' defense. Rage (max '+R.max+') builds as you fight.';
- if(k==='mage')return C.hp+' HP. '+(C.mana+WP[C.start].mana)+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames.';
+ if(k==='mage')return C.hp+' HP. '+(C.mana+WP[C.start].mana)+' mana, +'+M.regen+' per turn, +'+M.perKill+' per kill. Starts with '+C.fire+' Flames. Free shot: tap a foe within '+BAL.shot.range+' tiles.';
  return C.hp+' HP, '+pct(C.crit)+' crit, x'+BAL.combat.sneakMul+' on unaware foes. '+BAL.ability.knife.max+' knives, no resource bar.';
 }
 // gear rule lines (budget: <= 60 characters). noStat drops the attack / defense part (the comparison shows it as a number). cls hides what means
@@ -112,7 +113,6 @@ function charmRule(k){
  return {
   fang:'Heal '+C.fangHeal+'+ HP on each kill.',
   ward:'The first hit each floor is free.',
-  eye:'Reveals every trap on arrival.',
   hourglass:'Cooldowns tick +1 every '+C.hourglassEvery+' turns.',
   veil:'Foes notice you '+C.veilSight+' tiles later.',
   flask:'First potion each floor takes no turn.',

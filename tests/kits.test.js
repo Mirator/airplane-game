@@ -319,24 +319,22 @@ describe('kits', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('traps: spike damage (halved by Trapfinder), dart poison, alarm wakes every enemy', async () => {
+  it('a run save from before traps were removed (traps on the floor, Trapfinder owned, dart poison, trapper unlock) loads: traps and poison vanish, the perk is dropped', async () => {
     const { page, ctx, errors } = await fresh('warrior', 27);
     try {
       const r = await page.evaluate(() => {
-        const D = window.__dbg, G = D(), F = D.fn, T = window.T, B = D.tables.BAL, p = G.p, out = {};
-        T.setup(7); p.dodge = 0;
-        const trap = (k) => { const t = { x: p.x, y: p.y, k, rev: 0, done: 0 }; G.traps = [t]; return t; };
-        p.hp = p.mhp = 100; D.api.springPlayer(trap('spike')); out.spike = 100 - p.hp; out.spikeWant = B.trap.spikeBase + G.floor;
-        p.hp = p.mhp = 100; D.api.springPlayer(trap('dart')); out.dartTurns = G.ppois && G.ppois.t; out.dartDmg = G.ppois && G.ppois.d;
-        const hp0 = p.hp; F.endTurn(); out.dartTick = hp0 - p.hp; G.ppois = null;
-        const e1 = T.foe('goblin', 3, 0, false), e2 = T.foe('rat', 4, 0, false);
-        D.api.springPlayer(trap('alarm')); out.alarm = e1.awake && e2.awake;
-        D.grant('trapper'); p.hp = p.mhp = 100; D.api.springPlayer(trap('spike')); out.spikeHalf = 100 - p.hp;
-        return out;
+        const D = window.__dbg, G = D();
+        G.traps = [{ x: G.p.x + 2, y: G.p.y, k: 'spike', rev: 1, done: 0 }, { x: G.p.x + 3, y: G.p.y, k: 'dart', rev: 0, done: 0 }, { x: G.p.x + 4, y: G.p.y, k: 'alarm', rev: 1, done: 1 }];
+        G.perks = Object.assign({}, G.perks, { trapper: 1, might: 1 }); G.ppois = { t: 3, d: 2 };
+        const m = D.api.meta(); m.unl.trapper = 1; D.api.saveMeta(); D.fn.save();
+        return { run: localStorage.getItem('dcr_run_v2').length, meta: localStorage.getItem('dcr_meta_v1').includes('trapper') };
       });
-      assert.equal(r.spike, r.spikeWant, 'a spike trap hurts'); assert.equal(r.spikeHalf, Math.ceil(r.spikeWant / 2), 'Trapfinder halves it');
-      assert.ok(r.dartTurns > 0 && r.dartTick === r.dartDmg, 'a dart poisons: damage every turn');
-      assert.ok(r.alarm, 'an alarm wakes everything');
+      assert.ok(r.run > 100 && r.meta, 'old-shaped save written');
+      await reload(page);
+      await page.locator('#btnContinue').click();
+      const o = await page.evaluate(() => { const G = window.__dbg(); for (let i = 0; i < 6; i++) window.__dbg.fn.endTurn(); window.__dbg.fn.render(); return { traps: G.traps, ppois: G.ppois, trapper: G.perks.trapper, might: G.perks.might, unl: window.__dbg.api.meta().unl.trapper, hp: G.p.hp }; });
+      assert.equal(o.traps, undefined); assert.equal(o.ppois, undefined); assert.equal(o.trapper, undefined, 'Trapfinder dropped silently'); assert.equal(o.might, 1, 'other perks kept'); assert.equal(o.unl, undefined);
+      await page.click('#gearBtn'); await page.locator('#modalBox button', { hasText: 'Perks' }).click();
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

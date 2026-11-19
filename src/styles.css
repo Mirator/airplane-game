@@ -232,3 +232,10 @@ button.danger{border-color:#ff6a5a;background:#4a1c24;color:#ffd6d0}
  #bar button,#bar2 button{max-height:76px}
  #hpbar{max-width:none}#resbar{max-width:none}
 }
+body.kb #menuBtn[data-key]::before{top:auto;bottom:1px;left:50%;transform:translateX(-50%)}
+/* level-up badge on the Equipment button: a pulsing count, never over the map */
+#gearBtn .bd{top:-4px;right:-4px;background:#d4572a;border:1px solid #ffd24a;z-index:2}
+#gearBtn.pick{border-color:var(--gold)}
+#gearBtn.pick .bd{animation:bdp 1s ease-in-out infinite}
+@keyframes bdp{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+@media (prefers-reduced-motion: reduce){#gearBtn.pick .bd{animation:none}}

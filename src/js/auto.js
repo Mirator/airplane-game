@@ -246,11 +246,11 @@ function autoGo(r,goal,tag){
 }
 // nearest tile next to (x,y) that r can reach, or -1
 function autoNextTo(r,x,y){let bk=-1,bd=1e9;for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy;if(!inb(nx,ny))continue;const k=ix(nx,ny);if(r.dist[k]>=0&&r.dist[k]<bd){bd=r.dist[k];bk=k;}}return bk;}
-function autoSidestep(dz,cz,tz){
+function autoSidestep(dz,cz){
  const p=G.p;let best=null,bs=-1e9;
  for(const [dx,dy] of DIRS){
   const nx=p.x+dx,ny=p.y+dy,k=ix(nx,ny);
-  if(!walkable(nx,ny)||enemyAt(nx,ny)||G.map[k]===3||dz.has(k)||cz.has(k)||tz.has(k))continue;
+  if(!walkable(nx,ny)||enemyAt(nx,ny)||G.map[k]===3||dz.has(k)||cz.has(k))continue;
   let s=0;for(const e of G.enemies)if(e.wind)s+=Math.abs(e.x-nx)+Math.abs(e.y-ny);
   if(s>bs){bs=s;best=[dx,dy];}
  }
@@ -259,7 +259,7 @@ function autoSidestep(dz,cz,tz){
 function autoDecide(){
  const p=G.p,A=BAL.auto,me=ix(p.x,p.y),hpf=p.hp/p.mhp;
  AUTO.tr=AUTO.tr||[];
- const dz=dangerSet(),cz=crackSet(),tz=trapSet();
+ const dz=dangerSet(),cz=crackSet();
  const adj=G.enemies.filter(e=>!e.dead&&manh(e,p)===1);
  const awake=G.enemies.filter(e=>!e.dead&&e.awake&&G.vis[ix(e.x,e.y)]);
  // 0. loop breaker: 16 decisions with no enemy in sight that never left a 3-tile patch = two goals are tugging at each other; drop the one in use
@@ -272,7 +272,7 @@ function autoDecide(){
   }
  }
  // 1. telegraphed danger or a cracking tile under us: step off it
- if((dz.has(me)||cz.has(me))&&autoSidestep(dz,cz,tz))return;
+ if((dz.has(me)||cz.has(me))&&autoSidestep(dz,cz))return;
  // 2. potion
  if(hpf<A.potionHp&&G.inv.pot>0&&p.hp<p.mhp&&autoDid(drink))return;
  if(awake.length||adj.length){
@@ -291,17 +291,17 @@ function autoDecide(){
    // melee foes are left to come to us for a few turns (a corridor beats open floor); shooters and healers are closed in on at once
    const far=awake.some(e=>RANGED.indexOf(e.t)>=0);
    if(!far&&AUTO.hold<A.hold){AUTO.hold++;autoNote('hold');wait();return;}
-   const r=autoBfs(new Set([...dz,...tz]),false);let bk=-1,bd=1e9;
+   const r=autoBfs(new Set(dz),false);let bk=-1,bd=1e9;
    for(const e of awake){const k=autoNextTo(r,e.x,e.y);if(k>=0&&r.dist[k]<bd){bd=r.dist[k];bk=k;}}
    if(bk>=0&&bd>0&&autoGo(r,bk,'foe'))return;
    // no free tile gets next to any awake foe (a corridor full of them): go through them, the first step attacks whatever blocks the way
    // (otherwise Auto walks off to explore and comes back, and never fights: the "combat stalemate" watchdog trips)
-   {const r2=autoBfs(new Set([...dz,...tz]),true);let b2=-1,d2=1e9;
+   {const r2=autoBfs(new Set(dz),true);let b2=-1,d2=1e9;
     for(const e of awake){const k=autoNextTo(r2,e.x,e.y);if(k>=0&&r2.dist[k]<d2){d2=r2.dist[k];b2=k;}}
     if(b2>=0&&d2>0&&autoGo(r2,b2,'push'))return;}
   }
  }else AUTO.hold=0;
- autoTravel(dz,cz,tz);
+ autoTravel(dz,cz);
 }
 function autoAbilities(adj,awake,hpf){
  const p=G.p,A=BAL.auto,n=adj.length,S=A.surround;
@@ -330,6 +330,7 @@ function autoAbilities(adj,awake,hpf){
   }
   const bt=targetTiles('bolt').map(t=>enemyAt(t[0],t[1])).filter(e=>e&&e.awake).sort((a,b)=>autoPrio(a)-autoPrio(b))[0];
   if(bt&&autoUse('bolt',bt.x,bt.y))return true;
+  {const sh=awake.filter(canShoot).sort((a,b)=>autoPrio(a)-autoPrio(b))[0];if(sh&&autoDid(()=>mageShot(sh)))return true;}   // no Bolt (mana / not worth it): the free shot
  }else{
   if((n>=S||adj.some(autoGuarded))&&!whyNot('smoke')){
    const R=BAL.ability.smoke.radius+(eqKind('off')==='satchel'?BAL.offhand.satchelRadius:0);let best=null,bw=0;
@@ -344,9 +345,9 @@ function autoAbilities(adj,awake,hpf){
  return false;
 }
 // out of combat: loot, key door, merchant, shrine, unexplored ground, stairs, the dragon
-function autoTravel(dz,cz,tz){
+function autoTravel(dz,cz){
  const p=G.p,A=BAL.auto,fl=G.floor,me=ix(p.x,p.y);
- const block=new Set([...dz,...tz]);   // cracked tiles are not blocked: they only hurt whoever is still standing on one when they collapse, and Auto steps off at once
+ const block=new Set(dz);   // cracked tiles are not blocked: they only hurt whoever is still standing on one when they collapse, and Auto steps off at once
  let r=autoBfs(block,false);
  // items
  let bi=-1,bd=1e9;
@@ -418,10 +419,6 @@ function autoTravel(dz,cz,tz){
  // the dragon lair has no stairs: walk up to the dragon
  const dr=G.enemies.find(e=>EN[e.t].boss);
  if(dr){const r2=autoBfs(block,true),k=autoNextTo(r2,dr.x,dr.y);if(k>=0&&r2.dist[k]>0&&autoGo(r2,k,'dragon'))return;}
- // last resort: the only way on is across a revealed trap (a spike / dart / alarm costs less than being stuck here)
- {const r3=autoBfs(new Set([...dz,...cz]),true);let fk3=-1;
-  for(const k of r3.order){if(k===me||AUTO.bad.has('trapfront:'+k))continue;if(!G.exp[k]||G.map[k]===3||G.map[k]===2){fk3=k;break;}}
-  if(fk3>=0&&r3.dist[fk3]>0){if(!AUTO.crossed){AUTO.crossed=1;msg('Auto: no other way on, so it crosses a trap.');}if(autoGo(r3,fk3,'trapfront'))return;}}
  autoNote('wait');wait();
 }
 

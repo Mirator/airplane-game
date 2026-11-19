@@ -1,5 +1,5 @@
 // Art-direction tests (the graphics review): floating labels never overlap, the dragon is drawn above the player and whelps with its bar off the map,
-// no full-screen flash for small hits, loot / traps stay visible under a foe, red foes keep their contrast against every floor.
+// no full-screen flash for small hits, loot stays visible under a foe, red foes keep their contrast against every floor.
 'use strict';
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -86,19 +86,19 @@ describe('art direction', { concurrency: CONC }, () => {
     } finally { await b.ctx.close(); }
   });
 
-  it('a foe standing on loot or on a revealed trap still shows a marker for each', async () => {
+  it('a foe standing on loot still shows a marker', async () => {
     const { page, ctx, errors } = await openRun(browser, 'warrior');
     try {
       await page.evaluate(HELPERS);
       await page.evaluate(() => {
         window.T.setup(3);
         const G = window.__dbg(), e = window.T.foe('rat', 1, 0), f = window.T.foe('goblin', 2, 0);
-        G.items.push({ x: e.x, y: e.y, t: 'gold', v: 5 }); G.traps.push({ x: f.x, y: f.y, k: 'dart', rev: 1 });
+        G.items.push({ x: e.x, y: e.y, t: 'gold', v: 5 });
         window.__dbg.fn.computeVis();
       });
       await redraw(page);
       const m = await page.evaluate(() => window.__dbg.view().marks.map((q) => q.k).sort());
-      assert.deepEqual(m, ['item', 'trap']);
+      assert.deepEqual(m, ['item']);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

@@ -180,7 +180,7 @@ describe('auto', { concurrency: CONC }, () => {
       const r = await page.evaluate(() => {
         const D = window.__dbg, G = D(), A = D.auto;
         D.tables.BAL.auto.stuckTurns = 25;
-        const p = G.p; G.enemies = []; G.items = []; G.merchant = null; G.shrine = null; G.traps = [];
+        const p = G.p; G.enemies = []; G.items = []; G.merchant = null; G.shrine = null; 
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) G.map[(p.y + dy) * 30 + p.x + dx] = 0;
         D.fn.computeVis();
         A.start(true);

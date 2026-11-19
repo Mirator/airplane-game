@@ -2,7 +2,7 @@
 
 function modIs(id){return !!G&&G.mod===id;}
 function goldMod(){return modIs('rich')?BAL.mod.rich.goldMul:1;}
-function visRadius(){return modIs('dark')?BAL.mod.dark.sight:BAL.vis.radius;}
+function visRadius(){return modIs('dark')?BAL.mod.dark.sight:modIs('silent')?BAL.mod.silent.sight:BAL.vis.radius;}
 function enemySight(){return modIs('silent')?BAL.mod.silent.sight:BAL.enemyAi.sightRange;}
 function waterSet(){const w=G&&G.water;if(!w||!w.length)return wsc.empty||(wsc.empty=new Set());if(wsc.arr!==w){wsc.arr=w;wsc.set=new Set(w);}return wsc.set;}
 function crackSet(){const st=new Set();if(G&&G.cracks)for(const c of G.cracks)st.add(ix(c.x,c.y));return st;}

@@ -45,7 +45,7 @@ function sweepWind(e){
 function summonWhelps(e){
  const c=[];
  for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=e.x+dx,y=e.y+dy;
-  if(inb(x,y)&&G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!(x===G.p.x&&y===G.p.y)&&!trapAt(x,y))c.push([x,y]);}
+  if(inb(x,y)&&G.map[ix(x,y)]===1&&!enemyAt(x,y)&&!(x===G.p.x&&y===G.p.y))c.push([x,y]);}
  c.sort(()=>rf()-0.5);
  let n=0;
  for(const t of c){if(n>=BAL.enemyAi.summonN)break;const w=makeEnemy('whelp',t[0],t[1],G.floor);w.awake=true;n++;}
@@ -71,7 +71,6 @@ function moveEnemy(e,x,y){
  if(waterSet().has(i))e.wade=1;
  if(G.map[i]===3){G.map[i]=4;if(G.vis[i])msg('The '+nm(e)+' opens the door.');}
  e.face=[Math.sign(x-e.x),Math.sign(y-e.y)];e.x=x;e.y=y;
- const tp=trapAt(x,y);if(tp)springEnemy(e,tp);
 }
 function fleeStep(e,p){
  let best=null,bd=Math.abs(e.x-p.x)+Math.abs(e.y-p.y);

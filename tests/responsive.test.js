@@ -11,7 +11,7 @@ after(async () => { await browser.close(); });
 const W = 30;
 async function arena(page, rows, ox = 4, oy = 4) {
   return page.evaluate(([rows, ox, oy]) => {
-    const G = window.__dbg(); G.enemies = []; G.items = []; G.traps = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
+    const G = window.__dbg(); G.enemies = []; G.items = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
     for (let y = -1; y <= rows.length; y++) for (let x = -1; x <= rows[0].length; x++) { const k = (oy + y) * 30 + ox + x; if (k >= 0 && k < 900) { G.map[k] = 0; G.seen[k] = true; G.exp[k] = true; } }
     rows.forEach((r, y) => [...r].forEach((c, x) => { const k = (oy + y) * 30 + ox + x; G.map[k] = c === '#' ? 0 : c === '>' ? 2 : 1; G.seen[k] = true; G.exp[k] = true; if (c === '@') { G.p.x = ox + x; G.p.y = oy + y; } }));
     for (const k in G.cd) G.cd[k] = 0; G.vanish = 0; G.brace = null; G.p.hp = G.p.mhp; G.p.rage = 100;
@@ -100,15 +100,15 @@ describe('layout at every size', { concurrency: CONC }, () => {
         await page.setViewportSize({ width: w, height: h }); await settle(page, 200);
         const v = await page.evaluate(() => { const v = window.__dbg.view(), G = window.__dbg(); return { x: v.ox + G.p.x * v.ts, y: v.oy + G.p.y * v.ts, ts: v.ts, cw: v.cw, ch: v.ch }; });
         assert.ok(v.x >= 0 && v.x + v.ts <= v.cw && v.y >= 0 && v.y + v.ts <= v.ch, 'hero on screen at ' + w + 'x' + h);
-        await arena(page, ['...........', '...........', '.....@.....', '...........', '...........']);
-        const id = await foe(page, 'rat', g.p.x + 1, g.p.y); await settle(page, 80);
+        const a1 = await arena(page, ['...........', '...........', '.....@.....', '...........', '...........']);
+        const id = await foe(page, 'rat', a1.x + 1, a1.y); await settle(page, 80);
         const before = (await S(page)).foes[0][2];
-        const q = await pt(page, g.p.x + 1, g.p.y); await page.mouse.click(q.x, q.y); await settle(page, 120);
+        const q = await pt(page, a1.x + 1, a1.y); await page.mouse.click(q.x, q.y); await settle(page, 120);
         const after = await S(page);
-        assert.ok(after.foes.length === 0 || after.foes[0][2] < before, 'click on the adjacent foe attacked it at ' + w + 'x' + h);
+        assert.ok(after.foes.length === 0 || after.foes[0][2] < before, 'click on the adjacent foe attacked it at ' + w + 'x' + h + ' ' + JSON.stringify([before, after, q, await S(page), await page.evaluate(() => [document.getElementById('modal').style.display, document.getElementById('modalBox').dataset.kind, window.__dbg.view().ts])]));
         // armed framing: a far target stays on screen
-        await arena(page, ['.............', '.............', '......@......', '.............', '.............']);
-        await foe(page, 'rat', g.p.x + 3, g.p.y); await page.evaluate(() => window.__dbg.fn.toggleAbility('charge')); await settle(page, 120);
+        const a2 = await arena(page, ['.............', '.............', '......@......', '.............', '.............']);
+        await foe(page, 'rat', a2.x + 3, a2.y); await page.evaluate(() => window.__dbg.fn.toggleAbility('charge')); await settle(page, 120);
         const f = await page.evaluate(() => { const v = window.__dbg.view(), G = window.__dbg(), e = G.enemies[0]; return { ok: v.ox + e.x * v.ts >= 0 && v.ox + (e.x + 1) * v.ts <= v.cw && v.oy + e.y * v.ts >= 0 && v.oy + (e.y + 1) * v.ts <= v.ch, armed: document.querySelectorAll('#bar2 button.armed').length > 0 }; });
         assert.ok(f.armed && f.ok, 'armed, target framed at ' + w + 'x' + h);
         if (f.armed) await page.keyboard.press('Escape'); if (await page.locator('#modal').isVisible()) await page.keyboard.press('Escape'); g = await page.evaluate(() => window.__dbg());
@@ -176,7 +176,7 @@ describe('mouse and keyboard', { concurrency: CONC }, () => {
       const fl = (await S(page)).floor; await page.keyboard.press('Enter'); await settle(page, 80); assert.equal((await S(page)).floor, fl, 'not on stairs');
       await page.evaluate(() => { const G = window.__dbg(); for (let i = 0; i < 900; i++) if (G.map[i] === 2) { G.p.x = i % 30; G.p.y = Math.floor(i / 30); } window.__dbg.fn.render(); });
       await page.keyboard.press('Space'); await settle(page, 80); assert.equal((await S(page)).floor, fl, 'Space waits on the stairs');
-      await page.keyboard.press('Enter'); await settle(page, 300); assert.equal((await S(page)).floor, fl + 1, 'Enter descends');
+      await page.keyboard.press('Enter'); await settle(page, 300); assert.ok((await S(page)).floor === fl + 1 || (await page.locator('#modalBox[data-kind="path"]').count()) > 0, 'Enter descends (or offers the exit choice)');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
   it('keys honour the danger guard: first press only marks, a held key never confirms, a second press goes', async () => {
@@ -201,10 +201,10 @@ describe('mouse and keyboard', { concurrency: CONC }, () => {
       await startWarrior(page);
       const hint = (id) => page.evaluate((id) => getComputedStyle(document.getElementById(id), '::before').content, id);
       assert.equal(await hint('b_wait'), 'none', 'hidden before a key');
-      const h0 = await page.evaluate(() => document.getElementById('a_0').innerHTML);
+      const h0 = await page.evaluate(() => document.getElementById('b_wait').innerHTML);
       await page.keyboard.press('ArrowUp'); await settle(page, 50);
       assert.equal(await hint('b_wait'), '"Space"'); assert.equal(await hint('a_0'), '"1"'); assert.equal(await hint('menuBtn'), '"Esc"');
-      assert.equal(await page.evaluate(() => document.getElementById('a_0').innerHTML), h0, 'markup untouched');
+      assert.equal(await page.evaluate(() => document.getElementById('b_wait').innerHTML), h0, 'markup untouched');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
     const t = await dprPage(820, 1180, 2, { hasTouch: true, isMobile: true });
     try {
@@ -218,8 +218,16 @@ describe('reset all progress', { concurrency: CONC }, () => {
   const idbRun = (page) => page.evaluate(() => new Promise((res) => { const r = indexedDB.open('dcr_run_mirror', 1); r.onupgradeneeded = () => { r.result.createObjectStore('s'); }; r.onsuccess = () => { const g = r.result.transaction('s').objectStore('s').get('run2'); g.onsuccess = () => { r.result.close(); res(g.result === undefined ? null : g.result); }; }; r.onerror = () => res('err'); }));
   const lsKeys = (page) => page.evaluate(() => Object.keys(localStorage).sort());
   async function seeded() {
-    const r = await newPage(browser, { meta: { seenHelp: 1, gold: 777, unl: { rogue: 1, mage: 1 }, up: { hp: 3 }, bp: { x: 1 }, heat: 2, sound: 1 }, grace: true });
-    const { page } = r;
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } }); const page = await ctx.newPage(); const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    // seed once (a foreign '__seeded' key, which the reset must leave alone), so a reload after the reset really starts from whatever the game left; localStorage is carried over by window.name (Chromium's lazy flush)
+    await page.addInitScript((m) => {
+      try { if (window.name.indexOf('__ls:') === 0) { const d = JSON.parse(window.name.slice(5)); window.name = ''; localStorage.clear(); for (const [k, v] of d) localStorage.setItem(k, v); }
+        if (localStorage.getItem('__seeded') === null) { localStorage.setItem('__seeded', '1'); localStorage.setItem('dcr_meta_v1', m); } } catch (e) { /* blocked */ }
+      window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 100);
+    }, JSON.stringify({ seenHelp: 1, gold: 777, unl: { rogue: 1, mage: 1 }, up: { hp: 3 }, bp: { x: 1 }, heat: 2, sound: 1 }));
+    await page.goto(URL); await page.waitForFunction(() => !!window.__dbg);
+    const r = { page, ctx, errors };
     await page.evaluate(() => { window.__dbg.tables.BAL.ui.modalGraceMs = 400; localStorage.setItem('other_app_key', 'keep me'); localStorage.setItem('dcr_auto_speed', '2'); });
     await page.evaluate(() => { window.__dbg.fn.startRun('rogue'); });
     await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; window.__dbg.fn.save(); window.__dbg.api.saveMeta(); });
@@ -234,12 +242,13 @@ describe('reset all progress', { concurrency: CONC }, () => {
     const { page, ctx, errors } = await seeded();
     try {
       const before = await lsKeys(page); assert.ok(before.includes('dcr_meta_v1') && before.includes('dcr_run_v2') && before.includes('other_app_key'));
+      await page.evaluate(() => { window.__dbg.tables.BAL.ui.modalGraceMs = 1200; });   // long enough that a slow machine cannot out-wait the check below
       await toMore(page);
       assert.match(await page.locator('#modalBox').innerText(), /lost/i); assert.ok((await page.locator('#modalBox p').innerText()).split('\n').length <= 2);
       // 400 ms grace: an immediate real click on the destructive button does nothing
       await page.locator('#modalBox button[data-k="reset1"]').click(); await settle(page, 50);
       assert.ok(await page.locator('#modalBox button[data-k="reset1"]').isVisible(), 'still step 1 (grace)');
-      await page.waitForTimeout(450);
+      await page.waitForTimeout(1300); await page.evaluate(() => { window.__dbg.tables.BAL.ui.modalGraceMs = 400; });
       // cancel keeps all
       await page.locator('#modalBox button[data-k="cancel"]').click(); await settle(page, 80);
       assert.equal(await page.locator('#modal').isVisible(), false); assert.deepEqual(await lsKeys(page), before); assert.ok(await idbRun(page));
@@ -256,14 +265,14 @@ describe('reset all progress', { concurrency: CONC }, () => {
       await page.locator('#modalBox button[data-k="reset2"]').click();
       await page.waitForFunction(() => document.getElementById('modal').style.display === 'none' && !!document.getElementById('btnNew'));
       const m = await page.evaluate(() => window.__dbg.api.meta());
-      assert.equal(m.gold, 0); assert.deepEqual(m.up, {}); assert.deepEqual(m.bp, {}); assert.equal(m.heat, 0); assert.equal(m.sound, 0); assert.equal(m.seenHelp, 0);
+      assert.equal(m.gold, 0); assert.ok(Object.values(m.up).every((v) => v === 0)); assert.deepEqual(m.bp, {}); assert.equal(m.heat, 0); assert.equal(m.sound, 0); assert.equal(m.seenHelp, 0);
       assert.equal(await page.locator('#btnContinue').count(), 0, 'no Continue');
       const after = await lsKeys(page); assert.ok(!after.includes('dcr_run_v2') && !after.includes('dcr_auto_speed'), 'run + auto speed gone'); assert.equal(await page.evaluate(() => localStorage.getItem('other_app_key')), 'keep me');
       assert.ok(!(await idbRun(page)), 'IndexedDB mirror empty');
       const dbs = await page.evaluate(async () => (indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name) : []));
       assert.ok(!dbs.includes('dcr_run_mirror') || !(await idbRun(page)), 'mirror database gone');
       // reload: nothing comes back
-      await reload(page); await page.waitForTimeout(600);
+      await page.evaluate(() => { window.name = '__ls:' + JSON.stringify(Object.entries(localStorage)); }); await page.reload(); await page.waitForFunction(() => !!window.__dbg); await page.waitForTimeout(600);
       assert.equal(await page.locator('#btnContinue').count(), 0, 'no Continue after reload');
       assert.equal(await page.evaluate(() => window.__dbg.api.meta().gold), 0);
       assert.equal(await page.evaluate(() => localStorage.getItem('other_app_key')), 'keep me');

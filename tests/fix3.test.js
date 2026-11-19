@@ -235,7 +235,7 @@ describe('fix3: layout', { concurrency: CONC }, () => {
 
 describe('fix3: Explore and the floor', { concurrency: CONC }, () => {
   const arena = (page, rows, ox = 4, oy = 4) => page.evaluate(([rows, ox, oy]) => {
-    const G = window.__dbg(), W = 30; G.enemies = []; G.items = []; G.traps = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
+    const G = window.__dbg(), W = 30; G.enemies = []; G.items = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
     for (let y = -1; y <= rows.length; y++) for (let x = -1; x <= rows[0].length; x++) { const k = (oy + y) * W + ox + x; G.map[k] = 0; G.seen[k] = true; G.exp[k] = true; }
     rows.forEach((r, y) => [...r].forEach((c, x) => { const k = (oy + y) * W + ox + x; G.map[k] = c === '#' ? 0 : 1; G.seen[k] = true; G.exp[k] = c !== '?'; if (c === '@') { G.p.x = ox + x; G.p.y = oy + y; } }));
     window.__dbg.fn.computeVis(); window.__dbg.fn.endTurn();

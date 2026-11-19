@@ -28,19 +28,17 @@ function computeVis(){
   if(G.map[i]!==0){G.exp[i]=true;
    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(inb(x+dx,y+dy))G.seen[ix(x+dx,y+dy)]=true;}
  }
- const rr=pc('trapper')?BAL.vis.trapfinderRange:1;
- for(const t of G.traps)if(!t.rev&&!t.done&&Math.max(Math.abs(t.x-p.x),Math.abs(t.y-p.y))<=rr&&(rr===1||los(p.x,p.y,t.x,t.y))){t.rev=1;G.seen[ix(t.x,t.y)]=true;msg('You spot '+(t.k==='alarm'?'an ':'a ')+TRAPS[t.k].n.toLowerCase()+'!');}
  eliteWatch();
 }
 
 function bfsPath(sx,sy,tx,ty){
- const dz=dangerSet(),tz=trapSet(),cz=crackSet();
+ const dz=dangerSet(),cz=crackSet();
  const prev=new Map(),start=ix(sx,sy);prev.set(start,-1);const q=[[sx,sy]];
  const goal=ix(tx,ty);
  for(let i=0;i<q.length;i++){const [x,y]=q[i];if(ix(x,y)===goal)break;
   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
    if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||dz.has(k)||(cz.has(k)&&k!==goal))continue;
-   if(k!==goal&&(enemyAt(nx,ny)||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)))continue;
+   if(k!==goal&&(enemyAt(nx,ny)||G.map[k]===5||merchantAt(nx,ny)))continue;
    prev.set(k,ix(x,y));q.push([nx,ny]);}}
  if(!prev.has(goal))return null;
  const path=[];let k=goal;while(k!==start){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}

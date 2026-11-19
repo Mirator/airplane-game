@@ -132,7 +132,6 @@ function sidestep(G,dz){
   const nx=p.x+d[0],ny=p.y+d[1];if(!walk(G,nx,ny)||enemyAt(G,nx,ny)||G.map[ix(nx,ny)]===3)continue;
   const k=ix(nx,ny);if(dz.has(k))continue;
   let s=0;for(const e of G.enemies)if(e.wind)s+=Math.abs(e.x-nx)+Math.abs(e.y-ny);
-  const tp=G.traps.find(t=>t.x===nx&&t.y===ny&&t.rev&&!t.done);if(tp)s-=50;
   if(s>bs){bs=s;best=[d[0],d[1]];}
  }
  if(best){return F().tryMove(best[0],best[1]);}
@@ -153,7 +152,6 @@ function escapeSpace(G,sx,sy,ed,cap){
  for(let i=0;i<q.length&&n<cap;i++){const [x,y,s]=q[i];
   for(const d of DIRS){const nx=x+d[0],ny=y+d[1];if(!inb(nx,ny))continue;const k=ix(nx,ny);
    if(seenT.has(k)||!G.seen[k]||!walk(G,nx,ny)||G.map[k]===3)continue;
-   if(G.traps.some(t=>t.x===nx&&t.y===ny&&t.rev&&!t.done))continue;
    if(s+1>=ed[k])continue;seenT.add(k);n++;q.push([nx,ny,s+1]);}}
  return n;
 }
@@ -163,7 +161,6 @@ function kiteStep(G,foes,dz){
  for(const d of DIRS){
   const nx=p.x+d[0],ny=p.y+d[1],k=ix(nx,ny);
   if(!walk(G,nx,ny)||enemyAt(G,nx,ny)||G.map[k]===3||dz.has(k)||!G.seen[k])continue;
-  if(G.traps.some(t=>t.x===nx&&t.y===ny&&t.rev&&!t.done))continue;
   if(ed[k]<=cur)continue;
   const sp=escapeSpace(G,nx,ny,ed,40);
   if(sp<10)continue;
@@ -207,7 +204,7 @@ function mageAct(G,awake,adj,hpf){
  const p=G.p,B=TB_().BAL.ability,nearA=awake.filter(e=>cheb1(G,e));
  if((hpf<0.7||p.mana>=40)&&nearA.some(e=>!e.stun&&!e.frz)&&p.mana>=B.blink.mana+B.bolt.mana+4&&can('blink')){
   const ed=multiBfs(G,awake.map(e=>[e.x,e.y]));let best=null,bs=-1e9;
-  for(const t of F().targetTiles('blink')){const k=ix(t[0],t[1]),dd=ed[k];if(dd<3||G.traps.some(a=>a.x===t[0]&&a.y===t[1]&&a.rev&&!a.done))continue;
+  for(const t of F().targetTiles('blink')){const k=ix(t[0],t[1]),dd=ed[k];if(dd<3)continue;
    const sc=Math.min(dd,8)+escapeSpace(G,t[0],t[1],ed,30)*0.1;if(sc>bs){bs=sc;best=t;}}
   if(best&&U('blink',best[0],best[1]))return true;
  }
@@ -223,6 +220,8 @@ function mageAct(G,awake,adj,hpf){
   if(best&&(bw>=2||(awake.some(e=>e.t==='dragon')&&bw>=3))&&U('fire',best[0],best[1]))return true;
   if(tough&&p.mana>=B.fire.mana+6&&F().targetTiles('fire').some(t=>t[0]===tough.x&&t[1]===tough.y)&&U('fire',tough.x,tough.y))return true;
  }
+ {const weak=awake.filter(e=>F().canShoot(e)&&(e.t==='rat'||e.t==='bat'||e.hp<=6)).sort((a,b)=>prio(G,a)-prio(G,b))[0];   // small fry: save the mana, use the free shot
+  if(weak&&F().shoot(weak.x,weak.y)){BS.uses.shot=(BS.uses.shot||0)+1;if(G.floor===8)BS.uses8.shot=(BS.uses8.shot||0)+1;return true;}}
  if(can('bolt')){
   const res=nearA.length?0:(hpf<0.6?0:6);
   if(p.mana>=B.bolt.mana+res){
@@ -231,6 +230,8 @@ function mageAct(G,awake,adj,hpf){
    if(t&&U('bolt',t.x,t.y))return true;
   }
  }
+ {const sh=awake.filter(e=>F().canShoot(e)).sort((a,b)=>prio(G,a)-prio(G,b)),t=sh.find(e=>!guarded(G,e))||sh[0];   // the free shot when Bolt is not worth it / not affordable
+  if(t&&F().shoot(t.x,t.y)){BS.uses.shot=(BS.uses.shot||0)+1;if(G.floor===8)BS.uses8.shot=(BS.uses8.shot||0)+1;return true;}}
  return false;
 }
 function rogueAct(G,awake,adj,hpf){
@@ -296,7 +297,7 @@ function think(G){
     if(my>=3&&my<=9){
      if(openN(G,p.x,p.y)<=2){if((BS.cw||0)<10){BS.cw=(BS.cw||0)+1;click('b_wait');return;}}
      else{
-      const blk=new Set(dzArr);for(const t of G.traps)if(t.rev&&!t.done)blk.add(ix(t.x,t.y));
+      const blk=new Set(dzArr);
       const rr=bfs(G,p.x,p.y,blk,false);let bk=-1,bdd=99;
       for(const k of rr.order){const d0=rr.dist[k];if(d0<1||d0>4||d0>=bdd)continue;const x=k%W,y=(k/W)|0;
        if(openN(G,x,y)<=2&&G.map[k]!==3&&ed[k]>d0+1){bk=k;bdd=d0;}}
@@ -311,7 +312,7 @@ function think(G){
    if(!(t.t==='ogre'&&false)){BS.wait=0;F().tryMove(t.x-p.x,t.y-p.y);return;}
   }
   if(awake.length){
-   const block=new Set(dzArr);for(const t of G.traps)if(t.rev&&!t.done)block.add(ix(t.x,t.y));
+   const block=new Set(dzArr);
    const r=bfs(G,p.x,p.y,block,false);
    const rg=awake.filter(e=>RANGED.has(e.t)&&los(G,e.x,e.y,p.x,p.y));
    if(rg.length&&(BS.hides||0)<8){
@@ -319,8 +320,7 @@ function think(G){
     if(md>=3){
      let hb=null;
      for(const d of DIRS){const nx=p.x+d[0],ny=p.y+d[1];if(!walk(G,nx,ny)||enemyAt(G,nx,ny)||G.map[ix(nx,ny)]===3||dz.has(ix(nx,ny)))continue;
-      if(G.traps.some(t=>t.x===nx&&t.y===ny&&t.rev&&!t.done))continue;
-      if(rg.every(e=>!los(G,e.x,e.y,nx,ny))){hb=d;break;}}
+         if(rg.every(e=>!los(G,e.x,e.y,nx,ny))){hb=d;break;}}
      if(hb&&F().tryMove(hb[0],hb[1])){BS.hide=G.turn;BS.hides=(BS.hides||0)+1;return;}
     }
    }
@@ -339,7 +339,7 @@ function think(G){
  // out of combat
  if(hpf<0.35&&G.inv.pot>0&&p.hp<p.mhp){click('b_pot');return;}
  if(G.ppois&&G.inv.pot>1&&p.hp<=G.ppois.d*G.ppois.t+3){click('b_pot');return;}
- const block=new Set(dzArr);for(const t of G.traps)if(t.rev&&!t.done)block.add(ix(t.x,t.y));
+ const block=new Set(dzArr);
  let r=bfs(G,p.x,p.y,block,false);
  const go=k=>{const path=pathTo(r,k);if(path.length){return stepK(G,path[0]);}return false;};
  // hunt memory (ranged enemies that broke line of sight)
@@ -474,6 +474,7 @@ function runOne(cls,cfg){
  cfg=cfg||{};const cap=cfg.cap||12000,fcap=cfg.fcap||1600;
  BS={ignore:new Set(),shopDone:{},wait:0,rest:0,nogoal:0,bad:new Set(),loops:0,hold:0,uses:{},uses8:{},mods:[],waits:0,waitsC:0,waitsM:0};
  const meta=A().meta(),g0=meta.gold;
+ window.__dbg.setSpendNow(true);   // the bot picks a level-up perk at once, as it always did (a player picks through the badge)
  if(!cfg.resume)F().startRun(cls);
  $('modal').style.display='none';
  let G=GG(),acts=0,lastF=cfg.resume?GG().floor:1,fStart=cfg.resume?GG().turn:0,stall=null,maxPot=0;
@@ -489,7 +490,7 @@ function runOne(cls,cfg){
   try{think(G);}catch(e){stall='ERR:'+e.message;break;}
  }
  G=GG();let res;
- let dbg=null;if(stall){const q=GG();dbg={st:(()=>{const k=q.map.indexOf(2);return k<0?null:[k%30,(k/30)|0,q.seen[k],q.exp[k]];})(),full:(()=>{let o=[];for(let y=0;y<30;y++){let l='';for(let x=0;x<30;x++){const k=y*30+x,t=q.map[k];let c=!q.seen[k]?(t===0?' ':'?'):t===0?'#':t===2?'>':t===3?'+':t===5?'L':t===4?'-':(q.exp[k]?'.':',');if(q.traps.some(a=>a.x===x&&a.y===y&&a.rev&&!a.done))c='T';if(q.enemies.some(e=>e.x===x&&e.y===y))c='E';if(q.p.x===x&&q.p.y===y)c='@';l+=c;}o.push(l);}return o.join('\n');})(),goal:BS.goal,exp:(BS.goal&&BS.goal.t==='front')?[q.exp[BS.goal.y*30+BS.goal.x],q.map[BS.goal.y*30+BS.goal.x],q.seen[BS.goal.y*30+BS.goal.x]]:null,tre:q.treasure,mp:(()=>{let o='';for(let y=q.p.y-3;y<=q.p.y+3;y++){for(let x=q.p.x-6;x<=q.p.x+6;x++)o+=(x<0||y<0||x>29||y>29)?'#':(x===q.p.x&&y===q.p.y)?'@':['#','.','>','+','-','L'][q.map[y*30+x]];o+='/';}return o;})(),tr:BS.tr.join(' '),itl:q.items.map(i=>i.t+':'+i.x+','+i.y).join(' '),shr:q.shrine,mer:q.merchant&&[q.merchant.x,q.merchant.y],log:q.log.slice(-4),pos:[q.p.x,q.p.y],hp:q.p.hp,en:q.enemies.map(e=>[e.t,e.x,e.y,e.awake?1:0,e.hp,e.wind?1:0,!!(q.vis[e.y*30+e.x])]),items:q.items.length,keys:q.keys,pot:q.inv.pot,onStairs:q.map[q.p.y*30+q.p.x]===2,seenStairs:q.map.some((t,k)=>t===2&&q.seen[k])};A().finish('abandon');}
+ let dbg=null;if(stall){const q=GG();dbg={st:(()=>{const k=q.map.indexOf(2);return k<0?null:[k%30,(k/30)|0,q.seen[k],q.exp[k]];})(),full:(()=>{let o=[];for(let y=0;y<30;y++){let l='';for(let x=0;x<30;x++){const k=y*30+x,t=q.map[k];let c=!q.seen[k]?(t===0?' ':'?'):t===0?'#':t===2?'>':t===3?'+':t===5?'L':t===4?'-':(q.exp[k]?'.':',');if(q.enemies.some(e=>e.x===x&&e.y===y))c='E';if(q.p.x===x&&q.p.y===y)c='@';l+=c;}o.push(l);}return o.join('\n');})(),goal:BS.goal,exp:(BS.goal&&BS.goal.t==='front')?[q.exp[BS.goal.y*30+BS.goal.x],q.map[BS.goal.y*30+BS.goal.x],q.seen[BS.goal.y*30+BS.goal.x]]:null,tre:q.treasure,mp:(()=>{let o='';for(let y=q.p.y-3;y<=q.p.y+3;y++){for(let x=q.p.x-6;x<=q.p.x+6;x++)o+=(x<0||y<0||x>29||y>29)?'#':(x===q.p.x&&y===q.p.y)?'@':['#','.','>','+','-','L'][q.map[y*30+x]];o+='/';}return o;})(),tr:BS.tr.join(' '),itl:q.items.map(i=>i.t+':'+i.x+','+i.y).join(' '),shr:q.shrine,mer:q.merchant&&[q.merchant.x,q.merchant.y],log:q.log.slice(-4),pos:[q.p.x,q.p.y],hp:q.p.hp,en:q.enemies.map(e=>[e.t,e.x,e.y,e.awake?1:0,e.hp,e.wind?1:0,!!(q.vis[e.y*30+e.x])]),items:q.items.length,keys:q.keys,pot:q.inv.pot,onStairs:q.map[q.p.y*30+q.p.x]===2,seenStairs:q.map.some((t,k)=>t===2&&q.seen[k])};A().finish('abandon');}
  G=GG();
  res={cls,floor:G.floor,won:!!G.won,turns:G.turn,killer:normKiller(G.killer),stall,lvl:G.p.lvl,kills:G.kills,perks:Object.keys(G.perks).join(','),uses:BS.uses,uses8:BS.uses8,gear:['weapon','armor','off','charm'].map(sl=>G.p.eq[sl]?G.p.eq[sl].k:'-').join('/')};
  res.waits=BS.waits||0;res.waitsC=BS.waitsC||0;res.waitsM=BS.waitsM||0;res.mods=BS.mods.join(',');res.gold=meta.gold-g0;res.loops=BS.loops;res.dbg=dbg;

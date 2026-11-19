@@ -20,7 +20,7 @@ const BAL = {
     caveChance: 0.75, caveRingWall: 0.5, caveInnerWall: 0.1,
     doorChance: 0.6        // chance a doorway-shaped corridor tile becomes a door
   },
-  vis: { radius: 7, trapfinderRange: 3 },   // sight radius; Trapfinder trap-reveal range (normal range is 1)
+  vis: { radius: 7 },   // sight radius
   // --- floor population (run.js) ---
   floor: { treasureFrom: 2, treasureChance: 0.7, shrineFrom: 2, shrineChance: 0.55 },
   enemy: {
@@ -42,13 +42,6 @@ const BAL = {
   forcedGear: {                 // trait gear in treasure rooms / merchant
     minTraitFloor: 2, weaponMin: 2, weaponMax: 3, weaponPerFloor: 0.7,
     armorRandMin: 1, armorRandMax: 3, armorDiv: 2, armorBase: 1
-  },
-  trap: {
-    countMin: 1, countMax: 2, floorsPerExtra: 2, minDistFromStart: 4,
-    spikeBelow: 0.45, dartBelow: 0.75, dartOnlyBelowFloor: 2,   // roll < spikeBelow: spike; < dartBelow (or floor < dartOnlyBelowFloor): dart; else alarm
-    spikeBase: 3,                                               // spike damage = spikeBase + floor
-    dartEnemyTurns: 4, dartEnemyDmg: 2,
-    dartTurns: 4, dartTurnsTrapfinder: 2, dartDmgBase: 1, dartDmgFloorDiv: 3
   },
   // --- gear traits (items.js; the trait table itself is TR below) ---
   trait: {
@@ -90,6 +83,7 @@ const BAL = {
   },
   // --- resources (combat.js endTurn) ---
   rage: { max: 100, dealt: 10, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
+  shot: { range: 3, mul: 0.4 },                           // mage basic attack: a free ranged shot at a foe within range tiles in line of sight; damage = normal attack formula x mul
   mana: { regen: 1.1, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
   // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
@@ -170,7 +164,7 @@ const BAL = {
     horde:    { countMul: 1.6, hpMul: 0.75, atkMul: 0.8, maxHp: 15, xpMul: 0.6, goldDrop: 0.45 },   // maxHp: enemy types above this base HP do not appear
     hunted:   { minFloor: 3, hpMul: 2.2, atkMul: 1.25, rewardGold: 14, rewardGoldPerFloor: 5, xpMul: 3 },
     rich:     { goldMul: 2, hpMul: 1.15, atkMul: 1.1, extraGold: 2 },
-    silent:   { sight: 4, sneakMul: 2, trapMul: 2, alarmShare: 0.5 },
+    silent:   { sight: 4, sneakMul: 2 },                                 // sight: foes notice you from this far, and you see this far yourself
     unstable: { every: 4, count: 2, onPlayer: 0.35, radius: 5, warn: 2, dmgBase: 3, dmgFloorDiv: 2, enemyMul: 2, extraGear: 1, extraGold: 1 }
   },
   // --- run score, shown on the recap and kept in the records (records.js) ---
@@ -197,7 +191,7 @@ const BAL = {
   ach: { kills: 200, elites: 10, streak: 3, dailyDays: 3, hoard: 200, fastTurns: 1000, noArmorFloor: 5 }
 };
 
-// ===== Tables: enemies, perks, synergies, classes, gear traits, traps, shop, unlocks =====
+// ===== Tables: enemies, perks, synergies, classes, gear traits, shop, unlocks =====
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
 // the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give less (diminishing returns) but always a whole, honest step: what a card says for the next level is what it gives; int = whole numbers. pct = a percentage. =====
 const UPG=[
@@ -234,7 +228,6 @@ const UNLOCKS=[
  {id:'pick4',n:'Fourth choice',d:'Level-ups offer 4 perks, not 3.',cost:220},
  {id:'shrine',n:'Shrine favour',d:'Shrines offer a safe Blessing; better prayer odds.',cost:110},
  {id:'phoenix',n:'Perk: Phoenix Heart',d:'Adds Phoenix Heart to level-ups.',ach:'Defeat the dragon',chk:function(){return meta.wins>=1;},prog:function(){return meta.wins+'/1 wins';}},
- {id:'trapper',n:'Perk: Trapfinder',d:'Adds Trapfinder to level-ups.',ach:'Reach floor 4',chk:function(){return meta.best>=4;},prog:function(){return 'best floor '+meta.best+'/4';}},
  {id:'midas',n:'Perk: Midas Touch',d:'Adds Midas Touch to level-ups.',ach:'Slay 50 enemies in total',chk:function(){return meta.kills>=50;},prog:function(){return meta.kills+'/50 kills';}},
  {id:'sage',n:'Perk: Alchemist',d:'Adds Alchemist to level-ups.',ach:'Slay an elite enemy',chk:function(){return meta.elites>=1;},prog:function(){return meta.elites+'/1 elites';}}
 ];
@@ -293,7 +286,6 @@ const PERKS=[
  // unlockable perks (only in the pool once unlocked in the title shop / by achievements)
  {id:'warlord',n:'Warlord',lock:'warlord',max:2,d:'+3 attack and +1 defense',f:p=>{p.atk+=3;p.def+=1;}},
  {id:'phoenix',n:'Phoenix Heart',lock:'phoenix',beh:1,d:'Once per run, a lethal hit revives you at half HP'},
- {id:'trapper',n:'Trapfinder',lock:'trapper',beh:1,d:'See traps from 3 tiles; half trap damage'},
  {id:'midas',n:'Midas Touch',lock:'midas',beh:1,d:'Every kill drops some gold'},
  {id:'sage',n:'Alchemist',lock:'sage',beh:1,max:2,d:'Potions heal 50% more per level'},
  // blueprint perks (bp = tier): only offered at level-up once found and bought
@@ -362,7 +354,6 @@ const OFF={
 const CH={
  fang:{n:'Vampire Fang',e:'fang'},
  ward:{n:'Ward Sigil',e:'ward'},
- eye:{n:'Seer Eye',e:'eye'},
  hourglass:{n:'Hourglass',e:'hourglass'},
  veil:{n:'Shadow Veil',e:'veil'},
  flask:{n:'Bottomless Flask',e:'flask'},
@@ -390,7 +381,6 @@ const TR={
  TR.heavy.d=sg(TR.heavy.dv)+' defense; foes get a free turn every '+B.heavyEvery+'th turn.';
  TR.spiked.d=sg(B.spikedAtk)+' attack; melee attackers take '+B.spikedThorns+'.';
  TR.leaden.d=sg(TR.leaden.dv)+' defense; potions heal '+pc100(1-BAL.potion.leadenMul)+' less.';}
-const TRAPS={spike:{n:'Spike trap',c:'#ff5a5a'},dart:{n:'Dart trap',c:'#7be04b'},alarm:{n:'Alarm trap',c:'#ffd24a'}};
 
 // ===== Floor modifiers (rules: mods.js; numbers: BAL.mod). down = the price you pay, up = what you get. minF = first floor it can appear on. =====
 const MODS=(function(){
@@ -403,7 +393,7 @@ const MODS=(function(){
   {id:'horde',tip:'Many weak foes, no treasure room.',e:'m_horde',n:'Horde',minF:2,r:p(M.horde.countMul-1)+' more foes, no vault',g:'Weaker foes, more gold'},
   {id:'hunted',tip:'A stalker hunts you: slay it for spoils.',e:'m_hunted',n:'Hunted',minF:M.hunted.minFloor,r:'A stalker hunts you',g:'Slay it for loot'},
   {id:'rich',tip:'Gold x'+M.rich.goldMul+', tougher enemies.',e:'m_rich',n:'Rich vein',minF:2,r:'Foes +'+p(M.rich.hpMul-1)+' HP',g:'Gold x'+M.rich.goldMul},
-  {id:'silent',tip:'More traps and alarms; easy sneak attacks.',e:'m_silent',n:'Silent',minF:2,r:'Twice the traps',g:'Easy sneak attacks'},
+  {id:'silent',tip:'Short sight for all; easy sneak attacks.',e:'m_silent',n:'Silent',minF:2,r:'Short sight',g:'Easy sneak attacks'},
   {id:'unstable',tip:'Cracked tiles collapse: step off them.',e:'m_unstable',n:'Unstable',minF:2,r:'Floor collapses',g:'Extra gear and gold'}
  ];
 })();
@@ -420,8 +410,8 @@ const HARD_RULES=(function(){
 })();
 // ===== Expedition outcome table: per class, per upgrade power (gold spent on boosts), measured with the bot (tests/sim.js). Regenerate with `node tests/calibrate.js`. =====
 // reach[f-1] = share of runs that ended on floor f (index 8 = won); gold / kills = mean per run ending there; turns = mean turns per run; gph = manual gold per hour (turns x BAL.exp.turnSec)
-// BEGIN EXP_TABLE (generated by tests/calibrate.js: runs 60 per cell, seed 1, levels fresh=0,mid=800,heavy=3000,high=9000,maxed=999999)
-const EXP_TABLE={warrior:[{pw:0,reach:[0,0.03,0.08,0.25,0.32,0.13,0.05,0.1,0.03],gold:[326,50,142,150,250,383,417,775,1384],kills:[0,20,27,44,61,85,103,128,166],turns:660,gph:1480},{pw:560,reach:[0,0,0,0.07,0.24,0.24,0.14,0.19,0.14],gold:[506,506,506,123,283,512,506,653,875],kills:[0,0,0,46,63,87,104,131,153],turns:914,gph:1660},{pw:2054,reach:[0,0,0,0.02,0.14,0.1,0.07,0.22,0.46],gold:[643,643,643,95,263,435,358,536,917],kills:[0,0,0,35,64,86,99,134,152],turns:1075,gph:1796},{pw:6473,reach:[0,0,0,0.03,0.08,0.07,0.08,0.31,0.42],gold:[860,860,860,321,283,679,498,942,1061],kills:[0,0,0,43,65,83,111,136,153],turns:1070,gph:2412},{pw:16554,reach:[0,0,0,0.05,0,0.08,0.05,0.25,0.57],gold:[1049,1049,1049,209,1049,520,486,1048,1257],kills:[0,0,0,45,0,82,100,136,152],turns:1087,gph:2896}],mage:[{pw:0,reach:[0,0,0.02,0.17,0.23,0.15,0.12,0.27,0.05],gold:[428,428,121,139,241,328,361,784,932],kills:[0,0,31,45,59,85,113,136,138],turns:807,gph:1593},{pw:560,reach:[0,0,0,0.08,0.2,0.07,0.07,0.33,0.25],gold:[610,610,610,154,247,462,432,782,909],kills:[0,0,0,51,63,76,115,141,158],turns:929,gph:1968},{pw:2054,reach:[0,0,0,0.02,0.07,0.05,0.02,0.27,0.57],gold:[706,706,706,149,259,431,397,552,876],kills:[0,0,0,38,52,86,104,141,147],turns:1062,gph:1995},{pw:6473,reach:[0,0,0,0.02,0.03,0.05,0.05,0.15,0.7],gold:[1035,1035,1035,124,297,447,649,974,1174],kills:[0,0,0,49,53,89,101,139,151],turns:1113,gph:2788},{pw:16554,reach:[0,0,0,0,0.05,0.03,0.03,0.22,0.67],gold:[1145,1145,1145,1145,435,574,906,964,1298],kills:[0,0,0,0,67,78,129,121,150],turns:1116,gph:3079}],rogue:[{pw:0,reach:[0,0.23,0.1,0.33,0.2,0.05,0.03,0.02,0.03],gold:[176,47,145,136,223,320,383,240,845],kills:[0,15,29,42,56,82,112,119,166],turns:468,gph:1130},{pw:560,reach:[0,0,0.02,0.17,0.32,0.15,0.05,0.13,0.17],gold:[503,503,93,166,266,453,812,1015,872],kills:[0,0,33,45,62,85,108,135,146],turns:847,gph:1781},{pw:2054,reach:[0,0,0,0.07,0.08,0.23,0.1,0.08,0.43],gold:[683,683,683,134,216,522,434,1137,913],kills:[0,0,0,43,61,85,103,152,146],turns:986,gph:2077},{pw:6473,reach:[0,0,0,0.03,0.1,0.1,0.05,0.19,0.53],gold:[845,845,845,117,303,486,576,883,1078],kills:[0,0,0,43,69,85,96,132,146],turns:1075,gph:2356},{pw:16554,reach:[0,0,0,0.03,0.02,0.07,0,0.22,0.66],gold:[1281,1281,1281,160,310,645,1281,918,1542],kills:[0,0,0,44,54,91,0,141,150],turns:1094,gph:3510}]};
+// BEGIN EXP_TABLE (generated by tests/calibrate.js: runs 60 per cell, seed 1, levels fresh=0,mid=800,heavy=3000,high=8000,maxed=999999)
+const EXP_TABLE={warrior:[{pw:0,reach:[0,0,0.02,0.32,0.15,0.19,0.08,0.17,0.07],gold:[489,489,122,124,282,530,714,824,1549],kills:[0,0,28,44,61,81,110,135,153],turns:932,gph:1573},{pw:560,reach:[0,0,0,0.09,0.09,0.13,0.13,0.19,0.37],gold:[659,659,659,162,257,427,526,684,999],kills:[0,0,0,41,67,84,104,142,151],turns:1309,gph:1510},{pw:2054,reach:[0,0,0,0.02,0.02,0.06,0.07,0.15,0.68],gold:[825,825,825,54,236,254,478,811,948],kills:[0,0,0,37,74,78,106,131,152],turns:1425,gph:1736},{pw:6473,reach:[0,0,0,0,0.02,0.02,0,0.19,0.77],gold:[1128,1128,1128,1128,475,1665,1128,960,1173],kills:[0,0,0,0,64,129,0,134,147],turns:1435,gph:2359},{pw:16554,reach:[0,0,0,0,0,0,0,0.08,0.92],gold:[1451,1451,1451,1451,1451,1451,1451,1834,1419],kills:[0,0,0,0,0,0,0,143,150],turns:1380,gph:3154}],mage:[{pw:0,reach:[0,0,0.09,0.25,0.22,0.13,0.04,0.11,0.16],gold:[413,413,151,115,251,326,319,786,1076],kills:[0,0,28,43,60,84,111,146,152],turns:832,gph:1489},{pw:560,reach:[0,0,0.02,0.13,0.19,0.19,0.07,0.19,0.22],gold:[505,505,145,87,296,392,384,764,874],kills:[0,0,27,44,64,80,92,144,161],turns:1005,gph:1508},{pw:2054,reach:[0,0,0,0.13,0.17,0.09,0.04,0.17,0.41],gold:[637,637,637,151,284,479,593,623,981],kills:[0,0,0,39,57,77,99,136,148],turns:1094,gph:1746},{pw:6473,reach:[0,0,0,0.08,0.08,0.08,0.02,0.19,0.56],gold:[962,962,962,76,363,611,620,826,1263],kills:[0,0,0,43,57,84,105,136,151],turns:1261,gph:2288},{pw:16554,reach:[0,0,0,0.02,0.02,0.08,0,0.29,0.59],gold:[1328,1328,1328,208,370,799,1328,1057,1604],kills:[0,0,0,70,48,76,0,138,153],turns:1335,gph:2985}],rogue:[{pw:0,reach:[0,0.14,0.19,0.3,0.07,0.14,0.02,0.11,0.04],gold:[230,65,129,155,155,323,341,546,847],kills:[0,15,26,44,56,76,91,131,153],turns:687,gph:1004},{pw:560,reach:[0,0,0,0.18,0.18,0.14,0.14,0.14,0.2],gold:[517,517,517,178,306,383,546,820,876],kills:[0,0,0,40,62,79,121,148,147],turns:1059,gph:1466},{pw:2054,reach:[0,0,0,0.06,0.09,0.09,0.04,0.2,0.52],gold:[636,636,636,117,318,535,358,661,776],kills:[0,0,0,48,54,90,119,139,145],turns:1240,gph:1538},{pw:6473,reach:[0,0,0,0,0,0.04,0.04,0.17,0.75],gold:[1079,1079,1079,1079,1079,543,927,795,1178],kills:[0,0,0,0,0,69,113,133,142],turns:1442,gph:2246},{pw:16554,reach:[0,0,0,0,0,0.02,0.02,0.04,0.92],gold:[1444,1444,1444,1444,1444,1074,673,943,1491],kills:[0,0,0,0,0,77,110,130,148],turns:1439,gph:3011}]};
 // END EXP_TABLE
 // ===== Heat 0-5. HEAT[h] = the rule added at that level (Heat 1 is Hard: HARD_RULES lists its parts). Numbers: BAL.heat / BAL.hard =====
 const HEAT=(function(){

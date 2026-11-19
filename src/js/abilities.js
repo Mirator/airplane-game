@@ -72,6 +72,9 @@ function targetTiles(k){
   case 'blink':return blinkTiles();
   case 'fire':return groundTiles(BAL.ability.fire.range);
   case 'smoke':return groundTiles(BAL.ability.smoke.range);
+ // self abilities (armed first, used by a second tap): the area they act on, as tiles; Brace / Vanish act on you alone
+ case 'cleave':case 'nova':return DIRS8.map(d=>[G.p.x+d[0],G.p.y+d[1]]).filter(t=>inb(t[0],t[1])&&G.map[ix(t[0],t[1])]!==0);
+ case 'brace':case 'vanish':return [[G.p.x,G.p.y]];
  }
  return [];
 }
@@ -272,13 +275,28 @@ function useAbility(k,tx,ty){
 }
 function toggleAbility(k){
  walkTok++;if(!G||G.over||modalOpen())return;
- if(armed===k){cancelTarget();return;}
+ if(armed===k){if(ABIL[k].tg==='self'){useAbility(k);return;}cancelTarget();return;}   // armed self ability: the second tap uses it
  const why=whyNot(k);
  if(why){msg(why);if(armed){armed=null;}render();return;}
- if(ABIL[k].tg==='self'){useAbility(k);return;}
- armed=k;msg(ABIL[k].n+': tap a target.');render();
+ armed=k;msg(ABIL[k].n+(ABIL[k].tg==='self'?': tap again to use.':': tap a target.'));render();
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
+// ---- the Mage's free shot: a weak ranged attack on a visible foe within BAL.shot.range (also next to you: the Mage never melees). No mana, no cooldown, one turn.
+// Damage = the normal attack formula (so the weapon matters) x BAL.shot.mul; crit, sneak, lifesteal and poison weapons apply, knock-back / sweep (melee only) do not.
+// Shield rules are the ranged ones, as for Bolt.
+function canShoot(e){return !!G&&G.p.cls==='mage'&&!!e&&!e.dead&&G.vis[ix(e.x,e.y)]&&manh(e,G.p)<=BAL.shot.range&&los(G.p.x,G.p.y,e.x,e.y,true);}
+function mageShot(e){
+ if(!G||G.over||!canShoot(e))return false;
+ const p=G.p;walkTok++;breakVanish();
+ let dmg=playerDmg()*BAL.shot.mul;const crit=rf()<critChance();if(crit)dmg*=BAL.combat.critMul;
+ const sn=sneakMul(),unaware=!e.awake;if(sn>1&&unaware){dmg*=sn;msg('Sneak attack!');}
+ dmg=Math.max(1,Math.round(dmg));
+ vfxAdd('shot',p.x,p.y,e.x,e.y);sfx('shot');
+ hurtEnemy(e,dmg,crit?'#ff8a3a':'#cfe3ff',crit,'ranged');
+ msg((crit?'Critical! ':'')+'Your shot hits the '+nm(e)+' for '+dmg+'.');
+ lifeSteal(dmg);poison(e);settle(e);
+ endTurn();return true;
+}
 // ---- weapon reach (spear) ----
 function reachOk(e){
  const wk=wpK();if(!wk||!wk.reach||!e||e.dead||!G.vis[ix(e.x,e.y)])return false;

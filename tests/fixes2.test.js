@@ -18,7 +18,7 @@ const pt = (page, x, y) => page.evaluate(([x, y]) => { const v = window.__dbg.vi
 const st = (page) => page.evaluate(() => { const G = window.__dbg(); return { x: G.p.x, y: G.p.y, hp: G.p.hp, turn: G.turn, mana: G.p.mana, log: G.log.slice(-1)[0], foes: G.enemies.map((e) => [e.x, e.y, e.hp]), pending: G.pending, perks: Object.keys(G.perks || {}).length }; });
 async function arena(page, rows, ox = 4, oy = 4) {
   return page.evaluate(([rows, ox, oy]) => {
-    const G = window.__dbg(), W = 30; G.enemies = []; G.items = []; G.traps = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
+    const G = window.__dbg(), W = 30; G.enemies = []; G.items = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
     for (let y = -1; y <= rows.length; y++) for (let x = -1; x <= rows[0].length; x++) { const k = (oy + y) * W + ox + x; if (k >= 0 && k < 900) { G.map[k] = 0; G.seen[k] = true; G.exp[k] = true; } }
     rows.forEach((r, y) => [...r].forEach((c, x) => { const k = (oy + y) * W + ox + x; G.map[k] = c === '#' ? 0 : 1; G.seen[k] = true; G.exp[k] = c !== '?'; if (c === '@') { G.p.x = ox + x; G.p.y = oy + y; } }));
     for (const k in G.cd) G.cd[k] = 0; G.vanish = 0; G.brace = null;
@@ -85,7 +85,7 @@ describe('playtest bugs and clarity', { concurrency: CONC }, () => {
       assert.match((await st(page)).log, /Nothing left|stairs/);
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
-  it('P2-5: Escape closes Controls (and the menu), never a forced level-up pick', async () => {
+  it('P2-5: Escape closes Controls (and the menu), a level-up pick closes too (it stays pending), never the end screen', async () => {
     const { page, ctx, errors } = await fresh('warrior', 84, { grace: true });
     try {
       await page.click('#menuBtn'); await page.locator('#modalBox button', { hasText: /Controls/ }).click();
@@ -96,7 +96,7 @@ describe('playtest bugs and clarity', { concurrency: CONC }, () => {
       assert.equal(await page.locator('#modal').isVisible(), false, 'menu closed');
       await page.evaluate(() => { window.__dbg().pending = 1; window.__dbg.fn.showPerk(); });
       await page.keyboard.press('Escape'); await page.waitForTimeout(60);
-      assert.equal(await page.locator('#modal').isVisible(), true, 'a perk pick is not dismissable');
+      assert.equal(await page.locator('#modal').isVisible(), false, 'a perk pick can be put off with Esc'); assert.equal(await page.evaluate(() => window.__dbg().pending), 1, 'and stays pending');
       await page.evaluate(() => { window.__dbg().pending = 0; document.getElementById('modal').style.display = 'none'; const G = window.__dbg(); G.p.hp = 0; window.__dbg.fn.endTurn(); });
       assert.equal(await page.evaluate(() => document.getElementById('modalBox').dataset.kind), 'end');
       await page.keyboard.press('Escape'); await page.waitForTimeout(60);

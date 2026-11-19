@@ -22,7 +22,7 @@ const hold = async (page, p, ms = 520) => { await page.mouse.move(p.x, p.y); awa
 // carve a sealed test room out of the map: rows of '#' (wall) and '.' (floor); '@' = the player; everything is seen, and explored except '?' tiles
 async function arena(page, rows, ox = 4, oy = 4) {
   return page.evaluate(([rows, ox, oy]) => {
-    const G = window.__dbg(), W = 30; G.enemies = []; G.items = []; G.traps = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
+    const G = window.__dbg(), W = 30; G.enemies = []; G.items = []; G.shrine = null; G.merchant = null; G.cracks = []; G.smoke = [];
     for (let y = -1; y <= rows.length; y++) for (let x = -1; x <= rows[0].length; x++) { const k = (oy + y) * W + ox + x; G.map[k] = 0; G.seen[k] = true; G.exp[k] = true; }
     rows.forEach((r, y) => [...r].forEach((c, x) => { const k = (oy + y) * W + ox + x; G.map[k] = c === '#' ? 0 : 1; G.seen[k] = true; G.exp[k] = c !== '?'; if (c === '@') { G.p.x = ox + x; G.p.y = oy + y; } }));
     for (const k in G.cd) G.cd[k] = 0; G.vanish = 0; G.brace = null;
@@ -56,15 +56,14 @@ describe('inspect (long-press / right-click)', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('card states: asleep, stunned / frozen / blinded with turns, winding up, Guard shield facing; own tile shows buffs; trap, shrine, item tiles get one line', async () => {
+  it('card states: asleep, stunned / frozen / blinded with turns, winding up, Guard shield facing; own tile shows buffs; shrine, item tiles get one line', async () => {
     const { page, ctx, errors } = await fresh('warrior', 32);
     try {
       await page.evaluate(() => {
         window.T.setup(7); const G = window.__dbg();
         const g = window.T.foe('guard', 3, 0, true); g.face = [-1, 0]; g.stun = 2; g.blind = 1; g.frz = 1; g.wind = { k: 'smash', tiles: [[G.p.x + 4, G.p.y]], dx: 1, dy: 0 };
-        G.traps = [{ x: G.p.x + 1, y: G.p.y, k: 'spike', rev: 1 }];
         G.items.push({ x: G.p.x + 2, y: G.p.y, t: 'potion', v: 0 });
-        G.ppois = { t: 3, d: 1 }; G.vanish = 2; G.brace = { hits: 2, t: 5, reflect: 0.5 };
+        G.vanish = 2; G.brace = { hits: 2, t: 5, reflect: 0.5 };
         window.__dbg.fn.computeVis();
       });
       const lines = (x, y) => page.evaluate(([x, y]) => { const G = window.__dbg(); const r = window.__dbg.text.inspectLines(G.p.x + x, G.p.y + y); return r; }, [x, y]);
@@ -76,17 +75,13 @@ describe('inspect (long-press / right-click)', { concurrency: CONC }, () => {
       await page.evaluate(() => { const e = window.__dbg().enemies[0]; e.stun = 0; e.frz = 0; });
       assert.match((await lines(3, 0)).join(' '), /Shield faces west/, 'unstunned guard: facing');
       const me = (await lines(0, 0)).join(' | ');
-      assert.match(me, /You.*HP/); assert.match(me, /Poisoned 3 turns/); assert.match(me, /Unseen 2 turns/); assert.match(me, /Brace: 2 hits/);
-      assert.match((await lines(1, 0)).join(' '), /Spike trap/); assert.match((await lines(2, 0)).join(' '), /Potion/);
-      await page.evaluate(() => { const G = window.__dbg(); G.ppois = null; G.vanish = 0; G.brace = null; });
+      assert.match(me, /You.*HP/); assert.match(me, /Unseen 2 turns/); assert.match(me, /Brace: 2 hits/);
+      assert.match((await lines(2, 0)).join(' '), /Potion/);
+      await page.evaluate(() => { const G = window.__dbg(); G.vanish = 0; G.brace = null; });
       assert.deepEqual(await lines(0, 0), ['You  HP ' + await page.evaluate(() => { const p = window.__dbg().p; return p.hp + '/' + p.mhp; }), 'No effects.']);
-      // a real long-press on the trap tile and on yourself
+      // a real long-press on yourself
       await quiet(page);
       const s0 = await st(page);
-      await hold(page, await pt(page, s0.x + 1, s0.y));
-      assert.match((await st(page)).insp.join(' '), /Spike trap/);
-      assert.equal((await st(page)).turn, s0.turn);
-      await page.mouse.click(5, 120);
       await hold(page, await pt(page, s0.x, s0.y));
       assert.match((await st(page)).insp.join(' '), /You/);
       assert.equal((await st(page)).turn, s0.turn, 'inspecting yourself does not wait a turn');
@@ -270,39 +265,6 @@ describe('ability button reasons', { concurrency: CONC }, () => {
 });
 
 describe('danger guard', { concurrency: CONC }, () => {
-  it('a revealed trap needs two taps: the first marks it with a warning and a <= 5 word log line, the second walks on; another tile or the timeout resets it', async () => {
-    const { page, ctx, errors } = await fresh('warrior', 41);
-    try {
-      await arena(page, ['#########', '#@......#', '#.......#', '#########']);
-      await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 1, y: G.p.y, k: 'spike', rev: 1 }]; window.__dbg.fn.endTurn(); });
-      await quiet(page);
-      const s0 = await st(page), t = await pt(page, s0.x + 1, s0.y);
-      await page.mouse.click(t.x, t.y);
-      let s1 = await st(page);
-      assert.equal(s1.x, s0.x, 'the first tap does not move'); assert.equal(s1.turn, s0.turn); assert.equal(s1.hp, s0.hp); assert.equal(s1.guard, true, 'the tile is marked');
-      assert.match(s1.log, /tap again/i); assert.ok(s1.log.replace(/[^\w ]/g, ' ').trim().split(/\s+/).length <= 5, 'at most 5 words: ' + s1.log);
-      // a tap elsewhere is a normal tap (and drops the mark)
-      const o = await pt(page, s0.x, s0.y + 1);
-      await page.mouse.click(o.x, o.y);
-      assert.equal((await st(page)).y, s0.y + 1); assert.equal((await st(page)).guard, false);
-      // two taps again, back on the trap (now diagonal to us: still the first tap only warns)
-      const t1 = await pt(page, s0.x + 1, s0.y);
-      await page.mouse.click(t1.x, t1.y);
-      assert.equal((await st(page)).guard, true); assert.equal((await st(page)).y, s0.y + 1);
-      await page.mouse.click(t1.x, t1.y);
-      await page.waitForFunction(() => window.__dbg().p.hp < window.__dbg().p.mhp, null, { timeout: 4000 });
-      assert.equal((await st(page)).x, s0.x + 1, 'the second tap walked onto the trap');
-      // the mark times out
-      await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 1, y: G.p.y, k: 'spike', rev: 1 }]; });
-      const s2 = await st(page), t2 = await pt(page, s2.x + 1, s2.y);
-      await page.mouse.click(t2.x, t2.y); await page.waitForTimeout(4400);   // the default confirm window is 4 s (the real value: the mutation check changes it)
-      assert.equal((await st(page)).guard, false, 'expired');
-      await page.mouse.click(t2.x, t2.y);
-      assert.equal((await st(page)).x, s2.x, 'after the timeout the next tap warns again instead of walking');
-      assert.deepEqual(errors, []);
-    } finally { await ctx.close(); }
-  });
-
   it('a red (wind-up) tile needs two taps; a crack about to break counts, a fresh crack does not; keyboard / internal tryMove are untouched', async () => {
     const { page, ctx, errors } = await fresh('warrior', 42);
     try {
@@ -321,78 +283,6 @@ describe('danger guard', { concurrency: CONC }, () => {
       await page.evaluate(() => { window.__dbg.fn.tryMove(1, 0); });
       const s3 = await st(page);
       assert.ok(s3.x > s0.x && s3.turn > s0.turn && s3.hp < s0.hp, 'tryMove is unguarded: it walked into the red tile and took the hit ' + JSON.stringify(s3));
-      assert.deepEqual(errors, []);
-    } finally { await ctx.close(); }
-  });
-
-  it('tap-to-walk routes around a revealed trap when it can, and stops in front of it (without stepping on it) when it cannot', async () => {
-    const { page, ctx, errors } = await fresh('warrior', 43);
-    try {
-      await arena(page, ['########', '#@.....#', '#......#', '#......#', '########']);
-      await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 3, y: G.p.y, k: 'spike', rev: 1 }]; window.__dbg.fn.endTurn(); });
-      await quiet(page);
-      const s0 = await st(page), goal = await pt(page, s0.x + 5, s0.y);
-      await page.mouse.click(goal.x, goal.y);
-      await page.waitForFunction(([x, y]) => window.__dbg().p.x === x && window.__dbg().p.y === y, [s0.x + 5, s0.y], { timeout: 5000 });
-      await page.waitForTimeout(300);
-      const s1 = await st(page);
-      assert.equal(s1.hp, s0.hp, 'went round: the trap never fired'); assert.equal(s1.guard, false);
-      // a corridor with the trap in it: no way round
-      await arena(page, ['########', '#@.....#', '########']);
-      await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 3, y: G.p.y, k: 'spike', rev: 1 }]; window.__dbg.fn.endTurn(); });
-      await quiet(page);
-      const c0 = await st(page), cg = await pt(page, c0.x + 5, c0.y);
-      await page.mouse.click(cg.x, cg.y);
-      await page.waitForFunction((x) => window.__dbg().p.x === x, c0.x + 2, { timeout: 5000 }).catch(async (e) => { throw new Error(e.message + ' state ' + JSON.stringify([c0, await st(page)])); });
-      await page.waitForTimeout(400);
-      const c1 = await st(page);
-      assert.equal(c1.x, c0.x + 2, 'stopped right in front of the trap'); assert.equal(c1.hp, c0.hp); assert.match(c1.log, /Trap in the way/);
-      // then the trap tile itself: two taps cross it
-      const tp = await pt(page, c0.x + 3, c0.y);
-      await page.mouse.click(tp.x, tp.y); assert.equal((await st(page)).x, c0.x + 2); assert.equal((await st(page)).guard, true);
-      await page.mouse.click(tp.x, tp.y);
-      assert.equal((await st(page)).x, c0.x + 3); assert.ok((await st(page)).hp < c0.hp, 'the second tap stepped on it');
-      assert.deepEqual(errors, []);
-    } finally { await ctx.close(); }
-  });
-
-  it('a trap further away: the first tap marks it, the second walks up and steps on it', async () => {
-    const { page, ctx, errors } = await fresh('warrior', 44);
-    try {
-      await arena(page, ['#########', '#@......#', '#.......#', '#########']);
-      await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 5, y: G.p.y, k: 'dart', rev: 1 }]; window.__dbg.fn.endTurn(); });
-      await quiet(page);
-      const s0 = await st(page), t = await pt(page, s0.x + 5, s0.y);
-      await page.mouse.click(t.x, t.y);
-      assert.equal((await st(page)).x, s0.x); assert.equal((await st(page)).guard, true);
-      await page.mouse.click(t.x, t.y);
-      await page.waitForFunction((x) => window.__dbg().p.x === x, s0.x + 5, { timeout: 6000 });
-      assert.ok(await page.evaluate(() => !!window.__dbg().ppois), 'poisoned by the dart');
-      assert.deepEqual(errors, []);
-    } finally { await ctx.close(); }
-  });
-
-  it('Explore goes around a revealed trap to the unexplored tile, and in a corridor stops in front of the trap', async () => {
-    const { page, ctx, errors } = await fresh('warrior', 45);
-    try {
-      await arena(page, ['#####################', '#@..................#', '#...................#', '#..................?#', '#####################']);
-      await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 1, y: G.p.y, k: 'spike', rev: 1 }, { x: G.p.x + 5, y: G.p.y + 2, k: 'spike', rev: 1 }]; window.__dbg.fn.endTurn(); });
-      await quiet(page);
-      const hp0 = (await st(page)).hp;
-      await page.click('#b_exp');
-      await page.waitForFunction(() => window.__dbg().p.x >= 12, null, { timeout: 8000 });
-      await page.waitForTimeout(500);
-      assert.equal((await st(page)).hp, hp0, 'Explore never stepped on a revealed trap');
-      // corridor: the unexplored end is behind the trap
-      await arena(page, ['#####################', '#@..................?#', '#####################']);
-      await page.evaluate(() => { const G = window.__dbg(); G.traps = [{ x: G.p.x + 4, y: G.p.y, k: 'spike', rev: 1 }]; window.__dbg.fn.endTurn(); });
-      await quiet(page);
-      const c0 = await st(page);
-      await page.click('#b_exp');
-      await page.waitForFunction((x) => window.__dbg().p.x === x, c0.x + 3, { timeout: 6000 });
-      await page.waitForTimeout(500);
-      const c1 = await st(page);
-      assert.equal(c1.x, c0.x + 3, 'stopped in front of the trap'); assert.equal(c1.hp, c0.hp); assert.match(c1.log, /Trap in the way/);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });

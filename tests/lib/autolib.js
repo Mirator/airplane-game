@@ -15,7 +15,7 @@ window.BOT.runOne=function(cls,cfg){
   stall=st.err?'ERR:'+String(st.err).split('\n')[0]:(st.lastStop||'cap').replace(/^Auto stopped: /,'');
   const vis=G.enemies.filter(e=>G.vis[e.y*30+e.x]),tr=(st.tr||[]).slice(-24);
   const cause=tr.length&&tr.slice(-8).every(t=>/ wait$/.test(t))?'waiting: no reachable goal':vis.some(e=>e.awake)?'combat stalemate (awake enemies in sight)':'travel / explore loop';
-  dbg={cause:cause,floor:G.floor,turn:G.turn,pos:[G.p.x,G.p.y],hp:G.p.hp+'/'+G.p.mhp,mod:G.mod,log:G.log.slice(-3),tr:tr,vis:vis.map(e=>e.t+(e.awake?'!':'z')+e.hp+(e.wind?'W':'')).slice(0,8),goal:st.fg,sleeper:st.sg,bad:[...st.bad],map:(()=>{let o=[];for(let y=0;y<30;y++){let l='';for(let x=0;x<30;x++){const k=y*30+x,t=G.map[k];let c=!G.seen[k]?(t===0?' ':'?'):t===0?'#':t===2?'>':t===3?'+':t===5?'L':t===4?'-':(G.exp[k]?'.':',');if(G.traps.some(a=>a.x===x&&a.y===y&&a.rev&&!a.done))c='T';if(G.items.some(i=>i.x===x&&i.y===y))c='i';const en=G.enemies.find(e=>e.x===x&&e.y===y);if(en)c=en.awake?'E':'z';if(G.p.x===x&&G.p.y===y)c='@';l+=c;}o.push(l);}return o.join('\n');})()};
+  dbg={cause:cause,floor:G.floor,turn:G.turn,pos:[G.p.x,G.p.y],hp:G.p.hp+'/'+G.p.mhp,mod:G.mod,log:G.log.slice(-3),tr:tr,vis:vis.map(e=>e.t+(e.awake?'!':'z')+e.hp+(e.wind?'W':'')).slice(0,8),goal:st.fg,sleeper:st.sg,bad:[...st.bad],map:(()=>{let o=[];for(let y=0;y<30;y++){let l='';for(let x=0;x<30;x++){const k=y*30+x,t=G.map[k];let c=!G.seen[k]?(t===0?' ':'?'):t===0?'#':t===2?'>':t===3?'+':t===5?'L':t===4?'-':(G.exp[k]?'.':',');if(G.items.some(i=>i.x===x&&i.y===y))c='i';const en=G.enemies.find(e=>e.x===x&&e.y===y);if(en)c=en.awake?'E':'z';if(G.p.x===x&&G.p.y===y)c='@';l+=c;}o.push(l);}return o.join('\n');})()};
   D.api.finish('abandon');
  }
  G=D();

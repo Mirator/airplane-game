@@ -25,7 +25,6 @@ function drawMini(){
  }
  const dot=function(x,y,col,r){if(x<bx0||x>bx1||y<by0||y>by1)return;r=r||Math.max(cs+1,4);const cx=mx+(x-bx0)*cs+cs/2,cy=my+(y-by0)*cs+cs/2;ctx.fillStyle=INK;ctx.beginPath();ctx.arc(cx,cy,r/2+1,0,7);ctx.fill();ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,r/2,0,7);ctx.fill();};
  for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k])dot(k%W,Math.floor(k/W),PAL.gold,Math.max(cs+1,5));
- for(const t of G.traps)if(t.rev&&!t.done&&G.seen[ix(t.x,t.y)])dot(t.x,t.y,'#ff5acd',Math.max(cs,3));
  if(G.shrine&&G.seen[ix(G.shrine.x,G.shrine.y)])dot(G.shrine.x,G.shrine.y,G.shrine.used?'#7a6a90':PAL.accent);
  if(G.merchant&&G.seen[ix(G.merchant.x,G.merchant.y)])dot(G.merchant.x,G.merchant.y,PAL.accent);
  for(const e of G.enemies)if(G.vis[ix(e.x,e.y)]){if(e.elite)dot(e.x,e.y,'#ff9a1f',Math.max(cs+2,6));else if(e.x>=bx0&&e.x<=bx1&&e.y>=by0&&e.y<=by1){ctx.fillStyle='#ff4040';ctx.fillRect(mx+(e.x-bx0)*cs,my+(e.y-by0)*cs,cs,cs);}}

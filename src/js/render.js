@@ -53,7 +53,6 @@ function fogBmp(ts){
 }
 // ---- foes ----
 const SIDE_VIEW={hound:1,rat:1,whelp:1,archer:1};   // drawn facing left; mirrored when the foe last moved / attacked to the right
-const TRAP_COL={spike:'#ff8a3a',dart:'#7be04b',alarm:'#ffc93c'};
 let fdraw={},litD=null,idleT=0;
 // where a foe is DRAWN: it slides from its old tile over 110 ms, and waits at the old tile while a hit on it is still in flight (see holdAt)
 function foePos(e,now,rm){
@@ -92,7 +91,7 @@ function drawShield(e,px,py,ts,ox,oy){
  ctx.fillStyle=down?'#a2a7b8':'#e6f4ff';ctx.fillRect(-1,-5,2,12);
  ctx.restore();
 }
-function itemMark(it,x,y,s,al){ // an item (or trap) shown small in a tile corner when a foe stands on it
+function itemMark(it,x,y,s,al){ // an item shown small in a tile corner when a foe stands on it
  disc(x+s/2,y+s/2,s*0.52,'#14111d',0.55*al);disc(x+s/2,y+s/2,s*0.52,'#ffc93c',0.3*al);ctx.globalAlpha=al;drawSpr(itemSprite(it),x+s*0.06,y+s*0.04,s*0.88,'');ctx.globalAlpha=1;
 }
 // the boss: drawn at 2.6 tiles, feet on its own tile; its head is redrawn after everything else (bossHead) so neighbours never cover it
@@ -162,8 +161,8 @@ function drawEdgeMarks(ox,oy,ts){
 }
 // targeting: enemy targets get a bracket reticle; ground abilities get their reachable area as one shape with a single outline
 function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
- const col={bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile';
- if(ground){
+ const col={cleave:'#ffb04a',nova:'#9fe8ff',brace:'#9cf',vanish:'#c9a0ff',bash:'#ffb04a',backstab:'#ff5a8a',charge:'#ffb04a',bolt:'#c08cff',knife:'#e0e6ff',blink:'#46dcf5',fire:'#ff8a3a',smoke:'#cfd4e6'}[armed]||'#fff',tg=view.tg||targetTiles(armed),ground=ABIL[armed].tg==='tile',self=ABIL[armed].tg==='self';
+ if(ground||self){
   const set=new Set(tg.map(t=>ix(t[0],t[1])));
   ctx.globalAlpha=0.14;ctx.fillStyle=col;for(const t of tg)ctx.fillRect(ox+t[0]*ts,oy+t[1]*ts,ts,ts);ctx.globalAlpha=1;
   ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();
@@ -173,6 +172,11 @@ function drawArmed(ox,oy,ts,now,x0,x1,y0,y1){
    if(!set.has(ix(t[0]-1,t[1]))){ctx.moveTo(px,py);ctx.lineTo(px,py+ts);}
    if(!set.has(ix(t[0]+1,t[1]))){ctx.moveTo(px+ts,py);ctx.lineTo(px+ts,py+ts);}}
   ctx.stroke();ctx.lineWidth=1;ctx.lineCap='butt';
+  if(self){   // what it will hit: brackets on the foes; the hero's own tile is ringed (tap it to use)
+   const q=G.p,hx=ox+(q.x+0.5)*ts,hy=oy+(q.y+0.5)*ts;
+   ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(hx,hy,ts*0.46,0,7);ctx.stroke();ctx.lineWidth=1;
+   if(armed==='cleave'||armed==='nova')for(const e of chebEnemies()){const cx=ox+(e.x+0.5)*ts,cy=oy+(e.y+0.5)*ts,h=ts*0.5-1,L=ts*0.26;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineCap='round';ctx.beginPath();for(const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ctx.moveTo(cx+sx*h,cy+sy*(h-L));ctx.lineTo(cx+sx*h,cy+sy*h);ctx.lineTo(cx+sx*(h-L),cy+sy*h);}ctx.stroke();ctx.lineCap='butt';ctx.lineWidth=1;}
+  }
  }else{
   const sc=0.92+0.08*Math.sin(now*Math.PI*2/600),L=ts*0.26;
   for(const t of tg){
@@ -249,10 +253,7 @@ function render(){
   }
  }
  ord.push('terrain');
- // revealed traps tint their tile
- for(const tp of G.traps){if(!tp.rev||tp.x<x0||tp.x>x1||tp.y<y0||tp.y>y1||!G.seen[ix(tp.x,tp.y)])continue;
-  ctx.globalAlpha=tp.done?0.1:0.18;ctx.fillStyle=TRAP_COL[tp.k]||'#fff';ctx.fillRect(ox+tp.x*ts,oy+tp.y*ts,ts,ts);ctx.globalAlpha=1;}
- // foes, in drawing order (visible ones only); the boss body goes in first so it can never hide a neighbour
+  // foes, in drawing order (visible ones only); the boss body goes in first so it can never hide a neighbour
  const fl=[];let boss=null,idle=false;
  for(const e of G.enemies){
   const isB=!!EN[e.t].boss;
@@ -333,9 +334,6 @@ function render(){
  ord.push('danger');
  // things on the floor (after the danger tint, so a red tile never washes them out)
  const wasteUnder=[];
- for(const tp of G.traps){if(!tp.rev||tp.x<x0||tp.x>x1||tp.y<y0||tp.y>y1||!G.seen[ix(tp.x,tp.y)])continue;
-  const px=ox+tp.x*ts,py=oy+tp.y*ts,v=fogLit[ix(tp.x,tp.y)]>0.5;
-  ctx.globalAlpha=(!v||tp.done)?0.5:1;drawSpr('trap_'+tp.k,px,py,ts,'');ctx.globalAlpha=1;}
  {const sh=G.shrine;
   if(sh&&sh.x>=x0&&sh.x<=x1&&sh.y>=y0&&sh.y<=y1&&G.seen[ix(sh.x,sh.y)]){const px=ox+sh.x*ts,py=oy+sh.y*ts,v=fogLit[ix(sh.x,sh.y)]>0.5;
    if(!sh.used)disc(px+ts/2,py+ts*0.55,ts*0.46,'#46dcf5',0.22);gshadow(px+ts/2,py+ts*0.9,ts*0.34,ts*0.07,0.3);ctx.globalAlpha=v?1:0.6;drawSpr('shrine',px,py-2,ts,sh.used?'gray':'');ctx.globalAlpha=1;}
@@ -388,11 +386,10 @@ function render(){
   if(now<pulseUntil&&!rm){const a=1-(pulseUntil-now)/700;ctx.strokeStyle='rgba(255,220,90,'+(1-a)+')';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,py+ts/2,ts*(0.5+1.4*a),0,7);ctx.stroke();ctx.lineWidth=1;more0=true;}
   view.pl={px:px,py:py};}
  ord.push('player');
- // loot / traps under a foe stay readable: small marks in the tile corners (above the sprite)
+ // loot under a foe stay readable: small marks in the tile corners (above the sprite)
  for(const o of fl){
-  const it=itemAt(o.e.x,o.e.y),tp=G.traps.find(a=>a.x===o.e.x&&a.y===o.e.y&&a.rev&&!a.done);
+  const it=itemAt(o.e.x,o.e.y);
   if(it){itemMark(it,o.px+1,o.py+1,ts*0.45,1);marks.push({k:'item',x:o.e.x,y:o.e.y});}
-  if(tp){marks.push({k:'trap',x:o.e.x,y:o.e.y});const s=ts*0.42,x=o.px+ts-s-1,y=o.py+1;disc(x+s/2,y+s/2,s*0.55,'#14111d',0.7);ctx.strokeStyle=TRAP_COL[tp.k]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x+s/2,y+s/2,s*0.55,0,7);ctx.stroke();ctx.lineWidth=1;drawSpr('trap_'+tp.k,x,y,s,'');}
  }
  // normal HP bars: only once hurt, after all sprites so nothing covers them; the white tick marks 30%
  for(const o of fl){

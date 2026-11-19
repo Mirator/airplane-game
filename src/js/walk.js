@@ -8,7 +8,7 @@ function tryMove(dx,dy){
  if(merchantAt(nx,ny)){showShop();return false;}
  if(!walkable(nx,ny))return false;
  const e=enemyAt(nx,ny);
- if(e){playerAttack(e);endTurn();return true;}
+ if(e){if(canShoot(e))return mageShot(e);playerAttack(e);endTurn();return true;}
  if(G.map[ix(nx,ny)]===3){G.map[ix(nx,ny)]=4;msg('Door opened.');endTurn();return true;}
  p.x=nx;p.y=ny;pickup();
  if(waterSet().has(ix(nx,ny)))G.wade=1;
@@ -22,12 +22,7 @@ function startWalk(path,opts){
  const stop=function(){if(dest&&dest.tok===tok){dest=null;if(G)render();}};
  const step=function(){
   if(tok!==walkTok||!G||G.over||modalOpen()||!path.length)return;
-  const p=G.p,tz=trapSet();
-  if(tz.has(ix(path[0][0],path[0][1]))){
-   const l=path[path.length-1],np=bfsPath(p.x,p.y,l[0],l[1]);
-   if(np&&np.length&&!np.some(t=>tz.has(ix(t[0],t[1])))){path.length=0;for(const t of np)path.push(t);}
-   else{msg('Trap ahead: go around.');stop();return;}
-  }
+  const p=G.p;
   const nx=path[0][0],ny=path[0][1];
   if(enemyAt(nx,ny)){stop();return;}
   const dz=dangerSet();
@@ -51,7 +46,7 @@ function explore(){
  const dz=dangerSet();
  if(dz.size&&dangerNear(dz)){msg('Danger nearby: step away.');render();return;}
  // unnoticed enemies: keep exploring, but try not to step next to them
-const tz=trapSet(),cz=crackSet();
+const cz=crackSet();
  // loot already seen and worth taking is a goal too (otherwise Explore says "nothing left" with gold lying in a visited room)
  const loot=new Set();
  for(const it of G.items){const k=ix(it.x,it.y);if(!G.seen[k]||it.skip||enemyAt(it.x,it.y))continue;
@@ -63,7 +58,7 @@ const tz=trapSet(),cz=crackSet();
   const prev=new Map();prev.set(ix(p.x,p.y),-1);const q=[[p.x,p.y]];let goal=-1;
   for(let i=0;i<q.length&&goal<0;i++){const [x,y]=q[i];
    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
-    if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||cz.has(k)||enemyAt(nx,ny)||dz.has(k)||(avoid&&near.has(k)))continue;
+    if(!inb(nx,ny)||prev.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||cz.has(k)||enemyAt(nx,ny)||dz.has(k)||(avoid&&near.has(k)))continue;
     prev.set(k,ix(x,y));q.push([nx,ny]);
     if(!G.exp[k]||G.map[k]===3||loot.has(k)){goal=k;break;}}}
   return {prev:prev,goal:goal};
@@ -71,26 +66,12 @@ const tz=trapSet(),cz=crackSet();
  let res=search(sleepers.length>0);
  if(res.goal<0&&sleepers.length)res=search(false);
  const prev=res.prev;let goal=res.goal;
- if(goal<0&&tz.size){
-  // unexplored ground exists but only behind a revealed trap: walk up to the trap and stop there
-  const q=[[p.x,p.y]],pv=new Map([[ix(p.x,p.y),-1]]);let g2=-1;
-  for(let i=0;i<q.length&&g2<0;i++){const [x,y]=q[i];
-   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
-    if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||cz.has(k)||enemyAt(nx,ny)||dz.has(k))continue;
-    pv.set(k,ix(x,y));q.push([nx,ny]);
-    if(!G.exp[k]||G.map[k]===3||loot.has(k)){g2=k;break;}}}
-  if(g2>=0){
-   const full=[];let k=g2;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
-   const i=full.findIndex(t=>tz.has(ix(t[0],t[1])));
-   if(i>0){msg('Trap in the way.');startWalk(full.slice(0,i),{explore:true});return;}
-  }
- }
  if(goal<0&&cz.size){
   // unexplored ground (or the stairs' way) exists only through a cracking tile: walk up to it and say so, instead of "nothing left" (Wait lets it settle)
   const q=[[p.x,p.y]],pv=new Map([[ix(p.x,p.y),-1]]);let g3=-1;
   for(let i=0;i<q.length&&g3<0;i++){const [x,y]=q[i];
    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
-    if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||tz.has(k)||enemyAt(nx,ny)||dz.has(k))continue;
+    if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||enemyAt(nx,ny)||dz.has(k))continue;
     pv.set(k,ix(x,y));q.push([nx,ny]);
     if(!G.exp[k]||G.map[k]===3||loot.has(k)||G.map[k]===2){g3=k;break;}}}
   if(g3>=0){
@@ -131,6 +112,10 @@ function onTap(tx,ty){
  const p=G.p;
  if(armed){
   if(!inb(tx,ty))return;
+  if(ABIL[armed].tg==='self'){   // armed Cleave / Brace / Nova / Vanish: you or a lit tile uses it, anywhere else cancels (the tap is spent, it never walks)
+   const k=armed;tapMark={x:tx,y:ty,t:performance.now()};
+   if((tx===p.x&&ty===p.y)||targetTiles(k).some(t=>t[0]===tx&&t[1]===ty))useAbility(k);else cancelTarget();
+   render();return;}
   if(tx===p.x&&ty===p.y){cancelTarget();return;}
   tapMark={x:tx,y:ty,t:performance.now()};
   useAbility(armed,tx,ty);
@@ -159,11 +144,11 @@ function onTap(tx,ty){
  const e=enemyAt(tx,ty);
  if(!(e&&G.vis[ix(tx,ty)])){
   const pr=perilAt(ix(tx,ty));
-  if(pr){ // a revealed trap or a tile about to be hit: the first tap only marks it, a second tap on it goes ahead
+  if(pr){ // a tile about to be hit: the first tap only marks it, a second tap on it goes ahead
    const now=performance.now();
    if(!(guard&&guard.k===ix(tx,ty)&&guard.f===G.floor&&now<guard.until)){
     guard={k:ix(tx,ty),x:tx,y:ty,f:G.floor,until:now+BAL.ui.guardMs};
-    msg(pr==='trap'?'Trap: tap again to go.':'Danger: tap again to go.');render();return;}
+    msg('Danger: tap again to go.');render();return;}
    guard.until=now+BAL.ui.guardMs;
    if(adj){guard=null;tryMove(tx-p.x,ty-p.y);return;}
    let best=null;
@@ -180,6 +165,7 @@ function onTap(tx,ty){
  }
  if(e&&G.vis[ix(tx,ty)]){
   lastAtk={k:ix(tx,ty),t:performance.now(),g:G};
+  if(canShoot(e)){mageShot(e);return;}   // Mage: a free shot instead of walking up to it
   if(Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1){tryMove(e.x-p.x,e.y-p.y);return;}
   // melee is straight only (up / down / left / right): a foe on a diagonal cannot hit you either. A tap never steps out of position for it.
   if(cheb(e,p)===1&&!reachOk(e)){msg('Diagonal: no strike either way. Wait, or step in line.');return;}
@@ -194,24 +180,23 @@ function onTap(tx,ty){
  if(Math.abs(tx-p.x)+Math.abs(ty-p.y)===1){tryMove(tx-p.x,ty-p.y);return;}
  const path=bfsPath(p.x,p.y,tx,ty);
  if(!path||!path.length){
-  // no way round a trap / red tile: walk up to it and stop (the tile itself is then tapped twice to cross)
+  // no way round a red tile: walk up to it and stop (the tile itself is then tapped twice to cross)
   const raw=rawPath(p.x,p.y,tx,ty);
   if(raw&&raw.length){
    const i=raw.findIndex(t=>perilAt(ix(t[0],t[1])));
-   if(i>=0){msg(perilAt(ix(raw[i][0],raw[i][1]))==='trap'?'Trap in the way.':'Danger in the way.');if(i>0)startWalk(raw.slice(0,i));else render();return;}
+   if(i>=0){msg('Danger in the way.');if(i>0)startWalk(raw.slice(0,i));else render();return;}
   }
   msg("Can't reach that.");return;}
  startWalk(path);
 }
-// what makes a tile unsafe to step on right now: a revealed trap, a wind-up tile (fires when this turn ends), a crack about to break
+// what makes a tile unsafe to step on right now: a wind-up tile (fires when this turn ends), a crack about to break
 function perilAt(k){
  if(!G)return null;
  if(dangerSet().has(k))return 'danger';
- if(trapSet().has(k))return 'trap';
  for(const c of G.cracks||[])if(ix(c.x,c.y)===k&&c.t<=1)return 'danger';
  return null;
 }
-// like bfsPath but through traps, cracks and red tiles (used only to find out where a walk has to stop)
+// like bfsPath but through cracks and red tiles (used only to find out where a walk has to stop)
 function rawPath(sx,sy,tx,ty){
  const prev=new Map(),start=ix(sx,sy);prev.set(start,-1);const q=[[sx,sy]],goal=ix(tx,ty);
  for(let i=0;i<q.length;i++){const [x,y]=q[i];if(ix(x,y)===goal)break;

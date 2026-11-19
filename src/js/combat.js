@@ -38,7 +38,7 @@ function killEnemy(e,src){
  if(pc('blood'))G.bl=1;
  if((pc('chain')||(wpK()&&wpK().chain))&&!inChain)chainZap(e);
 }
-// kind: 'melee' | 'ranged' | 'magic' (shields care), undefined = poison / traps / impact (never reduced)
+// kind: 'melee' | 'ranged' | 'magic' (shields care), undefined = poison / impact (never reduced)
 function hurtEnemy(e,dmg,col,crit,kind){
  if(e.dead)return;
  if(kind&&!e.awake&&pc('stalker'))dmg=Math.max(1,Math.round(dmg*(1+BAL.perk.stalkerMul)));
@@ -190,7 +190,6 @@ function endTurn(){
   if(p.regen&&G.turn%BAL.player.regenEvery===0)p.hp=Math.min(p.mhp,p.hp+p.regen);
   if(G.turn%BAL.player.baseRegenEvery===0)p.hp=Math.min(p.mhp,p.hp+1);
  }
- if(G.ppois&&p.hp>0){const d=G.ppois.d;p.hp-=d;G.killer='dart poison';floatFx(p.x,p.y,'-'+d,'#7be04b');G.ppois.t--;if(G.ppois.t<=0){G.ppois=null;msg('The poison wears off.');}secondWind();}
  tickPoison();
  if(G.won){finish('win');return;}
  crackTick();

@@ -1,6 +1,6 @@
 // modals.js - generic modal plumbing plus perk-choice, menu, gear-compare and perk-list screens.
 
-function afterModals(){if(!G||G.over)return;if(G.pending>0)showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
+function afterModals(){if(!G||G.over)return;if(G.pending>0&&(spendNow||AUTO.on))showPerk();else if(gearQ)showGear();else if(shrineQ){shrineQ=false;showShrine();}}
 function modalOpen(){return $('modal').style.display!=='none'||$('title').style.display!=='none';}
 // kind + button.k are plain labels (data attributes) so Auto can tell dialogs and choices apart without parsing text
 // A dialog that opens because of something that happened (level-up, gear underfoot, shrine, exit choice, merchant, end of run) may appear
@@ -35,7 +35,7 @@ function perkTags(pk){
  return t;
 }
 // leading icon chip for choice cards (perks / upgrades): a few specific icons, the rest share the generic perk mark
-const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',trapper:'trap_spike',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',xpf:'tome',edge:'ab_backstab',vigor:'elixir',prep:'fire',stalker:'p_stalker',warcry:'p_warcry',frostbite:'p_frostbite',lacerate:'p_lacerate',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
+const CARD_IC={vit:'heart',might:'sword',bul:'tower',vamp:'bloodlust',keen:'lens',renew:'elixir',thorns:'spear',pockets:'bag',evade:'ab_vanish',scholar:'tome',pyro:'fire',regen:'potion',treasure:'gold',venom:'st_pois',chain:'ab_bolt',blood:'bloodlust',riposte:'dagger',second:'pray',scav:'satchel',berserk:'ab_bash',exec:'axe',fury:'ab_cleave',stampede:'ab_charge',arcana:'staff',deepfreeze:'st_frz',phase:'ab_blink',assassin:'ab_backstab',shadow:'ab_smoke',phoenix:'pray',midas:'coin',sage:'tome',warlord:'crown',hp:'heart',atk:'sword',pot:'potion',goldp:'coin',def:'tower',xpf:'tome',edge:'ab_backstab',vigor:'elixir',prep:'fire',stalker:'p_stalker',warcry:'p_warcry',frostbite:'p_frostbite',lacerate:'p_lacerate',rogue:'rogue',mage:'mage',scroll:'tome',pick4:'perk',shrine:'shrine'};
 // perk categories tint the icon chip: offence orange, defence blue, utility violet
 const PERK_CAT={might:'o',vamp:'o',keen:'o',venom:'o',chain:'o',blood:'o',berserk:'o',exec:'o',glass:'o',fury:'o',stampede:'o',assassin:'o',arcana:'o',deepfreeze:'o',pyro:'o',warlord:'o',riposte:'o',
  vit:'d',bul:'d',thorns:'d',evade:'d',second:'d',phoenix:'d',renew:'d',regen:'d',retrib:'d',shadow:'d'};
@@ -44,16 +44,19 @@ function perkChip(id,px){const c=CAT_COL[PERK_CAT[id]||'u'];return '<span class=
 function cardHtml(id,inner){return (CARD_IC[id]&&PERK_CAT[id]!==undefined||PERKS.some(p=>p.id===id)?perkChip(id):'<span class="chp">'+ic(CARD_IC[id]||'perk',28)+'</span>')+'<span class="ct">'+inner+'</span>';}
 function showPerk(){
  if(!G||G.pending<=0)return;
+ if(!Array.isArray(G.picks))G.picks=[];
+ while(G.picks.length<G.pending){const o=rollPick();if(!o.length){G.pending=G.picks.length;break;}G.picks.push({l:G.p.lvl,o:o});}   // a pending count set from outside (tests) gets its options rolled here
+ if(!G.picks.length)return;
  walkTok++;
- const pool=perkPool();
- if(!pool.length){G.pending=0;save();return;}
- const opts=pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3);
- showModal('Level '+G.p.lvl+': pick a perk','',opts.map(pk=>{
+ let pk0=G.picks[0],opts=pk0.o.map(perkById).filter(pk=>pk&&pc(pk.id)<pk.max);
+ if(!opts.length){const o=rollPick();if(!o.length){G.picks.shift();G.pending=G.picks.length;save();render();return;}pk0.o=o;opts=o.map(perkById);}   // everything offered was taken meanwhile (two pending picks): roll anew
+ const more=G.pending>1?' ('+G.pending+' waiting)':'';
+ showModal('Level '+pk0.l+': pick a perk'+more,'',opts.map(pk=>{
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {k:pk.id,html:cardHtml(pk.id,'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>'),cls:'hasic',fn:function(){
-   addPerk(pk.id);G.pending--;closeModal();save();render();
-   if(G.pending>0)showPerk();else afterModals();
-  }};}),'perk');
+   addPerk(pk.id);G.picks.shift();G.pending=G.picks.length;closeModal();save();render();
+   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk();else afterModals();
+  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){closeModal();});}},{k:'later',label:'Later',c:1,fn:closeModal}]),'perk');
 }
 // equipment card: icon + name, then one short line of what it does
 function slotLines(sl){

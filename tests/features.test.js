@@ -79,7 +79,7 @@ describe('features', { concurrency: CONC }, () => {
           for (let y = 1; y < 29 && !step; y++) for (let x = 1; x < 29 && !step; x++) { if (!w.has(y * 30 + x)) continue; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const px = x + dx, py = y + dy; if (G.map[py * 30 + px] === 1 && !w.has(py * 30 + px)) { step = { px, py, dx: -dx, dy: -dy }; break; } } } }
         { const G = g(); const w = new Set(G.water);
           o.waterFound = !!step;
-          const w2 = new Set(G.water); if (step) { G.p.x = step.px; G.p.y = step.py; G.items.length = 0; G.traps.length = 0; G.seen.fill(true); let cand = null; for (let y = 1; y < 29 && !cand; y++) for (let x = 1; x < 29 && !cand; x++) { const d = Math.abs(x - step.px) + Math.abs(y - step.py); if (d >= 2 && d <= 5 && G.map[y * 30 + x] === 1 && !w2.has(y * 30 + x) && !(x === step.px + step.dx && y === step.py + step.dy) && (F.bfsPath(step.px, step.py, x, y) || []).length > 0) cand = [x, y]; } const e = F.makeEnemy('goblin', cand[0], cand[1], 4); e.awake = true; G.enemies = [e]; F.computeVis(); F.tryMove(step.dx, step.dy); o.waded = /slog through the water/.test(G.log.join('|')); } }
+          const w2 = new Set(G.water); if (step) { G.p.x = step.px; G.p.y = step.py; G.items.length = 0; G.seen.fill(true); let cand = null; for (let y = 1; y < 29 && !cand; y++) for (let x = 1; x < 29 && !cand; x++) { const d = Math.abs(x - step.px) + Math.abs(y - step.py); if (d >= 2 && d <= 5 && G.map[y * 30 + x] === 1 && !w2.has(y * 30 + x) && !(x === step.px + step.dx && y === step.py + step.dy) && (F.bfsPath(step.px, step.py, x, y) || []).length > 0) cand = [x, y]; } const e = F.makeEnemy('goblin', cand[0], cand[1], 4); e.awake = true; G.enemies = [e]; F.computeVis(); F.tryMove(step.dx, step.dy); o.waded = /slog through the water/.test(G.log.join('|')); } }
         // unstable: cracks appear, collapse hurts the one standing on them, not the one who moved away
         F.newFloor(4, { mod: 'unstable', v: 0 }); { const G = g(); clear(); G.p.hp = G.p.mhp; for (let i = 0; i < 8; i++) F.endTurn(); o.cracks = G.cracks.length;
           G.p.hp = G.p.mhp; G.cracks = [{ x: G.p.x, y: G.p.y, t: 1 }]; const h = G.p.hp; F.endTurn(); o.collapseDmg = h - G.p.hp; o.cracksLeft = G.cracks.length; }
@@ -200,7 +200,7 @@ describe('features', { concurrency: CONC }, () => {
       const s = await page.evaluate(() => {
         const G = window.__dbg(), api = window.__dbg.api, W = 30, out = {};
         G.map.fill(0); for (let x = 3; x <= 10; x++) G.map[5 * W + x] = 1; G.map[5 * W + 10] = 2;
-        G.p.x = 3; G.p.y = 5; G.enemies = []; G.traps = []; G.shrine = null; G.merchant = null; G.treasure = null;
+        G.p.x = 3; G.p.y = 5; G.enemies = []; G.shrine = null; G.merchant = null; G.treasure = null;
         out.plain = api.stairsOk();
         G.map[9 * W + 12] = 1; G.merchant = { x: 12, y: 9, stock: [] }; out.sealedMerchant = api.stairsOk();
         G.merchant = { x: 9, y: 5, stock: [] }; G.map[5 * W + 9] = 1; out.merchantBlocksCorridor = api.stairsOk();
@@ -241,7 +241,7 @@ describe('features', { concurrency: CONC }, () => {
   // ------------------------------------------------------------------------------------------------ daily
   const capture = (page) => page.evaluate(() => {
     const F = window.__dbg.fn, out = [];
-    const snap = () => { const G = window.__dbg(); return JSON.stringify({ f: G.floor, mod: G.mod, v: G.variant, map: G.map, p: [G.p.x, G.p.y], en: G.enemies.map((e) => [e.t, e.x, e.y, e.hp, e.atk, !!e.elite, !!e.hunter]), it: G.items.map((i) => [i.t, i.k, i.v, i.x, i.y, i.tr]), tr: G.traps.map((t) => [t.k, t.x, t.y]), sh: G.shrine && [G.shrine.x, G.shrine.y], me: G.merchant && [G.merchant.x, G.merchant.y, G.merchant.stock.map((s) => s.n)], w: G.water, opts: G.opts }); };
+    const snap = () => { const G = window.__dbg(); return JSON.stringify({ f: G.floor, mod: G.mod, v: G.variant, map: G.map, p: [G.p.x, G.p.y], en: G.enemies.map((e) => [e.t, e.x, e.y, e.hp, e.atk, !!e.elite, !!e.hunter]), it: G.items.map((i) => [i.t, i.k, i.v, i.x, i.y, i.tr]), sh: G.shrine && [G.shrine.x, G.shrine.y], me: G.merchant && [G.merchant.x, G.merchant.y, G.merchant.stock.map((s) => s.n)], w: G.water, opts: G.opts }); };
     out.push(snap());
     for (let f = 2; f <= 8; f++) { const G = window.__dbg(); F.goDown(f < 8 ? G.opts[f % 2] : { mod: null, v: 0 }); out.push(snap()); }
     return out;

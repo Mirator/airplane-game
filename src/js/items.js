@@ -100,7 +100,7 @@ function newGear(slot,f,forced){
 function forcedGear(f,slot){return newGear(slot,f,true);}
 function dropAt(x,y,it){
  let t=[x,y];
- if(itemAt(x,y)){for(const [dx,dy] of DIRS){const a=x+dx,b=y+dy;if(inb(a,b)&&G.map[ix(a,b)]===1&&!itemAt(a,b)&&!trapAt(a,b)&&!merchantAt(a,b)){t=[a,b];break;}}}
+ if(itemAt(x,y)){for(const [dx,dy] of DIRS){const a=x+dx,b=y+dy;if(inb(a,b)&&G.map[ix(a,b)]===1&&!itemAt(a,b)&&!merchantAt(a,b)){t=[a,b];break;}}}
  it.x=t[0];it.y=t[1];G.items.push(it);
 }
 function clampRes(){const p=G.p;p.mana=Math.min(p.mana||0,mmax());G.knives=Math.min(G.knives||0,maxKnives());}
@@ -146,7 +146,7 @@ function drink(){
  const p=G.p;
  if(G.inv.pot<=0){msg('No potions.');return;}
  if(p.hp>=p.mhp){msg('HP is full.');return;}
- G.ppois=null;G.inv.pot--;G.stats.pots++;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(modIs('cursed'))h=Math.max(1,Math.round(h*BAL.mod.cursed.potionMul));if(gHeat(G)>=4)h=Math.max(1,Math.round(h*BAL.heat.potionMul));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
+ G.inv.pot--;G.stats.pots++;let h=Math.max(BAL.potion.minHeal,Math.round(p.mhp*BAL.potion.healFrac*(1+BAL.potion.sageBonus*pc('sage'))));if(modIs('cursed'))h=Math.max(1,Math.round(h*BAL.mod.cursed.potionMul));if(gHeat(G)>=4)h=Math.max(1,Math.round(h*BAL.heat.potionMul));if(traitOf('armor')==='leaden')h=Math.max(1,Math.round(h*BAL.potion.leadenMul));p.hp=Math.min(p.mhp,p.hp+h);
  floatFx(p.x,p.y,'+'+h,'#6f6');msg('Potion: +'+h+' HP.');
  if(eqKind('charm')==='flask'&&!G.flask){G.flask=1;msg('Flask refills: no turn used.');save();render();return;}
  endTurn();
@@ -164,7 +164,7 @@ function teleport(){
  if(G.inv.tele<=0){msg('No Teleport.');return;}
  const p=G.p,c=[],reach=bfsDist(p.x,p.y);
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)
-  if(G.map[ix(x,y)]===1&&reach[ix(x,y)]<9999&&!enemyAt(x,y)&&!itemAt(x,y)&&!trapAt(x,y)&&!merchantAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=BAL.teleport.minDist)c.push([x,y]);
+  if(G.map[ix(x,y)]===1&&reach[ix(x,y)]<9999&&!enemyAt(x,y)&&!itemAt(x,y)&&!merchantAt(x,y)&&Math.abs(x-p.x)+Math.abs(y-p.y)>=BAL.teleport.minDist)c.push([x,y]);
  if(!c.length){msg('The scroll fizzles.');return;}
  G.inv.tele--;const t=pick(c);p.x=t[0];p.y=t[1];msg('Teleported.');walkTok++;endTurn();
 }

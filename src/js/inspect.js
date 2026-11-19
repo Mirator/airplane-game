@@ -1,6 +1,5 @@
-// inspect.js - long-press / right-click inspect card (enemy, yourself, trap, shrine, item) drawn on the canvas; press-and-hold detection.
+// inspect.js - long-press / right-click inspect card (enemy, yourself, shrine, item) drawn on the canvas; press-and-hold detection.
 
-const TRAP_TIP={spike:'Hurts whoever steps on it.',dart:'Poisons whoever steps on it.',alarm:'Wakes every foe when stepped on.'};
 const DIR_N={'1,0':'east','-1,0':'west','0,1':'south','0,-1':'north'};
 const CARD_CH=55;   // one card line is at most this many characters (same budget as the other one-line texts)
 function cutTo(s,n){return s.length>n?s.slice(0,n-1)+'…':s;}
@@ -25,6 +24,7 @@ function enemyStates(e){
  if(!e.awake)s.push('Asleep');
  if(d.shield&&e.face)s.push((e.stun>0||e.frz>0)?'Shield down':'Shield faces '+(DIR_N[e.face[0]+','+e.face[1]]||'you'));
  if(e.hunter)s.push('Stalker: hunting you');
+ if(canShoot(e))s.push('Shot range: tap to fire');
  if(e.elite)s.push('Carries the vault key');
  return s;
 }
@@ -35,7 +35,6 @@ function inspectLines(tx,ty){
  if(tx===p.x&&ty===p.y){
   L.push('You  HP '+p.hp+'/'+p.mhp);
   const b=[];
-  if(G.ppois)b.push('Poisoned '+turns(G.ppois.t));
   if(G.vanish>0)b.push('Unseen '+turns(G.vanish));
   if(G.brace)b.push('Brace: '+G.brace.hits+(G.brace.hits===1?' hit':' hits')+' left');
   if(G.bl)b.push('Bloodlust ready');
@@ -53,8 +52,6 @@ function inspectLines(tx,ty){
   return chunk(L);
  }
  if(merchantAt(tx,ty))return chunk(['Merchant','Tap him to trade.']);
- const t=G.traps.find(a=>a.x===tx&&a.y===ty&&a.rev&&!a.done);
- if(t)return chunk([TRAPS[t.k].n,TRAP_TIP[t.k]]);
  const sh=G.shrine;
  if(sh&&sh.x===tx&&sh.y===ty)return chunk(['Shrine',sh.used?'Used up.':'Step on it for a gamble.']);
  const it=itemAt(tx,ty);
@@ -72,7 +69,6 @@ function inspectIcon(tx,ty){
  if(tx===p.x&&ty===p.y)return clsOf(p).e;
  const e=enemyAt(tx,ty);if(e&&G.vis[k])return EN[e.t].e;
  if(merchantAt(tx,ty))return 'merchant';
- const t=G.traps.find(a=>a.x===tx&&a.y===ty&&a.rev&&!a.done);if(t)return 'trap_'+t.k;
  if(G.shrine&&G.shrine.x===tx&&G.shrine.y===ty)return 'shrine';
  const it=itemAt(tx,ty);if(it)return itemSprite(it);
  const m=G.map[k];return m===2?'stairs':m===3?'door':m===5?'door_locked':null;

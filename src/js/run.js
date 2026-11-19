@@ -9,7 +9,7 @@ function makeEnemy(type,x,y,f){
 function stairsOk(){
  let t=G.map.indexOf(2);
  if(t<0){const d=G.enemies.find(e=>EN[e.t].boss);if(!d)return true;t=ix(d.x,d.y);}
- const p=G.p,blk=new Set(G.traps.map(a=>ix(a.x,a.y))),seen=new Set([ix(p.x,p.y)]),q=[[p.x,p.y]];
+ const p=G.p,blk=new Set(),seen=new Set([ix(p.x,p.y)]),q=[[p.x,p.y]];
  for(let i=0;i<q.length;i++){const [x,y]=q[i];
   for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
    if(!walkable(nx,ny)||seen.has(k)||blk.has(k))continue;seen.add(k);q.push([nx,ny]);}}
@@ -34,7 +34,7 @@ function newFloor(f,opt){
  computeVis();
 }
 function buildFloor(f){
- const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.traps=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.flask=0;G.smoke=[];G.brace=null;G.ppois=null;shrineQ=false;trapConfirm=-1;G.water=[];G.cracks=[];G.crackT=0;G.wade=0;G.fz=0;G.lsUsed=0;
+ const g=genFloor(f);G.map=g.m;G.floor=f;G.enemies=[];G.items=[];G.shrine=null;G.merchant=null;G.treasure=null;G.ssUsed=0;G.swUsed=0;G.flask=0;G.smoke=[];G.brace=null;shrineQ=false;G.water=[];G.cracks=[];G.crackT=0;G.wade=0;G.fz=0;G.lsUsed=0;
  const MM=BAL.mod;
  G.seen=new Array(W*H).fill(false);G.exp=new Array(W*H).fill(false);
  const rooms=g.rooms,p=G.p;p.x=rooms[0].cx;p.y=rooms[0].cy;
@@ -108,15 +108,6 @@ function buildFloor(f){
   }
   if(G.merchant)G.merchant.stock=buildStock(f);
  }
- // traps
- let nt=rnd(BAL.trap.countMin,BAL.trap.countMax)+Math.floor(f/BAL.trap.floorsPerExtra);
- if(modIs('silent'))nt*=MM.silent.trapMul;
- for(let i=0;i<nt;i++){
-  const t=free(pick(others),BAL.trap.minDistFromStart);if(!t)continue;
-  const r=rf(),al=modIs('silent')&&rf()<MM.silent.alarmShare,k=al?'alarm':r<BAL.trap.spikeBelow?'spike':(r<BAL.trap.dartBelow||f<BAL.trap.dartOnlyBelowFloor)?'dart':'alarm';
-  G.traps.push({x:t[0],y:t[1],k:k,rev:0,done:0});
-  if(!stairsOk())G.traps.pop();
- }
  if(modIs('flooded'))placeWater(rooms,taken);
 }
 // opts.daily: a Daily run (seeded from today's date). Otherwise a normal run, on Hard if the title toggle is on (a Daily is never Hard,
@@ -129,7 +120,7 @@ function startRun(cls,opts){
  const hpB=upBonus('hp'),p={x:0,y:0,cls:cls,hp:C.hp+hpB,mhp:C.hp+hpB,atk:C.atk+upBonus('atk'),def:C.def+upBonus('def'),
   eq:{weapon:{t:'weapon',k:C.start,v:0,tr:null},armor:null,off:null,charm:null},rage:0,mana:0,mf:0,mbase:C.mana,
   xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,1+potV),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1+upBonus('xpf')/100,fireMul:1,regen:0,goldMul:1+upBonus('goldp')/100,dmgMul:1};
- G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0,ms:0,t:0},hard:hard?1:0,heat:heat,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,traps:[],shrine:null,merchant:null,treasure:null,keys:0,ppois:null,killer:'',fz:0,lsUsed:0};
+ G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0,ms:0,t:0},hard:hard?1:0,heat:heat,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,shrine:null,merchant:null,treasure:null,keys:0,picks:[],killer:'',fz:0,lsUsed:0};
  for(const q of PAIRS){const l=upLvl(q.k);if(l>0)pairVar(q).f(p,l,G);}
  for(const k of C.kit)G.cd[k]=0;
  autoReset();
@@ -144,8 +135,7 @@ function startRun(cls,opts){
 }
 function deathTip(){
  const k=(G.killer||'').toLowerCase();
- if(/spike|trap|dart/.test(k))return 'Walk around drawn traps; Explore does it for you.';
- if(/poison/.test(k))return 'A potion cures poison. Drink before it stacks with hits.';
+  if(/poison/.test(k))return 'A potion cures poison. Drink before it stacks with hits.';
  if(/archer|warlock/.test(k))return 'Break the line of sight around a corner, then close in.';
  if(/troll|dragon/.test(k))return 'Red tiles mark the next big hit. One step off and it misses.';
  if(/guard/.test(k))return 'Guards block '+pct(1-BAL.weapon.shieldFront)+' from the front. Stun them (Bash, Charge, Nova) or hit from behind.';
@@ -196,6 +186,7 @@ function descend(){
  if(!G||G.over)return;
  if(G.map[ix(G.p.x,G.p.y)]!==2){msg('No stairs here. Stand on the ▼ tile first.');return;}
  walkTok++;
+ if(G.pending>0&&!spendNow&&!AUTO.on&&G.nudge!==G.floor){G.nudge=G.floor;msg('A perk is waiting. Pick it, or tap Stairs again.');showPerk();return;}   // one gentle nudge per floor
  const nf=G.floor+1;
  if(nf<MAXF){if(!G.opts)G.opts=rollOpts(nf);showBranch();return;}
  goDown({mod:null,v:0});

@@ -60,7 +60,7 @@ describe('art', { concurrency: CONC }, () => {
     } finally { await ctx.close(); }
   });
 
-  it('every entity / item / ability / modifier / trap id in the balance tables has a sprite, and drawing them all falls back to nothing', async () => {
+  it('every entity / item / ability / modifier id in the balance tables has a sprite, and drawing them all falls back to nothing', async () => {
     const { page, ctx, errors } = await openRun(browser, 'warrior', { seed: 3 });
     try {
       const r = await page.evaluate(() => {
@@ -68,7 +68,7 @@ describe('art', { concurrency: CONC }, () => {
         for (const t of ['EN', 'CLS', 'ABIL']) for (const k in T[t]) ids.add(T[t][k].e);
         for (const t of ['WP', 'ARM', 'OFF', 'CH']) for (const k in T[t]) ids.add(T[t][k].e);
         for (const m of window.__dbg.mods.MODS) ids.add(m.e);
-        for (const k of ['gold', 'potion', 'fire', 'tele', 'key', 'knife', 'merchant', 'shrine', 'door', 'door_open', 'door_locked', 'stairs', 'chest', 'crown', 'warn', 'st_stun', 'st_frz', 'st_blind', 'st_pois', 'st_burn', 'st_wind', 'st_rest', 'st_hunt', 'st_sleep', 'trap_spike', 'trap_dart', 'trap_alarm']) ids.add(k);
+        for (const k of ['gold', 'potion', 'fire', 'tele', 'key', 'knife', 'merchant', 'shrine', 'door', 'door_open', 'door_locked', 'stairs', 'chest', 'crown', 'warn', 'st_stun', 'st_frz', 'st_blind', 'st_pois', 'st_burn', 'st_wind', 'st_rest', 'st_hunt', 'st_sleep']) ids.add(k);
         const missing = [...ids].filter((i) => !A.SPR[i]);
         // draw each one (bitmap path) and a full frame; the renderer records any id it could not find
         for (const i of ids) A.spriteBmp(i, 40, '');
@@ -146,7 +146,7 @@ describe('art', { concurrency: CONC }, () => {
         for (const [cls, ks] of [['warrior', ['bash', 'cleave', 'charge', 'brace']], ['mage', ['bolt', 'nova', 'blink', 'fire']], ['rogue', ['backstab', 'vanish', 'knife', 'smoke']]]) {
           D.fn.startRun(cls); document.getElementById('modal').style.display = 'none';
           for (const k of ks) {
-            const G = D(); G.enemies = []; G.items = []; G.traps = [];
+            const G = D(); G.enemies = []; G.items = []; 
             // a straight open corridor of 5 floor tiles, foe 3 tiles away in line
             let ok = false;
             for (let y = 2; y < 28 && !ok; y++) for (let x = 2; x < 22 && !ok; x++) { let f = true; for (let d = -1; d <= 5; d++) if (G.map[y * 30 + x + d] !== 1) f = false; if (f) { G.p.x = x; G.p.y = y; ok = true; } }
@@ -188,7 +188,7 @@ describe('art', { concurrency: CONC }, () => {
         const find = () => { for (let y = 4; y < 26; y++) for (let x = 4; x < 24; x++) { let ok = true; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (G.map[(y + dy) * 30 + x + dx] !== 1) ok = false; if (ok) return [x, y]; } return null; };
         let at = find(); for (let f = 1; !at && f < 8; f++) { F.newFloor(f); G = D(); at = find(); }
         if (!at) return null;
-        G.enemies = []; G.items = []; G.traps = []; G.p.x = at[0]; G.p.y = at[1]; F.computeVis();
+        G.enemies = []; G.items = []; G.p.x = at[0]; G.p.y = at[1]; F.computeVis();
         const cvs = document.getElementById('c'), c2 = cvs.getContext('2d'), V = D.view();
         const grab = (tx, ty, ox, oy, w, h) => { const d = window.devicePixelRatio || 1, s = V.ts; return Array.from(c2.getImageData(Math.round((V.ox + tx * s + ox * s) * d), Math.round((V.oy + ty * s + oy * s) * d), Math.max(1, Math.round(w * s * d)), Math.max(1, Math.round(h * s * d))).data).join(','); };
         const draw = () => new Promise((res) => { document.getElementById('modal').style.display = 'none'; D.fn.computeVis(); window.dispatchEvent(new Event('resize')); setTimeout(res, 150); });

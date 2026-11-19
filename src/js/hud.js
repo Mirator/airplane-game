@@ -33,7 +33,10 @@ const ab2=$('bar2');
 for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.dataset.key=String(i+1);el.addEventListener('click',()=>{if(G&&!G.over)toggleAbility(kit()[i]);});ab2.appendChild(el);}
 $('menuBtn').dataset.key='Esc';$('gearBtn').innerHTML=ic('equip',28);$('menuBtn').innerHTML=ic('menu',26);
 for(const el of document.querySelectorAll('[data-slot]'))el.innerHTML=ic(el.dataset.slot==='stop'?'x':'auto',16);
-$('gearBtn').addEventListener('click',function(){if(!G||G.over)return;walkTok++;if(modalOpen())return;showEquip(closeModal);});
+// the Equipment button doubles as the level-up badge: with a pick pending it opens the perk choice (which has an Equipment button of its own)
+function gearOrPick(){if(!G||G.over)return;walkTok++;if(modalOpen())return;if(G.pending>0)showPerk();else showEquip(closeModal);}
+$('gearBtn').addEventListener('click',gearOrPick);$('gearBtn').dataset.key='P';
+{const bd=document.createElement('i');bd.id='perkBadge';bd.className='bd';bd.style.display='none';$('gearBtn').appendChild(bd);}
 function bset(id,icn,lab,badge,dis){
  // only touch the DOM when the content changes: rewriting a button mid-press drops the tap
  const el=$(id),h='<span class="bi">'+ic(icn,24)+'</span><small>'+lab+'</small>'+(badge!==''&&badge!=null?'<i class="bd" style="font-style:normal">'+badge+'</i>':'');
@@ -61,7 +64,7 @@ function updateBar(){
  for(let i=0;i<4;i++){
   const k=kt[i],A=ABIL[k],el=$('a_'+i),st=abStatus(k),isA=armed===k;
   el.classList.toggle('armed',isA);el.classList.toggle('dis',!isA&&!!st.dis);
-  const h='<span class="ai">'+ic(isA?'x':A.e,26)+'</span><small>'+(isA?'Cancel':A.n)+'</small>'+(isA?'':'<small class="sub">'+st.sub+'</small>');
+  const h='<span class="ai">'+ic(isA?(A.tg==='self'?'check':'x'):A.e,26)+'</span><small>'+(isA?(A.tg==='self'?'Use':'Cancel'):A.n)+'</small>'+(isA?'':'<small class="sub">'+st.sub+'</small>');
   if(el._h!==h){el._h=h;el.innerHTML=h;}
  }
  $('cv').classList.toggle('arming',!!armed); // nothing may cover map tiles while a target is being picked
@@ -88,8 +91,9 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';setH(rt,'Mana '+Math.floor(p.mana||0)+'/'+m);}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';setH(rt,ic('knife',16)+' Knives '+(G.knives||0)+'/'+m);}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+(G.auto&&G.auto.used?runBank(G,G.won).banked:p.gold)+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.ppois?'<span style="color:#7be04b">'+ic('st_pois',16)+' '+G.ppois.t+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
+ setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+(G.auto&&G.auto.used?runBank(G,G.won).banked:p.gold)+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
+ {const n=G.pending|0,b=$('perkBadge'),t=n>0?String(n):'';if(b._t!==t){b._t=t;b.textContent=t;b.style.display=t?'':'none';$('gearBtn').classList.toggle('pick',n>0);$('gearBtn').setAttribute('aria-label',n>0?'Pick a perk ('+n+' waiting)':'Equipment');}}
  autoUi();
 }
 function renderLog(){

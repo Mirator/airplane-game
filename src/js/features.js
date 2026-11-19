@@ -1,4 +1,4 @@
-// features.js - floor features: traps, shrine, merchant (stock + buying). The locked room lives in mapgen/run/walk.
+// features.js - floor features: shrine, merchant (stock + buying). The locked room lives in mapgen/run/walk.
 
 function buildStock(f){
  const s=[],pr=(a,b)=>Math.round(a+b*f);
@@ -13,27 +13,8 @@ function buildStock(f){
  if(meta.unl.elixir)s.push({k:'elixir',n:'Elixir',ic:'elixir',d:'+'+BAL.merchant.elixirHp+' max HP and a full heal.',price:pr(...BAL.merchant.price.elixir)});
  return s;
 }
-function wakeAll(){for(const e of G.enemies){e.awake=true;e.alarm=1;}}
-function springEnemy(e,t){
- const vis=G.vis[ix(e.x,e.y)];if(vis)t.rev=1;
- if(t.k==='spike'){const d=BAL.trap.spikeBase+G.floor;hurtEnemy(e,d,'#c9c');if(vis)msg('The '+nm(e)+' steps on a spike trap!');settle(e,'A spike trap');}
- else if(t.k==='dart'){e.pois={t:BAL.trap.dartEnemyTurns,d:BAL.trap.dartEnemyDmg};e.awake=true;floatFx(e.x,e.y,'poison','#7be04b');if(vis)msg('The '+nm(e)+' is hit by a poison dart!');}
- else{wakeAll();t.done=1;msg(vis?'The '+nm(e)+' sets off an alarm! Everything is awake.':'A distant alarm shrieks. Everything is awake.');}
-}
-function springPlayer(t){
- const p=G.p;t.rev=1;G.stopWalk=true;walkTok++;
- if(t.k==='spike'){
-  let d=BAL.trap.spikeBase+G.floor;if(pc('trapper'))d=Math.max(1,Math.ceil(d/2));
-  p.hp-=d;G.killer='a spike trap';playerHurtFx(d);floatFx(p.x,p.y,'-'+d,'#ff5a5a');
-  msg('Spike trap! -'+d+' HP.');secondWind();
- }else if(t.k==='dart'){
-  G.ppois={t:pc('trapper')?BAL.trap.dartTurnsTrapfinder:BAL.trap.dartTurns,d:BAL.trap.dartDmgBase+Math.floor(G.floor/BAL.trap.dartDmgFloorDiv)};G.killer='dart poison';floatFx(p.x,p.y,'poison','#7be04b');
-  msg('Dart! Poisoned '+G.ppois.t+' turns.');
- }else{wakeAll();t.done=1;floatFx(p.x,p.y,'ALARM','#ffd24a');msg('Alarm! Every foe is awake.');}
-}
 function stepEffects(){
- const p=G.p,t=trapAt(p.x,p.y);
- if(t)springPlayer(t);
+ const p=G.p;
  const s=G.shrine;if(s&&!s.used&&!s.left&&s.x===p.x&&s.y===p.y){shrineQ=true;G.stopWalk=true;}
 }
 function showShrine(){

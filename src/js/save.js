@@ -32,7 +32,7 @@ if(hadMeta&&!(+metaRaw.mv>=2)){
  if(metaRaw.hardOn&&+metaRaw.wins>=1)meta.heatSel=1;
  migrated=true;
 }
-meta.mv=2;
+meta.mv=2;delete meta.unl.trapper;   // the removed Trapfinder unlock
 if(hadMeta&&metaRaw.bestM===undefined)meta.bestM=+meta.best||0;   // a save from before the gate: the deepest floor it ever reached counts (Auto runs included, we cannot tell)
 // every field of the idle layer is checked on every boot: anything missing or damaged is replaced by a safe value, never an exception
 function expRecOk(r){return !!r&&typeof r==='object'&&!!CLS[r.cls]&&BAL.exp.durs.some(d=>d.min===+r.dur)&&isFinite(+r.t0)&&isFinite(+r.seed)&&isFinite(+r.pw)&&+r.pw>=0;}
@@ -121,7 +121,9 @@ function continueRun(){
   G=g;G.ver=SAVE_VER;G.stopWalk=false;rngS=G.daily?{a:G.rs>>>0}:null;
   if(!G.stats){G.stats={pots:0,dragonHit:0,legacy:1};}   // run from before records/achievements: its history is unknown, so run-history achievements are skipped
   G.mod=modOf(G.mod)?G.mod:null;G.variant=G.variant|0;G.water=Array.isArray(G.water)?G.water:[];G.cracks=Array.isArray(G.cracks)?G.cracks.filter(c=>c&&inb(c.x,c.y)):[];G.crackT=G.crackT|0;G.wade=0;G.hard=G.hard?1:0;G.heat=Math.max(0,Math.min(BAL.heat.max,Math.floor(+G.heat)||(G.hard?1:0)));G.hard=G.heat>=1?1:0;G.fz=G.fz|0;G.lsUsed=G.lsUsed|0;G.daily=typeof G.daily==='string'?G.daily:null;
-  G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;G.perks=G.perks||{};G.syn=G.syn||{};G.vanish=G.vanish||0;
+  G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;G.picks=Array.isArray(G.picks)?G.picks.filter(q=>q&&Array.isArray(q.o)&&q.o.every(i=>perkById(i))).map(q=>({l:q.l|0,o:q.o.slice()})):[];G.pending=G.picks.length;   // an older save has no stored picks: zero pending
+  G.perks=G.perks||{};for(const k of Object.keys(G.perks))if(!PERKS.some(q=>q.id===k))delete G.perks[k];   // a removed perk (Trapfinder) is dropped silently
+  G.syn=G.syn||{};G.vanish=G.vanish||0;
   {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0,ms:Math.max(0,Math.floor(+a.ms)||0),t:Math.max(0,Math.floor(+a.t)||0)};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
   if(!CLS[G.p.cls])G.p.cls='warrior';
   G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
@@ -129,14 +131,13 @@ function continueRun(){
   G.enemies=(G.enemies||[]).filter(e=>EN[e.t]);
   for(const e of G.enemies)if(e.wind&&!(Array.isArray(e.wind.tiles)&&e.wind.tiles.every(t=>Array.isArray(t)&&inb(t[0],t[1]))))e.wind=null;
   gearQ=null;G.bl=G.bl||0;G.knives=G.knives||0;G.smoke=Array.isArray(G.smoke)?G.smoke:[];G.brace=G.brace||null;
-  G.traps=Array.isArray(G.traps)?G.traps.filter(t=>t&&inb(t.x,t.y)&&TRAPS[t.k]):[];
+  delete G.traps;delete G.ppois;   // traps and dart poison were removed: an old run loads without them
   G.shrine=(G.shrine&&inb(G.shrine.x,G.shrine.y))?G.shrine:null;
   G.merchant=(G.merchant&&inb(G.merchant.x,G.merchant.y)&&Array.isArray(G.merchant.stock))?G.merchant:null;
-  G.treasure=G.treasure||null;G.keys=G.keys||0;G.ppois=(G.ppois&&G.ppois.t>0)?G.ppois:null;G.killer=G.killer||'';
-  shrineQ=false;trapConfirm=-1;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;
+  G.treasure=G.treasure||null;G.keys=G.keys||0;G.killer=G.killer||'';
+  shrineQ=false;G.items=(G.items||[]).filter(i=>i&&inb(i.x,i.y));G.ssUsed=G.ssUsed||0;G.swUsed=G.swUsed||0;
   armed=null;dest=null;tapMark=null;bigMap=false;computeVis();hideTitle();closeModal();render();
   if(autoWas)msg('Auto is paused. Tap AUTO to resume.');
-  if(G.pending>0)showPerk();
  }catch(e){clearSave();G=null;showTitle();}
 }
 
