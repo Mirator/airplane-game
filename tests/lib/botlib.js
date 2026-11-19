@@ -269,7 +269,6 @@ function think(G){
  const adj=G.enemies.filter(e=>Math.abs(e.x-p.x)+Math.abs(e.y-p.y)===1);
  {const rgv=awake.filter(e=>RANGED.has(e.t));if(rgv.length){const e=rgv[0];BS.hunt={x:e.x,y:e.y,t:G.turn,f:fl};}}
  if(awake.length||adj.length){
-  if(G.ppois&&G.inv.pot>0&&p.hp<=G.ppois.d*G.ppois.t+3&&p.hp<p.mhp){click('b_pot');return;}
   if(hpf<0.4&&G.inv.pot>0){click('b_pot');return;}
   if(hpf<0.3&&G.inv.pot<=0){
    if(p.cls==='rogue'&&can('vanish')&&adj.length&&U('vanish'))return;
@@ -338,7 +337,6 @@ function think(G){
  if(!awake.length){BS.wait=0;BS.kw=0;BS.cw=0;}
  // out of combat
  if(hpf<0.35&&G.inv.pot>0&&p.hp<p.mhp){click('b_pot');return;}
- if(G.ppois&&G.inv.pot>1&&p.hp<=G.ppois.d*G.ppois.t+3){click('b_pot');return;}
  const block=new Set(dzArr);
  let r=bfs(G,p.x,p.y,block,false);
  const go=k=>{const path=pathTo(r,k);if(path.length){return stepK(G,path[0]);}return false;};
@@ -354,7 +352,7 @@ function think(G){
  const front=rr=>{for(const k of rr.order){if(k===ix(p.x,p.y)||BS.bad.has('front:'+(k%W)+','+((k/W)|0)))continue;if(!G.exp[k]||G.map[k]===3)return k;}return -1;};
  const valid=g=>{
   if(!g||g.f!==fl)return -1;
-  if(g.t==='item'){const it=G.items.find(i=>i.x===g.x&&i.y===g.y);if(!it||r.dist[ix(g.x,g.y)]<=0||BS.ignore.has(g.x+','+g.y+','+fl)||(it.t==='potion'&&G.inv.pot>=p.potCap)||(it.t==='knife'&&G.knives>=window.__dbg.gear.maxKnives()))return -1;return ix(g.x,g.y);}
+  if(g.t==='item'){const it=G.items.find(i=>i.x===g.x&&i.y===g.y);if(!it||it.skip||r.dist[ix(g.x,g.y)]<=0||BS.ignore.has(g.x+','+g.y+','+fl)||(it.t==='potion'&&G.inv.pot>=p.potCap)||(it.t==='knife'&&G.knives>=window.__dbg.gear.maxKnives()))return -1;return ix(g.x,g.y);}
   if(g.t==='sleeper'){const e=G.enemies.find(e=>e.id===g.id);if(!e||e.awake||hpf<=0.45)return -1;const [bk,bdd]=nearAdj(e.x,e.y);return bdd>0?bk:-1;}
   if(g.t==='front'){const k=ix(g.x,g.y);if(r.dist[k]<=0||!(!G.exp[k]||G.map[k]===3))return -1;return k;}
   return -1;
@@ -365,7 +363,7 @@ function think(G){
  let bi=-1,bd=1e9;
  for(const it of G.items){
   const k=ix(it.x,it.y);if(!G.seen[k]||r.dist[k]<0||r.dist[k]>=bd)continue;
-  if(BS.ignore.has(it.x+','+it.y+','+fl)||BS.bad.has('item:'+it.x+','+it.y))continue;
+  if(it.skip||BS.ignore.has(it.x+','+it.y+','+fl)||BS.bad.has('item:'+it.x+','+it.y))continue;   // a piece of gear the bot declined stays on the floor (it.skip): it is not a goal again
   if(it.t==='potion'&&G.inv.pot>=p.potCap)continue;
   if(it.t==='knife'&&G.knives>=window.__dbg.gear.maxKnives())continue;
   bd=r.dist[k];bi=k;

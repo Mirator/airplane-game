@@ -49,12 +49,18 @@ function cleanMeta(){
  const leg={};if(isO(meta.leg))for(const k in BAL.upg.legacy){const v=Math.floor(+meta.leg[k]);if(isFinite(v)&&v>0)leg[k]=Math.min(v,1000);}meta.leg=leg;
  meta.bestM=cl(meta.bestM,0,MAXF);meta.heat=cl(meta.heat,0,BAL.heat.max);meta.heatSel=cl(meta.heatSel,0,BAL.heat.max);
  const e=meta.exp,run=[null,null];
- for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:+r.t0,seed:Math.floor(+r.seed)>>>0,pw:+r.pw,bf:cl(r.bf,0,MAXF)};}
+ for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:Math.min(+r.t0,Date.now()),seed:Math.floor(+r.seed)>>>0,pw:+r.pw,bf:cl(r.bf,0,MAXF)};}
  const rp=expRepOk(e.rep)?{cls:e.rep.cls,dur:+e.rep.dur,el:+e.rep.el,delves:+e.rep.delves,floor:+e.rep.floor,kills:+e.rep.kills,deaths:+e.rep.deaths,gold:+e.rep.gold,bp:e.rep.bp||null,early:e.rep.early?1:0}:null;
  meta.exp={s2:e.s2?1:0,run:run,rep:rp};
 }
 cleanMeta();
-function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+// Another tab erased the progress (Reset): this tab still holds the old meta and run in memory and would write them straight back with its next save. It stops writing and reloads.
+let staleTab=false;
+function saveMeta(){if(staleTab)return;try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+window.addEventListener('storage',function(ev){
+ if(resetting||staleTab)return;
+ if(ev.key===null||(ev.key===META_KEY&&ev.newValue===null)){staleTab=true;try{location.reload();}catch(e){}}
+});
 function checkAch(){
  let any=checkAchievements();
  for(const u of UNLOCKS)if(u.chk&&!meta.unl[u.id]&&u.chk()){
@@ -77,7 +83,7 @@ function idbOpen(cb){
  try{
   const rq=indexedDB.open(IDB_NAME,1);
   rq.onupgradeneeded=function(){rq.result.createObjectStore('s');};
-  rq.onsuccess=function(){idbConn=rq.result;idbConn.onclose=idbConn.onversionchange=function(){idbConn=null;};cb(idbConn);};
+  rq.onsuccess=function(){idbConn=rq.result;idbConn.onclose=function(){idbConn=null;};idbConn.onversionchange=function(){try{idbConn.close();}catch(e){}idbConn=null;};/* another tab's deleteDatabase must not be blocked by this connection */cb(idbConn);};
   rq.onerror=rq.onblocked=function(){cb(null);};
  }catch(e){cb(null);}
 }
@@ -93,7 +99,7 @@ function idbFlush(){
 }
 function idbPutRun(v){idbWant=v;idbFlush();}
 function save(){
- if(!G||G.over)return;if(metaDirty){saveMeta();metaDirty=false;}
+ if(!G||G.over||staleTab)return;if(metaDirty){saveMeta();metaDirty=false;}
  if(rngS)G.rs=rngS.a;G.ts=Date.now();let js;try{js=JSON.stringify(G);}catch(e){return;}
  try{localStorage.setItem(RUN_KEY,js);}catch(e){}
  idbPutRun(js);
@@ -121,10 +127,10 @@ function continueRun(){
   G=g;G.ver=SAVE_VER;G.stopWalk=false;rngS=G.daily?{a:G.rs>>>0}:null;
   if(!G.stats){G.stats={pots:0,dragonHit:0,legacy:1};}   // run from before records/achievements: its history is unknown, so run-history achievements are skipped
   G.mod=modOf(G.mod)?G.mod:null;G.variant=G.variant|0;G.water=Array.isArray(G.water)?G.water:[];G.cracks=Array.isArray(G.cracks)?G.cracks.filter(c=>c&&inb(c.x,c.y)):[];G.crackT=G.crackT|0;G.wade=0;G.hard=G.hard?1:0;G.heat=Math.max(0,Math.min(BAL.heat.max,Math.floor(+G.heat)||(G.hard?1:0)));G.hard=G.heat>=1?1:0;G.fz=G.fz|0;G.lsUsed=G.lsUsed|0;G.daily=typeof G.daily==='string'?G.daily:null;
-  G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;G.picks=Array.isArray(G.picks)?G.picks.filter(q=>q&&Array.isArray(q.o)&&q.o.every(i=>perkById(i))).map(q=>({l:q.l|0,o:q.o.slice()})):[];G.pending=G.picks.length;   // an older save has no stored picks: zero pending
+  G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;{const had=Array.isArray(G.picks);G.picks=had?G.picks.filter(q=>q&&Array.isArray(q.o)&&q.o.every(i=>perkById(i))).map(q=>({l:q.l|0,o:q.o.slice()})):[];G.pending=had?G.picks.length:Math.max(0,Math.min(9,Math.floor(+G.pending)||0));}   // an older save has no stored picks: its pending count stays and showPerk rolls the options
   G.perks=G.perks||{};for(const k of Object.keys(G.perks))if(!PERKS.some(q=>q.id===k))delete G.perks[k];   // a removed perk (Trapfinder) is dropped silently
   G.syn=G.syn||{};G.vanish=G.vanish||0;
-  {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0,ms:Math.max(0,Math.floor(+a.ms)||0),t:Math.max(0,Math.floor(+a.t)||0)};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
+  {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0,t:Math.max(0,Math.floor(+a.t)||0)};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
   if(!CLS[G.p.cls])G.p.cls='warrior';
   G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
   for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}

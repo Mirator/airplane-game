@@ -158,11 +158,11 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 .rl.lose{color:#ff9a8a;font-size:13px}
 
 /* a long dialog scrolls inside its box; its last button (Back / Leave) stays reachable at the bottom edge */
-.box>button:last-child{position:sticky;bottom:0;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}
+.box>button:last-child{position:sticky;bottom:-16px;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}   /* -16px = the box padding: nothing of the list shows below the button */
 /* landscape phone: the map would be a 100 px strip, so the game is covered by a rotate hint (nothing is paused or lost: the run is untouched underneath) */
 #rot{display:none}
-@media (orientation:landscape) and (max-height:499px) and (max-width:1000px){
- #rot{position:fixed;inset:0;z-index:60;background:#07070d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px}
+@media (orientation:landscape) and (max-height:499px) and (pointer:coarse) and (hover:none){
+ body.inrun #rot{position:fixed;inset:0;z-index:60;background:#07070d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px}
  #rot b{font-size:20px;color:#ffd36a}
  #rot span{font-size:14px;color:var(--dim)}
 }
@@ -218,24 +218,83 @@ button.danger{border-color:#ff6a5a;background:#4a1c24;color:#ffd6d0}
 @media (min-width:700px){.box{max-width:520px}}
 /* portrait tablet: the bars keep a sane width */
 @media (min-width:700px){#bar,#bar2{width:100%;max-width:600px;margin:0 auto}#log{max-width:600px;margin:0 auto;width:100%}#hud{max-width:600px;margin:0 auto;width:100%}}
-/* wide screens: map left, side panel right (HUD, log, abilities, actions) */
-@media (min-width:960px) and (min-height:500px) and (min-aspect-ratio:11/10){
- :root{--pw:clamp(360px,27vw,420px)}
- #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-areas:"cv hud" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
- #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:12px 12px 6px}
+/* landscape windows (>= 640 x 480, wider than tall): map left, side panel right. The panel is compact below 960 px wide and a designed column from 960 up */
+#sight{display:none}
+@media (min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10){
+ :root{--pw:clamp(280px,34vw,330px)}
+ #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"cv hud" "cv sight" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
+ #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:10px 10px 4px}
  #cv{grid-area:cv}
  #logw{grid-area:logw;min-height:0;overflow:hidden}
- #log{max-width:none;margin:0;width:auto;height:100%;padding:6px 14px}
+ #log{max-width:none;margin:0;width:auto;height:100%;padding:6px 12px}
  #tray{top:auto;height:72px}
- #bar2{grid-area:bar2;max-width:none;margin:0;width:auto;padding:4px 12px 0}
- #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 12px 14px}
+ #bar2{grid-area:bar2;max-width:none;margin:0;width:auto;padding:4px 10px 0}
+ #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 10px 12px}
  #bar button,#bar2 button{max-height:76px}
  #hpbar{max-width:none}#resbar{max-width:none}
 }
-body.kb #menuBtn[data-key]::before{top:auto;bottom:1px;left:50%;transform:translateX(-50%)}
+/* >= 960 wide: a larger type scale, the In sight list, the log fills the free height */
+@media (min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10){
+ :root{--pw:clamp(380px,27vw,520px);--fs:15px;--lh:21px}
+ #sight{display:block;grid-area:sight;margin:6px 10px 0;padding:6px 8px;border:1px solid var(--line);border-radius:12px;background:#12152a;max-height:34vh;overflow:hidden}
+ #sight h3{margin:0 0 4px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+ #sightList{display:flex;flex-direction:column;gap:4px}
+ #sightList .none{font-size:var(--fs);color:var(--dim);padding:4px 2px}
+ #sightList button.srow{min-height:44px;padding:2px 8px;display:flex;align-items:center;gap:8px;width:100%;text-align:left;font-size:var(--fs);box-shadow:none}
+ #sightList .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+ #sightList .sh{flex:none;width:30%;max-width:120px;height:10px;border-radius:5px;background:#3a1420;overflow:hidden}
+ #sightList .sh i{display:block;height:100%;background:#d8504a}
+ #sightList .sv{flex:none;width:44px;text-align:right;font-size:13px;color:var(--dim);font-weight:700}
+ #hptxt{font-size:calc(var(--fs) + 1px)}#restxt{font-size:var(--fs)}
+ #hpbar,#resbar{height:28px}#hptxt,#restxt{line-height:28px}
+ #stats{font-size:calc(var(--fs) + 1px)}
+ #logw{margin:6px 10px 0;border:1px solid var(--line);border-radius:12px;background:#10121f;display:flex;flex-direction:column}
+ #logw::before{content:'Log';display:block;padding:6px 12px 0;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+ #log{flex:1;min-height:0;height:auto}
+ #log{font-size:var(--fs);line-height:var(--lh);padding:8px 12px}
+ #log div{-webkit-line-clamp:3}
+ #bar button small,#bar2 button small,#tray button small{font-size:calc(var(--fs) - 2px)}
+ #bar2 small.sub{font-size:calc(var(--fs) - 3px)}
+ #bar button,#bar2 button{min-height:64px}
+}
+@media (min-width:1400px) and (min-height:480px) and (min-aspect-ratio:11/10){:root{--fs:16px;--lh:22px}}
+@media (min-width:1800px) and (min-height:700px) and (min-aspect-ratio:11/10){:root{--fs:17px;--lh:24px}}
+/* the two 46 px top buttons: the chip sits on their lower-right corner, outside the icon */
+body.kb #menuBtn[data-key]::before,body.kb #gearBtn[data-key]::before{left:-5px;top:auto;right:auto;bottom:-8px}
+body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before,body.kb #tray button[data-key]::before{left:2px;top:1px}
 /* level-up badge on the Equipment button: a pulsing count, never over the map */
 #gearBtn .bd{top:-4px;right:-4px;background:#d4572a;border:1px solid #ffd24a;z-index:2}
 #gearBtn.pick{border-color:var(--gold)}
 #gearBtn.pick .bd{animation:bdp 1s ease-in-out infinite}
 @keyframes bdp{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
 @media (prefers-reduced-motion: reduce){#gearBtn.pick .bd{animation:none}}
+
+/* keyboard focus: a gold ring on every button, inside dialogs too */
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px;z-index:3}
+.box button:focus-visible{outline-offset:-3px}
+#sightList button.srow:focus-visible{outline-offset:-3px}
+/* menus on big screens: a wider card, larger type, lists in two columns */
+@media (min-width:1180px) and (min-height:600px){
+ .box{max-width:620px;font-size:17px}
+ .box p,.pl,.rl{font-size:16px}.pl small{font-size:15px}
+ .sub,.box button span,.box button.hasic .ct span{font-size:15px!important}
+ .box h2{font-size:24px}
+ .box button{min-height:54px;font-size:17px}
+ #title{align-items:center}#titleBox{margin-top:0;max-height:calc(100% - 4vh)}
+ #titleBox{max-width:1000px;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:start}
+ #titleBox>*{grid-column:1/-1}
+ #titleBox>button.hasic,#titleBox>.pair,#titleBox>.pl,#titleBox>.xslot,#titleBox>.lockrow{grid-column:auto}
+ #titleBox h1{font-size:36px}
+ #titleBox.home{max-width:920px;grid-template-rows:repeat(8,auto)}
+ #titleBox.home>.logo{grid-column:1;grid-row:1/9;align-self:center;margin:0}
+ #titleBox.home>*:not(.logo){grid-column:2}
+ #titleBox.home .scene{max-height:none}
+ #titleBox>.cls .clsmain{min-height:110px}
+}
+@media (min-width:1700px) and (min-height:800px){
+ .box{font-size:19px;max-width:700px}.box p,.pl,.rl{font-size:18px}.sub,.box button span,.box button.hasic .ct span{font-size:16px!important}
+ #titleBox{max-width:1180px}#titleBox.home{max-width:1060px}
+}
+
+.nw{white-space:nowrap}
+.box button.hasic:disabled{opacity:.72}

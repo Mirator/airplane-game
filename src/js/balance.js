@@ -7,7 +7,7 @@ const W=30,H=30,MAXF=8;   // map size and number of floors (floor 8 = dragon lai
 // NOTE: descriptive strings in the tables below (perk/trait/unlock text, help screen) still contain hand-written copies of
 // some numbers - update them together when changing a value.
 const BAL = {
- ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,staleMs:350,burstMs:900,camMinTs:22,camMaxTs:52},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe left / died on in the turn just resolved does nothing for this long; burstMs = repeat taps on the tile of the previous tap's target do nothing once it is empty, for this long after the last one; camMinTs = smallest tile size when the camera zooms out to frame targets
+ ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,deathMs:650,staleMs:350,burstMs:900,camMinTs:22,camMaxTs:64},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; deathMs = the death card waits this long after the lethal hit; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe left / died on in the turn just resolved does nothing for this long; burstMs = repeat taps on the tile of the previous tap's target do nothing once it is empty, for this long after the last one; camMinTs = smallest tile size when the camera zooms out to frame targets
   // --- dungeon layout (mapgen.js) ---
   map: {
     span: 22,              // rooms are placed inside the top-left span x span corner of the 30x30 grid (shorter floors)
@@ -83,8 +83,8 @@ const BAL = {
   },
   // --- resources (combat.js endTurn) ---
   rage: { max: 100, dealt: 10, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
-  shot: { range: 3, mul: 0.4 },                           // mage basic attack: a free ranged shot at a foe within range tiles in line of sight; damage = normal attack formula x mul
-  mana: { regen: 1.1, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
+  shot: { range: 4, mul: 0.52 },                           // mage basic attack: a free ranged shot at a foe within range tiles in line of sight; damage = spell attack (attack + gear) x spell multiplier x mul (about 40% of a Bolt at equal gear)
+  mana: { regen: 0.8, perKill: 2 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
   // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
     bash:     { cd: 5, stun: 2, stunBoss: 1, mul: 1.0 },
@@ -170,7 +170,7 @@ const BAL = {
   // --- run score, shown on the recap and kept in the records (records.js) ---
   score: { floor: 100, kill: 2, level: 15, win: 600, par: 1500, perTurn: 0.3 },   // + win bonus and 'perTurn' for every turn under 'par'
   // --- Hard mode (unlocked by the first win): a stack of named rules, see HARD_RULES ---
-  hard: { hpMul: 1.25, atkMul: 1.2, bossAtkMul: 1.1, startPotions: 1, bonusPotion: 0, dropPotionMul: 0.5, extraSummonAt: 0.9, enrageFrac: 0.6, goldMul: 1.5, scoreMul: 1.5 },
+  hard: { hpMul: 1.25, atkMul: 1.2, bossAtkMul: 1.1, startPotions: 1, bonusPotion: 0, dropPotionMul: 0.5, extraSummonAt: 0.9, enrageFrac: 0.6 },
   // --- Heat 0-5 (HEAT below). Heat 1 is exactly Hard (BAL.hard); each further level adds one rule. gold / score multipliers per level ---
   heat: { max: 5, goldMul: [1, 1.5, 1.75, 2, 2.25, 2.5], scoreMul: [1, 1.5, 1.75, 2, 2.25, 2.5],
           extraFoes: 2,                  // Heat 2: more foes on every floor
@@ -195,9 +195,9 @@ const BAL = {
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
 // the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give less (diminishing returns) but always a whole, honest step: what a card says for the next level is what it gives; int = whole numbers. pct = a percentage. =====
 const UPG=[
- {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,5]],int:1,late:5},
- {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[4,1]],int:1,late:3},
- {k:'def',n:'Padded',base:70,u:' defense',steps:[[4,1]],int:1,late:3},
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,4]],int:1,late:5},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1]],int:1,late:3},
+ {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1]],int:1,late:3},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
  {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1,late:4},
  {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,3]],pct:1,late:0}
@@ -244,7 +244,7 @@ const EN={
  bat:{n:'Bat',e:'bat',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
  warlock:{n:'Warlock',e:'warlock',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
  whelp:{n:'Whelp',e:'whelp',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
- dragon:{n:'Dragon',e:'dragon',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
+ dragon:{n:'Dragon',e:'dragon',hp:1700,atk:68,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
@@ -405,20 +405,20 @@ const HARD_RULES=(function(){
   {n:'Tougher foes',d:'Foes +'+p(H.hpMul-1)+' HP, +'+p(H.atkMul-1)+' attack; dragon +'+p(H.bossAtkMul-1)+'.'},
   {n:'Scarce potions',d:H.startPotions+' fewer starting potion'+(H.startPotions>1?'s':'')+', '+p(1-H.dropPotionMul)+' fewer drops.'},
   {n:'Brood mother',d:'Extra whelps at '+p(H.extraSummonAt)+' dragon HP; enrages at '+p(H.enrageFrac)+'.'},
-  {n:'Spoils',d:'Banked gold and score x'+H.goldMul+'.'}
+  {n:'Spoils',d:'Banked gold and score x'+BAL.heat.goldMul[1]+'.'}
  ];
 })();
 // ===== Expedition outcome table: per class, per upgrade power (gold spent on boosts), measured with the bot (tests/sim.js). Regenerate with `node tests/calibrate.js`. =====
 // reach[f-1] = share of runs that ended on floor f (index 8 = won); gold / kills = mean per run ending there; turns = mean turns per run; gph = manual gold per hour (turns x BAL.exp.turnSec)
 // BEGIN EXP_TABLE (generated by tests/calibrate.js: runs 60 per cell, seed 1, levels fresh=0,mid=800,heavy=3000,high=8000,maxed=999999)
-const EXP_TABLE={warrior:[{pw:0,reach:[0,0,0.02,0.32,0.15,0.19,0.08,0.17,0.07],gold:[489,489,122,124,282,530,714,824,1549],kills:[0,0,28,44,61,81,110,135,153],turns:932,gph:1573},{pw:560,reach:[0,0,0,0.09,0.09,0.13,0.13,0.19,0.37],gold:[659,659,659,162,257,427,526,684,999],kills:[0,0,0,41,67,84,104,142,151],turns:1309,gph:1510},{pw:2054,reach:[0,0,0,0.02,0.02,0.06,0.07,0.15,0.68],gold:[825,825,825,54,236,254,478,811,948],kills:[0,0,0,37,74,78,106,131,152],turns:1425,gph:1736},{pw:6473,reach:[0,0,0,0,0.02,0.02,0,0.19,0.77],gold:[1128,1128,1128,1128,475,1665,1128,960,1173],kills:[0,0,0,0,64,129,0,134,147],turns:1435,gph:2359},{pw:16554,reach:[0,0,0,0,0,0,0,0.08,0.92],gold:[1451,1451,1451,1451,1451,1451,1451,1834,1419],kills:[0,0,0,0,0,0,0,143,150],turns:1380,gph:3154}],mage:[{pw:0,reach:[0,0,0.09,0.25,0.22,0.13,0.04,0.11,0.16],gold:[413,413,151,115,251,326,319,786,1076],kills:[0,0,28,43,60,84,111,146,152],turns:832,gph:1489},{pw:560,reach:[0,0,0.02,0.13,0.19,0.19,0.07,0.19,0.22],gold:[505,505,145,87,296,392,384,764,874],kills:[0,0,27,44,64,80,92,144,161],turns:1005,gph:1508},{pw:2054,reach:[0,0,0,0.13,0.17,0.09,0.04,0.17,0.41],gold:[637,637,637,151,284,479,593,623,981],kills:[0,0,0,39,57,77,99,136,148],turns:1094,gph:1746},{pw:6473,reach:[0,0,0,0.08,0.08,0.08,0.02,0.19,0.56],gold:[962,962,962,76,363,611,620,826,1263],kills:[0,0,0,43,57,84,105,136,151],turns:1261,gph:2288},{pw:16554,reach:[0,0,0,0.02,0.02,0.08,0,0.29,0.59],gold:[1328,1328,1328,208,370,799,1328,1057,1604],kills:[0,0,0,70,48,76,0,138,153],turns:1335,gph:2985}],rogue:[{pw:0,reach:[0,0.14,0.19,0.3,0.07,0.14,0.02,0.11,0.04],gold:[230,65,129,155,155,323,341,546,847],kills:[0,15,26,44,56,76,91,131,153],turns:687,gph:1004},{pw:560,reach:[0,0,0,0.18,0.18,0.14,0.14,0.14,0.2],gold:[517,517,517,178,306,383,546,820,876],kills:[0,0,0,40,62,79,121,148,147],turns:1059,gph:1466},{pw:2054,reach:[0,0,0,0.06,0.09,0.09,0.04,0.2,0.52],gold:[636,636,636,117,318,535,358,661,776],kills:[0,0,0,48,54,90,119,139,145],turns:1240,gph:1538},{pw:6473,reach:[0,0,0,0,0,0.04,0.04,0.17,0.75],gold:[1079,1079,1079,1079,1079,543,927,795,1178],kills:[0,0,0,0,0,69,113,133,142],turns:1442,gph:2246},{pw:16554,reach:[0,0,0,0,0,0.02,0.02,0.04,0.92],gold:[1444,1444,1444,1444,1444,1074,673,943,1491],kills:[0,0,0,0,0,77,110,130,148],turns:1439,gph:3011}]};
+const EXP_TABLE={warrior:[{pw:0,reach:[0,0,0.07,0.13,0.3,0.23,0.05,0.22,0],gold:[410,410,140,171,301,445,549,719,410],kills:[0,0,29,40,62,81,105,137,0],turns:745,gph:1650},{pw:560,reach:[0,0,0,0.02,0.17,0.07,0.08,0.38,0.28],gold:[690,690,690,205,314,364,523,787,933],kills:[0,0,0,47,62,84,112,131,154],turns:1043,gph:1984},{pw:2054,reach:[0,0,0,0.02,0.03,0.03,0.05,0.47,0.4],gold:[825,825,825,88,325,204,375,728,1117],kills:[0,0,0,44,66,81,102,140,160],turns:1155,gph:2142},{pw:4763,reach:[0,0,0,0,0.02,0.03,0.03,0.22,0.7],gold:[1046,1046,1046,1046,464,585,550,745,1198],kills:[0,0,0,0,57,81,106,135,154],turns:1166,gph:2690},{pw:14844,reach:[0,0,0,0.03,0.07,0.03,0,0.22,0.65],gold:[1253,1253,1253,355,460,543,1253,1372,1381],kills:[0,0,0,38,64,71,0,143,150],turns:1061,gph:3544}],mage:[{pw:0,reach:[0,0,0.02,0.27,0.1,0.2,0.13,0.25,0.03],gold:[408,408,133,161,266,404,401,692,883],kills:[0,0,31,42,61,92,121,138,170],turns:796,gph:1539},{pw:560,reach:[0,0,0,0.1,0.07,0.14,0.07,0.36,0.27],gold:[697,697,697,149,270,389,549,905,927],kills:[0,0,0,42,56,83,100,136,156],turns:977,gph:2140},{pw:2054,reach:[0,0,0,0.05,0.08,0.1,0.05,0.3,0.42],gold:[835,835,835,162,282,351,467,721,1268],kills:[0,0,0,46,61,83,115,132,153],turns:1000,gph:2504},{pw:4763,reach:[0,0,0,0.03,0.07,0.03,0.03,0.34,0.49],gold:[1048,1048,1048,216,521,525,519,967,1308],kills:[0,0,0,42,64,92,99,128,159],turns:1056,gph:2978},{pw:14844,reach:[0,0,0,0.03,0.03,0.03,0.03,0.29,0.59],gold:[1194,1194,1194,186,346,692,915,1007,1435],kills:[0,0,0,52,59,82,134,140,153],turns:1087,gph:3295}],rogue:[{pw:0,reach:[0,0.13,0.2,0.32,0.25,0.03,0,0.07,0],gold:[236,74,127,134,303,449,236,1016,236],kills:[0,17,27,45,64,80,0,148,0],turns:504,gph:1403},{pw:560,reach:[0,0,0,0.07,0.27,0.17,0.03,0.23,0.23],gold:[601,601,601,127,286,521,449,682,1095],kills:[0,0,0,47,68,87,108,133,145],turns:936,gph:1927},{pw:2054,reach:[0,0,0,0.02,0.12,0.1,0.05,0.25,0.47],gold:[734,734,734,233,296,484,246,722,974],kills:[0,0,0,41,66,84,107,136,141],turns:1045,gph:2108},{pw:4763,reach:[0,0,0,0.02,0.1,0.05,0,0.33,0.5],gold:[959,959,959,214,341,521,959,1020,1111],kills:[0,0,0,56,69,86,0,143,149],turns:1097,gph:2623},{pw:14844,reach:[0,0,0,0.03,0,0.05,0,0.17,0.75],gold:[1238,1238,1238,91,1238,759,1238,1133,1345],kills:[0,0,0,39,0,85,0,139,144],turns:1082,gph:3434}]};
 // END EXP_TABLE
 // ===== Heat 0-5. HEAT[h] = the rule added at that level (Heat 1 is Hard: HARD_RULES lists its parts). Numbers: BAL.heat / BAL.hard =====
 const HEAT=(function(){
  const T=BAL.heat,p=x=>Math.round(x*100)+'%';
  return [
   {n:'Normal',d:'The standard dungeon.'},
-  {n:'Hard',d:'Tougher foes, scarce potions, a brood mother.'},
+  {n:'Tougher',d:'Tougher foes, scarce potions, a brood mother.'},
   {n:'Reinforced',d:'+'+T.extraFoes+' foes on every floor.'},
   {n:'Iron elites',d:'Key elites get +'+p(T.eliteHpMul-1)+' HP, +'+p(T.eliteAtkMul-1)+' attack.'},
   {n:'Weak potions',d:'Potions heal '+p(1-T.potionMul)+' less.'},
@@ -447,7 +447,7 @@ const ACH=[
  {id:'horde',n:'Hordebreaker',d:'Clear every enemy on a Horde floor.',gold:30},
  {id:'hunt',n:'Stalker Stalked',d:'Slay the stalker on a Hunted floor.',gold:30},
  {id:'daily',n:'Daily Champion',d:'Win a Daily run.',gold:40},
- {id:'hardwin',n:'Hardened',d:'Win a run on Hard.',gold:100,chk:()=>meta.hwins>=1},
+ {id:'hardwin',n:'Heat Walker',d:'Win a run at Heat 1 or higher.',gold:100,chk:()=>meta.hwins>=1},
  {id:'habit',n:'Daily Habit',d:'Play the Daily on '+BAL.ach.dailyDays+' different days.',chk:()=>meta.dlyN>=BAL.ach.dailyDays,prog:()=>Math.min(meta.dlyN,BAL.ach.dailyDays)+'/'+BAL.ach.dailyDays},
  {id:'lair',n:'Into the Lair',d:'Reach floor '+MAXF+'.',chk:()=>meta.best>=MAXF},
  {id:'slayer',n:'Slayer',d:'Slay '+BAL.ach.kills+' enemies in total.',chk:()=>meta.kills>=BAL.ach.kills,prog:()=>Math.min(meta.kills,BAL.ach.kills)+'/'+BAL.ach.kills},

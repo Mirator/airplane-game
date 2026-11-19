@@ -61,7 +61,7 @@ describe('mage free shot', { concurrency: CONC }, () => {
       };
       const a = await dmgWith(0), b = await dmgWith(12);
       assert.ok(b.got > a.got, 'a better weapon hits harder ' + JSON.stringify([a, b]));
-      const exp = await page.evaluate(() => { const B = window.__dbg.tables.BAL; const G = window.__dbg(); return Math.round(Math.max(1, G.p.atk + (G.p.eq.weapon.v) + (window.__dbg.tables.WP[G.p.eq.weapon.k].atk || 0)) * (G.p.dmgMul || 1) * B.shot.mul); });
+      const exp = await page.evaluate(() => { const B = window.__dbg.tables.BAL; const G = window.__dbg(); const WPk = window.__dbg.tables.WP[G.p.eq.weapon.k]; return Math.round(Math.max(1, Math.round(Math.max(1, G.p.atk + (G.p.eq.weapon.v)) * (G.p.dmgMul || 1))) * B.shot.mul * (1 + (WPk.spell || 0))); });   // spell attack (the staff's melee -3 does not count) x shot mul x spell multiplier
       assert.equal(b.got, exp, 'exactly the formula');
       // Guard: shield facing the mage takes less than a stunned one
       await hall(page); await foe(page, 'guard', 3, 0, { hp: 400, face: [-1, 0] }); await click(page, 3, 0); const front = 400 - (await S(page)).foes[0][2];

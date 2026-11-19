@@ -12,22 +12,25 @@ function modalBlocked(e){
  if(!modalGrace||!e||!e.isTrusted)return false;
  return performance.now()-modalAt<modalGrace||(e.detail>0&&lastDown<modalAt);
 }
-function showModal(title,html,buttons,kind,icon){
+function showModal(title,html,buttons,kind,icon,opt){
  const wasOpen=$('modal').style.display!=='none';
- modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]?BAL.ui.modalGraceMs:0;
- armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
+ const keepIdx=wasOpen&&$('modalBox').contains(document.activeElement)?dlgButtons($('modalBox')).indexOf(document.activeElement):-1;   // a dialog rebuilt in place (the merchant after a purchase) keeps the focused row
+ modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]&&!(opt&&opt.nograce)?BAL.ui.modalGraceMs:0;
+ armed=null;{const tt=$('toast');if(tt)tt.style.opacity='0';}if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
  const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
-  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;
+  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;if(bt.esc)el.dataset.esc='1';if(bt.def)el.dataset.def='1';
   el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
   el.addEventListener('click',function(e){e.stopPropagation();if(modalBlocked(e))return;bt.fn(el);});
   b.appendChild(el);
  }
  $('modal').style.alignItems=kind==='help'?'flex-start':'';   // an open section must not move the headings under the finger
  $('modal').style.display='flex';
+ if(keepIdx>=0){const bs=dlgButtons(b);(bs[Math.min(keepIdx,bs.length-1)]||bs[0]||b).focus();}else focusFirst(b);
 }
-function closeModal(){$('modal').style.display='none';if(G&&G.p)render();}
+function closeModal(){{const a=document.activeElement;if(a&&a!==document.body&&$('modalBox').contains(a))a.blur();}   // focus leaves with the dialog at once (a hidden button must not keep taking Enter / Space)
+ $('modal').style.display='none';if(G&&G.p)render();if($('title').style.display!=='none')focusFirst($('titleBox'));}
 function perkTags(pk){
  let t='';
  if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';
@@ -42,7 +45,7 @@ const PERK_CAT={might:'o',vamp:'o',keen:'o',venom:'o',chain:'o',blood:'o',berser
 const CAT_COL={o:'#ff8a3a',d:'#3f86ff',u:'#b38bff'};
 function perkChip(id,px){const c=CAT_COL[PERK_CAT[id]||'u'];return '<span class="chp" style="border-color:'+c+';background:'+c+'26">'+ic(CARD_IC[id]||'perk',px||28)+'</span>';}
 function cardHtml(id,inner){return (CARD_IC[id]&&PERK_CAT[id]!==undefined||PERKS.some(p=>p.id===id)?perkChip(id):'<span class="chp">'+ic(CARD_IC[id]||'perk',28)+'</span>')+'<span class="ct">'+inner+'</span>';}
-function showPerk(){
+function showPerk(manual){
  if(!G||G.pending<=0)return;
  if(!Array.isArray(G.picks))G.picks=[];
  while(G.picks.length<G.pending){const o=rollPick();if(!o.length){G.pending=G.picks.length;break;}G.picks.push({l:G.p.lvl,o:o});}   // a pending count set from outside (tests) gets its options rolled here
@@ -55,8 +58,8 @@ function showPerk(){
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {k:pk.id,html:cardHtml(pk.id,'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>'),cls:'hasic',fn:function(){
    addPerk(pk.id);G.picks.shift();G.pending=G.picks.length;closeModal();save();render();
-   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk();else afterModals();
-  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){closeModal();});}},{k:'later',label:'Later',c:1,fn:closeModal}]),'perk');
+   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk(true);else afterModals();
+  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){showPerk(true);});}},{k:'later',esc:1,label:'Later',c:1,fn:closeModal}]),'perk',null,{nograce:!!manual});
 }
 // equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
@@ -81,12 +84,12 @@ function showEquip(back){
  showModal('Equipment',gearHtml(),[
   {k:'abil',label:'Abilities',c:1,fn:function(){showAbilities(again);}},
   {k:'perks',label:'Perks',c:1,fn:function(){showPerks(again);}},
-  {label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+  {esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showAbilities(back){
  const C=clsOf(G.p);
  let h='';for(const k of C.kit){const a=ABIL[k];h+='<div class="pl"><b>'+ic(a.e,22)+' '+a.n+'</b> <small>('+abCost(k)+')<br>'+abilityDesc(k)+'</small></div>';}
- showModal(C.n,h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'',ic(C.e,30));
+ showModal(C.n,h,[{esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'',ic(C.e,30));
 }
 function showPerks(back){
  let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
@@ -97,13 +100,13 @@ function showPerks(back){
   const on=pc(s.a)&&pc(s.b);
   h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')<br>'+s.d+'</small></div>';
  }
- showModal('Perks',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+ showModal('Perks',h,[{esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false},armAuto={v:false};
  showModal('Menu','',[
-  {html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
+  {esc:1,html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
   {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(el){
    // the cost is stated BEFORE the first activation: the first tap only says it, the second starts (no alert / confirm)
    if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' Pays '+autoRateText()+', not run gold. Tap again';return;}
@@ -132,8 +135,7 @@ function showGear(){
    const old=equipItem(it);
    if(worthKeeping(old)){const on=gearName(old);it.k=old.k;it.v=old.v;it.tr=old.tr||null;it.skip=1;msg('Equipped '+nn+'. You drop your '+on+'.');}
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
-   closeModal();save();render();
-   if(G.pending>0)showPerk();}},
-  {k:'leave',label:'Leave',c:1,big:1,fn:function(){it.skip=1;msg('Left the '+nn+'. Tap yourself to see it again.');closeModal();render();}}
+   closeModal();save();render();}},   // a postponed perk pick stays postponed: Equip never reopens it
+  {k:'leave',esc:1,label:'Leave',c:1,big:1,fn:function(){it.skip=1;msg('Left the '+nn+'. Tap yourself to see it again.');closeModal();render();}}
  ],'gear');
 }

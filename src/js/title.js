@@ -7,16 +7,16 @@ function showClassDetails(k,mode){
  for(const a of C.kit)h+='<div class="pl"><b>'+ic(ABIL[a].e,22)+' '+ABIL[a].n+'</b> <small>('+abCost(a)+')<br>'+abilityDesc(a)+'</small></div>';
  showModal(C.n,h,[
   {k:'pick',label:'Play '+C.n,c:1,big:1,fn:function(){closeModal();startRun(k,mode);}},
-  {label:'Back',c:1,fn:closeModal}
+  {esc:1,label:'Back',c:1,fn:closeModal}
  ],'classinfo',ic(C.e,34));
 }
 function showClassPicker(mode){
  mode=mode||{};
- const t=$('titleBox');t.innerHTML='';
+ const t=$('titleBox');t.innerHTML='';t.className='box';
  const h=document.createElement('h1');h.textContent=mode.daily?'Daily: pick a class':'Pick a class';t.appendChild(h);
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
  else if(heatMax()>=1){
-  // Heat lives here, next to the choice it changes: 0 = normal, 1 = Hard, each next one adds a rule. A level opens by winning at the one below.
+  // Heat lives here, next to the choice it changes: 0 = normal, 1 = tougher, each next one adds a rule. A level opens by winning at the one below.
   const lb=document.createElement('p');lb.id='heatLbl';lb.className='sub';lb.innerHTML='<b>Heat</b>: a harder dungeon pays more gold.';t.appendChild(lb);
   const row=document.createElement('div');row.id='heatRow';row.className='heat';
   const hs=heatSel(),p=document.createElement('div');p.id='heatInfo';p.className='sub';
@@ -33,11 +33,11 @@ function showClassPicker(mode){
   // every rule that is active at the selected level, one short line each
   let hh='<b>Heat '+hs+(hs?' · '+HEAT[hs].n:' · Normal')+'</b>, gold ×'+heatGold(hs);
   if(!hs)hh+='<br>The standard dungeon.';
-  else{hh+='<br>Hard: '+HARD_RULES.slice(0,3).map(r=>r.n.toLowerCase()).join(', ')+'.';for(let i=2;i<=hs;i++)hh+='<br>'+HEAT[i].n+': '+HEAT[i].d;}
+  else{hh+='<br>Heat 1: '+HARD_RULES.slice(0,3).map(r=>r.n.toLowerCase()).join(', ')+'.';for(let i=2;i<=hs;i++)hh+='<br>'+HEAT[i].n+': '+HEAT[i].d;}
   if(heatMax()<BAL.heat.max)hh+='<br><em>Locked: win a run at Heat '+heatMax()+' for Heat '+(heatMax()+1)+'.</em>';
   p.innerHTML=hh;t.appendChild(p);
  }
- for(const k of Object.keys(CLS)){
+ for(const k of ['warrior','rogue','mage']){   // the cheaper unlock first
   const C=CLS[k],open=k==='warrior'||!!meta.unl[k],row=document.createElement('div');row.className='cls';
   const b=document.createElement('button');b.className='clsmain';
   if(open){
@@ -52,12 +52,12 @@ function showClassPicker(mode){
   }
   t.appendChild(row);
  }
- const bk=document.createElement('button');bk.className='c';bk.textContent='Back';bk.addEventListener('click',showTitle);t.appendChild(bk);
+ const bk=document.createElement('button');bk.className='c';bk.textContent='Back';bk.dataset.esc='1';bk.addEventListener('click',showTitle);t.appendChild(bk);
 }
-function hideTitle(){$('title').style.display='none';}
+function hideTitle(){{const a=document.activeElement;if(a&&a!==document.body&&$('titleBox').contains(a))a.blur();}$('title').style.display='none';}
 // Title screen: Continue / New run dominate; Daily and Upgrades beside "More" (Records, Achievements, Sound, Controls).
 function showTitle(keep){
- const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';
+ const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';t.className='box home';document.body.classList.remove('inrun');inRunCls=false;
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('div',titleLogo(),'logo');add('h1','Depths of Emberfall');
  add('p','Descend '+MAXF+' floors. Slay the dragon.','sub');
@@ -98,7 +98,7 @@ function expPillTick(){
 }
 // the rarely used screens
 function showMore(){
- const t=$('titleBox');t.innerHTML='';
+ const t=$('titleBox');t.innerHTML='';t.className='box';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','More');
  const row=(id,html,fn)=>{const b=add('button',html,'c');b.id=id;b.addEventListener('click',fn);return b;};
@@ -107,12 +107,12 @@ function showMore(){
  row('btnControls',ic('info',20)+' Controls',function(){showHelp(closeModal);});
  const sb=row('btnSound',ic('snd',20)+' '+soundLabel(),function(){toggleSound();sb.innerHTML=ic('snd',20)+' '+soundLabel();});
  const rb=row('btnReset',ic('x',20)+' Reset all progress',showResetAsk);rb.classList.add('danger');rb.style.marginTop='10px';
- const bk=add('button','Back','c');bk.addEventListener('click',function(){showTitle();});
+ const bk=add('button','Back','c');bk.dataset.esc='1';bk.addEventListener('click',function(){showTitle();});
 }
 // reset: two deliberate steps. Step 1 asks (Cancel is the big default), step 2 asks again with the red button at the TOP and Cancel at the bottom.
 function showResetAsk(){
- showModal('Reset all progress?','<p class="sub">Gold, upgrades, blueprints, records, settings and your saved run are lost.</p>',[
-  {k:'cancel',label:'Cancel',c:1,cls:'keep',fn:closeModal},
+ showModal('Reset all progress?','<p class="sub">Gold, upgrades, blueprints, unlocked classes and Heat, records, achievements, settings, running expeditions and your saved run are lost.</p>',[
+  {k:'cancel',esc:1,def:1,label:'Cancel',c:1,cls:'keep',fn:closeModal},
   {k:'reset1',label:'Erase everything...',c:1,cls:'danger',fn:function(){closeModal();showResetSure();}}
  ],'reset');
  $('modalBox').classList.add('reset');
@@ -120,9 +120,9 @@ function showResetAsk(){
 function showResetSure(){
  showModal('Really erase everything?','<p class="sub">This cannot be undone.</p>',[
   {k:'reset2',label:'Yes, erase all progress',c:1,cls:'danger',fn:function(el){
-   el.disabled=true;
+   for(const b of $('modalBox').querySelectorAll('button'))b.disabled=true;   // no Cancel while the erase runs
    wipeAll(function(){closeModal();noticeOld=false;showTitle();});}},
-  {k:'cancel',label:'Cancel',c:1,cls:'keep',fn:closeModal}
+  {k:'cancel',esc:1,def:1,label:'Cancel',c:1,cls:'keep',fn:closeModal}
  ],'reset');
  $('modalBox').classList.add('reset');
 }
@@ -135,7 +135,7 @@ function shopTabs(t,tab){
 }
 function showUpgrades(tab){
  tab=tab==='bp'?'bp':'upg';
- const t=$('titleBox'),st=t.dataset.tab===tab?t.scrollTop:0;t.innerHTML='';t.dataset.tab=tab;
+ const t=$('titleBox'),st=t.dataset.tab===tab?t.scrollTop:0;t.innerHTML='';t.className='box';t.dataset.tab=tab;
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','Upgrades');
  shopTabs(t,tab);
@@ -145,7 +145,7 @@ function showUpgrades(tab){
  add('h2','Boosts').style.fontSize='16px';
  for(const u of UPG){
   const lv=upLvl(u.k),mx=upMax(u),c=upNext(u),maxed=lv>=mx;
-  const b=add('button',cardHtml(u.k,'<b>'+u.n+' '+lv+'/'+mx+'</b><span>'+upText(u)+(maxed?'':' · <span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>'),'hasic');
+  const b=add('button',cardHtml(u.k,'<b>'+u.n+' '+lv+'/'+mx+'</b><span>'+upText(u)+(maxed?'':' <span class="nw">· <span class="gold">'+c+' '+ic('coin',13)+'</span></span>')+'</span>'),'hasic');
   b.dataset.up=u.k;b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(upBuy(u.k))showUpgrades('upg');});
  }
@@ -154,7 +154,7 @@ function showUpgrades(tab){
   const lv=upLvl(q.k),mx=q.max,c=upNext(q),maxed=lv>=mx,va=pairVar(q),other=q.v[meta.pv[q.k]===1?0:1],fee=pairFee(q);
   const row=add('div','','pair');row.dataset.pair=q.k;
   const b=document.createElement('button');b.className='hasic';b.dataset.up=q.k;
-  b.innerHTML=cardHtml(q.k,'<b>'+q.n+': '+va.n+' '+lv+'/'+mx+'</b><span>'+upText(q)+(maxed?'':' · <span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>');
+  b.innerHTML=cardHtml(q.k,'<b>'+q.n+': '+va.n+' '+lv+'/'+mx+'</b><span>'+upText(q)+(maxed?'':' <span class="nw">· <span class="gold">'+c+' '+ic('coin',13)+'</span></span>')+'</span>');
   b.style.minHeight='64px';b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(upBuy(q.k))showUpgrades('upg');});
   row.appendChild(b);
@@ -177,7 +177,7 @@ function showUpgrades(tab){
   if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showUpgrades('upg');});
  }
  }
- const bk=add('button','Back','c');bk.id='btnBack';bk.addEventListener('click',showTitle);
+ const bk=add('button','Back','c');bk.id='btnBack';bk.dataset.esc='1';bk.addEventListener('click',showTitle);
  t.scrollTop=st;
 }
 

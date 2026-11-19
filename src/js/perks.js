@@ -15,4 +15,4 @@ function addPerk(id){
 function perkPool(){return PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&(!pk.bp||bpOn(pk.id))&&(!pk.cls||pk.cls===G.p.cls)&&pc(pk.id)<pk.max);}
 function randomPerkId(){const pool=perkPool();return pool.length?pick(pool).id:null;}
 // A level-up perk choice is rolled ONCE when the level is gained and kept in G.picks ({l: level, o: [perk ids]}), so closing and reopening the dialog never rerolls.
-function rollPick(){const pool=perkPool();return pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3).map(pk=>pk.id);}
+function rollPick(){const pool=perkPool();for(let i=pool.length-1;i>0;i--){const j=Math.floor(rf()*(i+1)),t=pool[i];pool[i]=pool[j];pool[j]=t;}return pool.slice(0,meta.unl.pick4?4:3).map(pk=>pk.id);}   // Fisher-Yates: exactly pool-1 draws whatever the engine, so the Daily combat stream cannot diverge

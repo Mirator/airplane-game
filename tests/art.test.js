@@ -33,7 +33,7 @@ describe('art', { concurrency: CONC }, () => {
       await page.waitForFunction(() => !!window.__dbg());
       await grab('intro / run');
       await closeModal(page);
-      await page.evaluate(() => { const G = window.__dbg(); G.keys = 1; G.vanish = 3; G.ppois = { t: 2, d: 1 }; G.bl = 1; G.brace = { hits: 2, t: 3, reflect: 0.3 }; G.daily = 'x'; G.hard = 1; window.__dbg.fn.newFloor(3); });
+      await page.evaluate(() => { const G = window.__dbg(); G.keys = 1; G.vanish = 3; G.bl = 1; G.brace = { hits: 2, t: 3, reflect: 0.3 }; G.daily = 'x'; G.hard = 1; window.__dbg.fn.newFloor(3); });
       await grab('HUD with every tag');
       for (const [label, fn] of [
         ['equipment', () => window.__dbg.gear.showEquip(() => {})],

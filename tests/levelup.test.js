@@ -43,6 +43,8 @@ describe('async level-up', { concurrency: CONC }, () => {
       await page.keyboard.press('p'); await page.waitForTimeout(60); assert.deepEqual(await opts(page), o1, 'P opens it too');
       await page.locator('#modalBox button[data-k="equipment"]').click(); assert.match(await page.locator('#modalBox h2').textContent(), /Equipment/);
       await page.locator('#modalBox button', { hasText: 'Back' }).click(); await page.waitForTimeout(60);
+      assert.equal((await st(page)).kind, 'perk', 'Equipment > Back returns to the pick'); assert.deepEqual(await opts(page), o1, 'with the same options');
+      await page.locator('#modalBox button[data-k="later"]').click();
       assert.equal((await st(page)).modal, false);
       const p0 = (await st(page)).perks; await page.click('#gearBtn'); await page.locator('#modalBox button[data-k="' + o1[0] + '"]').click(); await page.waitForTimeout(80);
       const s = await st(page); assert.equal(s.perks, p0 + 1); assert.equal(s.pending, 0); assert.equal(s.badgeShown, false); assert.equal(s.modal, false);
@@ -68,10 +70,11 @@ describe('async level-up', { concurrency: CONC }, () => {
       const s0 = await st(page);
       await reload(page); await page.locator('#btnContinue').click(); await page.waitForTimeout(100);
       const s1 = await st(page); assert.equal(s1.pending, 2); assert.equal(s1.picks, s0.picks, 'same options'); assert.equal(s1.modal, false, 'no dialog on load'); assert.equal(s1.badge, '2');
-      // an older save: pending without stored picks loads with zero pending
+      // an older save: pending without stored picks keeps its count (the options are rolled when the dialog opens)
       await page.evaluate(() => { const G = window.__dbg(); delete G.picks; G.pending = 3; window.__dbg.fn.save(); });
       await reload(page); await page.locator('#btnContinue').click(); await page.waitForTimeout(100);
-      const s2 = await st(page); assert.equal(s2.pending, 0); assert.equal(s2.badgeShown, false); assert.equal(s2.modal, false);
+      const s2 = await st(page); assert.equal(s2.pending, 3, 'the old save keeps its pending picks'); assert.equal(s2.badgeShown, true); assert.equal(s2.modal, false);
+      await page.click('#gearBtn'); assert.equal((await st(page)).kind, 'perk', 'and the dialog rolls options for them'); assert.ok((await opts(page)).length >= 3);
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
   it('the stairs nudge: one choice dialog first, closing it lets the next tap descend', async () => {

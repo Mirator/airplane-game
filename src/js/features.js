@@ -33,14 +33,14 @@ function showShrine(){
  ];
  if(better)opts.splice(1,0,{k:'bless',html:'<b>'+ic('star',18)+' Blessing</b><span>Safe: heal '+pct(BAL.shrine.blessHeal)+' HP, +1 defense.</span>',fn:function(){
   const h=Math.round(p.mhp*BAL.shrine.blessHeal);p.hp=Math.min(p.mhp,p.hp+h);p.def++;floatFx(p.x,p.y,'+'+h,'#6f6');done('A warm light blesses you: +1 defense.');}});
- opts.push({k:'leave',label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
+ opts.push({k:'leave',esc:1,label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
  showModal('Shrine','',opts,'shrine',ic('shrine',30));
 }
 function showShop(){
  if(!G||G.over||!G.merchant)return;walkTok++;
  const m=G.merchant,p=G.p;
- const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' '+ic('coin',14)+'</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
- btns.push({k:'leave',label:'Leave',c:1,fn:closeModal});
+ const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' <span class="nw">- <span class="gold">'+it.price+' '+ic('coin',14)+'</span></span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
+ btns.push({k:'leave',esc:1,label:'Leave',c:1,fn:closeModal});
  showModal('Merchant','<p class="sub">You have <span class="gold">'+p.gold+' '+ic('coin',14)+'</span></p>',btns,'shop',ic('merchant',30));
 }
 function buy(i){

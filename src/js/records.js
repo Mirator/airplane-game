@@ -62,10 +62,16 @@ function checkAchievements(){
 function toast(text,ms){
  toastQ.push({t:text,ms:ms||3200});if(!toastBusy)nextToast();
 }
+// a toast never covers a dialog or the map while an ability is being aimed: it waits (polling) until both are gone; a new run or the end of a run drops the queue
+let toastGen=0;
+function toastClear(){toastQ=[];toastBusy=false;toastGen++;const el=$('toast');if(el)el.style.opacity='0';}
 function nextToast(){
  const el=$('toast');if(!el)return;
- const t=toastQ.shift();if(!t){toastBusy=false;el.style.opacity='0';return;}
+ if(!toastQ.length){toastBusy=false;el.style.opacity='0';return;}
+ const gen=toastGen;
+ if(modalOpen()||armed){toastBusy=true;el.style.opacity='0';setTimeout(function(){if(gen===toastGen)nextToast();},250);return;}
+ const t=toastQ.shift();
  toastBusy=true;el.textContent=t.t;el.style.opacity='1';
  el.style.top=(performance.now()<bannerUntil&&view.mm?Math.max(56,Math.round(Math.max(view.ch*0.16,view.mm.y+view.mm.h+13)+42+8)):56)+'px';   // never touches the floor banner
- setTimeout(function(){el.style.opacity='0';setTimeout(nextToast,260);},t.ms);
+ setTimeout(function(){if(gen!==toastGen)return;el.style.opacity='0';setTimeout(function(){if(gen===toastGen)nextToast();},260);},t.ms);
 }

@@ -165,11 +165,11 @@ button.autopick{background:#6b4f12;border-color:#ffd24a;box-shadow:0 0 0 3px #ff
 .rl.lose{color:#ff9a8a;font-size:13px}
 
 /* a long dialog scrolls inside its box; its last button (Back / Leave) stays reachable at the bottom edge */
-.box>button:last-child{position:sticky;bottom:0;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}
+.box>button:last-child{position:sticky;bottom:-16px;z-index:2;box-shadow:0 -10px 8px -2px var(--panel),var(--lift)}   /* -16px = the box padding: nothing of the list shows below the button */
 /* landscape phone: the map would be a 100 px strip, so the game is covered by a rotate hint (nothing is paused or lost: the run is untouched underneath) */
 #rot{display:none}
-@media (orientation:landscape) and (max-height:499px) and (max-width:1000px){
- #rot{position:fixed;inset:0;z-index:60;background:#07070d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px}
+@media (orientation:landscape) and (max-height:499px) and (pointer:coarse) and (hover:none){
+ body.inrun #rot{position:fixed;inset:0;z-index:60;background:#07070d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:16px}
  #rot b{font-size:20px;color:#ffd36a}
  #rot span{font-size:14px;color:var(--dim)}
 }
@@ -225,35 +225,95 @@ button.danger{border-color:#ff6a5a;background:#4a1c24;color:#ffd6d0}
 @media (min-width:700px){.box{max-width:520px}}
 /* portrait tablet: the bars keep a sane width */
 @media (min-width:700px){#bar,#bar2{width:100%;max-width:600px;margin:0 auto}#log{max-width:600px;margin:0 auto;width:100%}#hud{max-width:600px;margin:0 auto;width:100%}}
-/* wide screens: map left, side panel right (HUD, log, abilities, actions) */
-@media (min-width:960px) and (min-height:500px) and (min-aspect-ratio:11/10){
- :root{--pw:clamp(360px,27vw,420px)}
- #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-areas:"cv hud" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
- #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:12px 12px 6px}
+/* landscape windows (>= 640 x 480, wider than tall): map left, side panel right. The panel is compact below 960 px wide and a designed column from 960 up */
+#sight{display:none}
+@media (min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10){
+ :root{--pw:clamp(280px,34vw,330px)}
+ #app{max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr) var(--pw);grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"cv hud" "cv sight" "cv logw" "cv bar2" "cv bar";background:linear-gradient(90deg,transparent calc(100% - var(--pw) - 1px),var(--line) 0,var(--line) calc(100% - var(--pw)),#0d0f1c 0)}
+ #hud{grid-area:hud;max-width:none;margin:0;width:auto;padding:10px 10px 4px}
  #cv{grid-area:cv}
  #logw{grid-area:logw;min-height:0;overflow:hidden}
- #log{max-width:none;margin:0;width:auto;height:100%;padding:6px 14px}
+ #log{max-width:none;margin:0;width:auto;height:100%;padding:6px 12px}
  #tray{top:auto;height:72px}
- #bar2{grid-area:bar2;max-width:none;margin:0;width:auto;padding:4px 12px 0}
- #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 12px 14px}
+ #bar2{grid-area:bar2;max-width:none;margin:0;width:auto;padding:4px 10px 0}
+ #bar{grid-area:bar;max-width:none;margin:0;width:auto;padding:6px 10px 12px}
  #bar button,#bar2 button{max-height:76px}
  #hpbar{max-width:none}#resbar{max-width:none}
 }
-body.kb #menuBtn[data-key]::before{top:auto;bottom:1px;left:50%;transform:translateX(-50%)}
+/* >= 960 wide: a larger type scale, the In sight list, the log fills the free height */
+@media (min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10){
+ :root{--pw:clamp(380px,27vw,520px);--fs:15px;--lh:21px}
+ #sight{display:block;grid-area:sight;margin:6px 10px 0;padding:6px 8px;border:1px solid var(--line);border-radius:12px;background:#12152a;max-height:34vh;overflow:hidden}
+ #sight h3{margin:0 0 4px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+ #sightList{display:flex;flex-direction:column;gap:4px}
+ #sightList .none{font-size:var(--fs);color:var(--dim);padding:4px 2px}
+ #sightList button.srow{min-height:44px;padding:2px 8px;display:flex;align-items:center;gap:8px;width:100%;text-align:left;font-size:var(--fs);box-shadow:none}
+ #sightList .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+ #sightList .sh{flex:none;width:30%;max-width:120px;height:10px;border-radius:5px;background:#3a1420;overflow:hidden}
+ #sightList .sh i{display:block;height:100%;background:#d8504a}
+ #sightList .sv{flex:none;width:44px;text-align:right;font-size:13px;color:var(--dim);font-weight:700}
+ #hptxt{font-size:calc(var(--fs) + 1px)}#restxt{font-size:var(--fs)}
+ #hpbar,#resbar{height:28px}#hptxt,#restxt{line-height:28px}
+ #stats{font-size:calc(var(--fs) + 1px)}
+ #logw{margin:6px 10px 0;border:1px solid var(--line);border-radius:12px;background:#10121f;display:flex;flex-direction:column}
+ #logw::before{content:'Log';display:block;padding:6px 12px 0;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+ #log{flex:1;min-height:0;height:auto}
+ #log{font-size:var(--fs);line-height:var(--lh);padding:8px 12px}
+ #log div{-webkit-line-clamp:3}
+ #bar button small,#bar2 button small,#tray button small{font-size:calc(var(--fs) - 2px)}
+ #bar2 small.sub{font-size:calc(var(--fs) - 3px)}
+ #bar button,#bar2 button{min-height:64px}
+}
+@media (min-width:1400px) and (min-height:480px) and (min-aspect-ratio:11/10){:root{--fs:16px;--lh:22px}}
+@media (min-width:1800px) and (min-height:700px) and (min-aspect-ratio:11/10){:root{--fs:17px;--lh:24px}}
+/* the two 46 px top buttons: the chip sits on their lower-right corner, outside the icon */
+body.kb #menuBtn[data-key]::before,body.kb #gearBtn[data-key]::before{left:-5px;top:auto;right:auto;bottom:-8px}
+body.kb #bar button[data-key]::before,body.kb #bar2 button[data-key]::before,body.kb #tray button[data-key]::before{left:2px;top:1px}
 /* level-up badge on the Equipment button: a pulsing count, never over the map */
 #gearBtn .bd{top:-4px;right:-4px;background:#d4572a;border:1px solid #ffd24a;z-index:2}
 #gearBtn.pick{border-color:var(--gold)}
 #gearBtn.pick .bd{animation:bdp 1s ease-in-out infinite}
 @keyframes bdp{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
 @media (prefers-reduced-motion: reduce){#gearBtn.pick .bd{animation:none}}
+
+/* keyboard focus: a gold ring on every button, inside dialogs too */
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px;z-index:3}
+.box button:focus-visible{outline-offset:-3px}
+#sightList button.srow:focus-visible{outline-offset:-3px}
+/* menus on big screens: a wider card, larger type, lists in two columns */
+@media (min-width:1180px) and (min-height:600px){
+ .box{max-width:620px;font-size:17px}
+ .box p,.pl,.rl{font-size:16px}.pl small{font-size:15px}
+ .sub,.box button span,.box button.hasic .ct span{font-size:15px!important}
+ .box h2{font-size:24px}
+ .box button{min-height:54px;font-size:17px}
+ #title{align-items:center}#titleBox{margin-top:0;max-height:calc(100% - 4vh)}
+ #titleBox{max-width:1000px;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:start}
+ #titleBox>*{grid-column:1/-1}
+ #titleBox>button.hasic,#titleBox>.pair,#titleBox>.pl,#titleBox>.xslot,#titleBox>.lockrow{grid-column:auto}
+ #titleBox h1{font-size:36px}
+ #titleBox.home{max-width:920px;grid-template-rows:repeat(8,auto)}
+ #titleBox.home>.logo{grid-column:1;grid-row:1/9;align-self:center;margin:0}
+ #titleBox.home>*:not(.logo){grid-column:2}
+ #titleBox.home .scene{max-height:none}
+ #titleBox>.cls .clsmain{min-height:110px}
+}
+@media (min-width:1700px) and (min-height:800px){
+ .box{font-size:19px;max-width:700px}.box p,.pl,.rl{font-size:18px}.sub,.box button span,.box button.hasic .ct span{font-size:16px!important}
+ #titleBox{max-width:1180px}#titleBox.home{max-width:1060px}
+}
+
+.nw{white-space:nowrap}
+.box button.hasic:disabled{opacity:.72}
 </style></head><body>
 <div id="app">
  <div id="hud">
   <div id="hrow"><div id="hpbar"><div id="hpfill"></div><div id="hptxt"></div></div><div id="resbar" class="res"><div id="resfill"></div><div id="restxt"></div></div><button id="gearBtn" aria-label="Equipment"></button><button id="menuBtn" aria-label="Menu"></button></div>
   <div id="xpbar"><div id="xpfill"></div></div>
-  <div id="srow"><div id="stats"></div><div id="autoBox" style="display:none"><span id="autoTag"><i data-slot="auto"></i> Auto</span><button id="autoSpd" aria-label="Auto speed">1×</button><button id="autoBtn" aria-label="Stop Auto" aria-pressed="true"><i data-slot="stop"></i> Stop</button></div></div>
+  <div id="srow"><div id="stats"></div><div id="autoBox" style="display:none"><span id="autoTag"><i data-slot="auto"></i> Auto <b id="autoPay"></b></span><button id="autoSpd" aria-label="Auto speed">1×</button><button id="autoBtn" aria-label="Stop Auto" aria-pressed="true"><i data-slot="stop"></i> Stop</button></div></div>
  </div>
  <div id="cv"><canvas id="c"></canvas><div id="chips"></div><div id="toast" aria-live="polite"></div></div>
+ <div id="sight"><h3>In sight</h3><div id="sightList"></div></div>
  <div id="logw"><div id="log"></div><div id="tray" style="display:none"></div></div>
  <div id="bar2"></div>
  <div id="bar"></div>
@@ -273,7 +333,7 @@ const W=30,H=30,MAXF=8;   // map size and number of floors (floor 8 = dragon lai
 // NOTE: descriptive strings in the tables below (perk/trait/unlock text, help screen) still contain hand-written copies of
 // some numbers - update them together when changing a value.
 const BAL = {
- ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,staleMs:350,burstMs:900,camMinTs:22,camMaxTs:52},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe left / died on in the turn just resolved does nothing for this long; burstMs = repeat taps on the tile of the previous tap's target do nothing once it is empty, for this long after the last one; camMinTs = smallest tile size when the camera zooms out to frame targets
+ ui:{lowHp:0.3,lowHpReset:0.4,longPressMs:400,longPressMove:10,calloutMs:1000,calloutMax:2,guardMs:4000,modalGraceMs:400,deathMs:650,staleMs:350,burstMs:900,camMinTs:22,camMaxTs:64},   // UI only (no rules): low-HP callout, long-press inspect, danger-guard confirm window; deathMs = the death card waits this long after the lethal hit; modalGraceMs = a dialog opened by a game event ignores real taps this long (and any tap that began before it); staleMs = a tap on the tile a foe left / died on in the turn just resolved does nothing for this long; burstMs = repeat taps on the tile of the previous tap's target do nothing once it is empty, for this long after the last one; camMinTs = smallest tile size when the camera zooms out to frame targets
   // --- dungeon layout (mapgen.js) ---
   map: {
     span: 22,              // rooms are placed inside the top-left span x span corner of the 30x30 grid (shorter floors)
@@ -349,8 +409,8 @@ const BAL = {
   },
   // --- resources (combat.js endTurn) ---
   rage: { max: 100, dealt: 10, taken: 12, decay: 4 },    // warrior: +dealt per melee hit landed, +taken per hit suffered; -decay per turn with no awake enemy in sight
-  shot: { range: 3, mul: 0.4 },                           // mage basic attack: a free ranged shot at a foe within range tiles in line of sight; damage = normal attack formula x mul
-  mana: { regen: 1.1, perKill: 3 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
+  shot: { range: 4, mul: 0.52 },                           // mage basic attack: a free ranged shot at a foe within range tiles in line of sight; damage = spell attack (attack + gear) x spell multiplier x mul (about 40% of a Bolt at equal gear)
+  mana: { regen: 0.8, perKill: 2 },                       // mage: base pool lives in CLS.mage.mana; regen per turn (accumulates fractions) and per kill
   // --- active abilities (abilities.js). cost = resource spent; cd = turns before reuse (0 = none) ---
   ability: {
     bash:     { cd: 5, stun: 2, stunBoss: 1, mul: 1.0 },
@@ -436,7 +496,7 @@ const BAL = {
   // --- run score, shown on the recap and kept in the records (records.js) ---
   score: { floor: 100, kill: 2, level: 15, win: 600, par: 1500, perTurn: 0.3 },   // + win bonus and 'perTurn' for every turn under 'par'
   // --- Hard mode (unlocked by the first win): a stack of named rules, see HARD_RULES ---
-  hard: { hpMul: 1.25, atkMul: 1.2, bossAtkMul: 1.1, startPotions: 1, bonusPotion: 0, dropPotionMul: 0.5, extraSummonAt: 0.9, enrageFrac: 0.6, goldMul: 1.5, scoreMul: 1.5 },
+  hard: { hpMul: 1.25, atkMul: 1.2, bossAtkMul: 1.1, startPotions: 1, bonusPotion: 0, dropPotionMul: 0.5, extraSummonAt: 0.9, enrageFrac: 0.6 },
   // --- Heat 0-5 (HEAT below). Heat 1 is exactly Hard (BAL.hard); each further level adds one rule. gold / score multipliers per level ---
   heat: { max: 5, goldMul: [1, 1.5, 1.75, 2, 2.25, 2.5], scoreMul: [1, 1.5, 1.75, 2, 2.25, 2.5],
           extraFoes: 2,                  // Heat 2: more foes on every floor
@@ -461,9 +521,9 @@ const BAL = {
 // ===== Permanent upgrades (bought with banked gold on the title screen). steps = [[levels, gain per level], ...]: the first levels of the five old boosts are exactly
 // the old ones (Hardy 1-5, Sharpened / Padded 1-3, Supplies 1-2), the later levels give less (diminishing returns) but always a whole, honest step: what a card says for the next level is what it gives; int = whole numbers. pct = a percentage. =====
 const UPG=[
- {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,5]],int:1,late:5},
- {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[4,1]],int:1,late:3},
- {k:'def',n:'Padded',base:70,u:' defense',steps:[[4,1]],int:1,late:3},
+ {k:'hp',n:'Hardy',base:30,u:' HP',steps:[[5,8],[3,4]],int:1,late:5},
+ {k:'atk',n:'Sharpened',base:55,u:' attack',steps:[[3,1]],int:1,late:3},
+ {k:'def',n:'Padded',base:70,u:' defense',steps:[[3,1]],int:1,late:3},
  {k:'pot',n:'Supplies',base:40,u:' potion',steps:[[2,1]],int:1},
  {k:'goldp',n:'Greed',base:50,u:'% gold',steps:[[4,10],[2,5]],pct:1,late:4},
  {k:'xpf',n:'Insight',base:45,u:'% XP',steps:[[3,3]],pct:1,late:0}
@@ -510,7 +570,7 @@ const EN={
  bat:{n:'Bat',e:'bat',hp:5,atk:3,speed:2,pack:true,group:[4,6],w:2,xp:3,minF:5,tr:'Flock of fragile, fast biters. Use area attacks.'},
  warlock:{n:'Warlock',e:'warlock',hp:10,atk:6,range:6,cdmax:2,kite:true,xp:12,minF:5,tr:'Casts from 6 tiles with a clear line; keeps away.'},
  whelp:{n:'Whelp',e:'whelp',hp:16,atk:8,speed:2,pack:true,flat:true,xp:2,minF:99,tr:'Fast, fragile dragon spawn.'},
- dragon:{n:'Dragon',e:'dragon',hp:1500,atk:58,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
+ dragon:{n:'Dragon',e:'dragon',hp:1700,atk:68,breath:true,sweep:true,windMul:2,windMsg:'The Dragon rears back, flames gathering!',xp:100,minF:99,boss:true,tr:'Boss: breath (red tiles), whelps at '+BAL.enemyAi.summonAt.map(x=>Math.round(x*100)+'%').join('/')+' HP.'}
 };
 // perk fields: cls = only offered to that class; beh = behaviour (no stat change); max = levels. f(p) applies stat effects.
 const PERKS=[
@@ -671,20 +731,20 @@ const HARD_RULES=(function(){
   {n:'Tougher foes',d:'Foes +'+p(H.hpMul-1)+' HP, +'+p(H.atkMul-1)+' attack; dragon +'+p(H.bossAtkMul-1)+'.'},
   {n:'Scarce potions',d:H.startPotions+' fewer starting potion'+(H.startPotions>1?'s':'')+', '+p(1-H.dropPotionMul)+' fewer drops.'},
   {n:'Brood mother',d:'Extra whelps at '+p(H.extraSummonAt)+' dragon HP; enrages at '+p(H.enrageFrac)+'.'},
-  {n:'Spoils',d:'Banked gold and score x'+H.goldMul+'.'}
+  {n:'Spoils',d:'Banked gold and score x'+BAL.heat.goldMul[1]+'.'}
  ];
 })();
 // ===== Expedition outcome table: per class, per upgrade power (gold spent on boosts), measured with the bot (tests/sim.js). Regenerate with `node tests/calibrate.js`. =====
 // reach[f-1] = share of runs that ended on floor f (index 8 = won); gold / kills = mean per run ending there; turns = mean turns per run; gph = manual gold per hour (turns x BAL.exp.turnSec)
 // BEGIN EXP_TABLE (generated by tests/calibrate.js: runs 60 per cell, seed 1, levels fresh=0,mid=800,heavy=3000,high=8000,maxed=999999)
-const EXP_TABLE={warrior:[{pw:0,reach:[0,0,0.02,0.32,0.15,0.19,0.08,0.17,0.07],gold:[489,489,122,124,282,530,714,824,1549],kills:[0,0,28,44,61,81,110,135,153],turns:932,gph:1573},{pw:560,reach:[0,0,0,0.09,0.09,0.13,0.13,0.19,0.37],gold:[659,659,659,162,257,427,526,684,999],kills:[0,0,0,41,67,84,104,142,151],turns:1309,gph:1510},{pw:2054,reach:[0,0,0,0.02,0.02,0.06,0.07,0.15,0.68],gold:[825,825,825,54,236,254,478,811,948],kills:[0,0,0,37,74,78,106,131,152],turns:1425,gph:1736},{pw:6473,reach:[0,0,0,0,0.02,0.02,0,0.19,0.77],gold:[1128,1128,1128,1128,475,1665,1128,960,1173],kills:[0,0,0,0,64,129,0,134,147],turns:1435,gph:2359},{pw:16554,reach:[0,0,0,0,0,0,0,0.08,0.92],gold:[1451,1451,1451,1451,1451,1451,1451,1834,1419],kills:[0,0,0,0,0,0,0,143,150],turns:1380,gph:3154}],mage:[{pw:0,reach:[0,0,0.09,0.25,0.22,0.13,0.04,0.11,0.16],gold:[413,413,151,115,251,326,319,786,1076],kills:[0,0,28,43,60,84,111,146,152],turns:832,gph:1489},{pw:560,reach:[0,0,0.02,0.13,0.19,0.19,0.07,0.19,0.22],gold:[505,505,145,87,296,392,384,764,874],kills:[0,0,27,44,64,80,92,144,161],turns:1005,gph:1508},{pw:2054,reach:[0,0,0,0.13,0.17,0.09,0.04,0.17,0.41],gold:[637,637,637,151,284,479,593,623,981],kills:[0,0,0,39,57,77,99,136,148],turns:1094,gph:1746},{pw:6473,reach:[0,0,0,0.08,0.08,0.08,0.02,0.19,0.56],gold:[962,962,962,76,363,611,620,826,1263],kills:[0,0,0,43,57,84,105,136,151],turns:1261,gph:2288},{pw:16554,reach:[0,0,0,0.02,0.02,0.08,0,0.29,0.59],gold:[1328,1328,1328,208,370,799,1328,1057,1604],kills:[0,0,0,70,48,76,0,138,153],turns:1335,gph:2985}],rogue:[{pw:0,reach:[0,0.14,0.19,0.3,0.07,0.14,0.02,0.11,0.04],gold:[230,65,129,155,155,323,341,546,847],kills:[0,15,26,44,56,76,91,131,153],turns:687,gph:1004},{pw:560,reach:[0,0,0,0.18,0.18,0.14,0.14,0.14,0.2],gold:[517,517,517,178,306,383,546,820,876],kills:[0,0,0,40,62,79,121,148,147],turns:1059,gph:1466},{pw:2054,reach:[0,0,0,0.06,0.09,0.09,0.04,0.2,0.52],gold:[636,636,636,117,318,535,358,661,776],kills:[0,0,0,48,54,90,119,139,145],turns:1240,gph:1538},{pw:6473,reach:[0,0,0,0,0,0.04,0.04,0.17,0.75],gold:[1079,1079,1079,1079,1079,543,927,795,1178],kills:[0,0,0,0,0,69,113,133,142],turns:1442,gph:2246},{pw:16554,reach:[0,0,0,0,0,0.02,0.02,0.04,0.92],gold:[1444,1444,1444,1444,1444,1074,673,943,1491],kills:[0,0,0,0,0,77,110,130,148],turns:1439,gph:3011}]};
+const EXP_TABLE={warrior:[{pw:0,reach:[0,0,0.07,0.13,0.3,0.23,0.05,0.22,0],gold:[410,410,140,171,301,445,549,719,410],kills:[0,0,29,40,62,81,105,137,0],turns:745,gph:1650},{pw:560,reach:[0,0,0,0.02,0.17,0.07,0.08,0.38,0.28],gold:[690,690,690,205,314,364,523,787,933],kills:[0,0,0,47,62,84,112,131,154],turns:1043,gph:1984},{pw:2054,reach:[0,0,0,0.02,0.03,0.03,0.05,0.47,0.4],gold:[825,825,825,88,325,204,375,728,1117],kills:[0,0,0,44,66,81,102,140,160],turns:1155,gph:2142},{pw:4763,reach:[0,0,0,0,0.02,0.03,0.03,0.22,0.7],gold:[1046,1046,1046,1046,464,585,550,745,1198],kills:[0,0,0,0,57,81,106,135,154],turns:1166,gph:2690},{pw:14844,reach:[0,0,0,0.03,0.07,0.03,0,0.22,0.65],gold:[1253,1253,1253,355,460,543,1253,1372,1381],kills:[0,0,0,38,64,71,0,143,150],turns:1061,gph:3544}],mage:[{pw:0,reach:[0,0,0.02,0.27,0.1,0.2,0.13,0.25,0.03],gold:[408,408,133,161,266,404,401,692,883],kills:[0,0,31,42,61,92,121,138,170],turns:796,gph:1539},{pw:560,reach:[0,0,0,0.1,0.07,0.14,0.07,0.36,0.27],gold:[697,697,697,149,270,389,549,905,927],kills:[0,0,0,42,56,83,100,136,156],turns:977,gph:2140},{pw:2054,reach:[0,0,0,0.05,0.08,0.1,0.05,0.3,0.42],gold:[835,835,835,162,282,351,467,721,1268],kills:[0,0,0,46,61,83,115,132,153],turns:1000,gph:2504},{pw:4763,reach:[0,0,0,0.03,0.07,0.03,0.03,0.34,0.49],gold:[1048,1048,1048,216,521,525,519,967,1308],kills:[0,0,0,42,64,92,99,128,159],turns:1056,gph:2978},{pw:14844,reach:[0,0,0,0.03,0.03,0.03,0.03,0.29,0.59],gold:[1194,1194,1194,186,346,692,915,1007,1435],kills:[0,0,0,52,59,82,134,140,153],turns:1087,gph:3295}],rogue:[{pw:0,reach:[0,0.13,0.2,0.32,0.25,0.03,0,0.07,0],gold:[236,74,127,134,303,449,236,1016,236],kills:[0,17,27,45,64,80,0,148,0],turns:504,gph:1403},{pw:560,reach:[0,0,0,0.07,0.27,0.17,0.03,0.23,0.23],gold:[601,601,601,127,286,521,449,682,1095],kills:[0,0,0,47,68,87,108,133,145],turns:936,gph:1927},{pw:2054,reach:[0,0,0,0.02,0.12,0.1,0.05,0.25,0.47],gold:[734,734,734,233,296,484,246,722,974],kills:[0,0,0,41,66,84,107,136,141],turns:1045,gph:2108},{pw:4763,reach:[0,0,0,0.02,0.1,0.05,0,0.33,0.5],gold:[959,959,959,214,341,521,959,1020,1111],kills:[0,0,0,56,69,86,0,143,149],turns:1097,gph:2623},{pw:14844,reach:[0,0,0,0.03,0,0.05,0,0.17,0.75],gold:[1238,1238,1238,91,1238,759,1238,1133,1345],kills:[0,0,0,39,0,85,0,139,144],turns:1082,gph:3434}]};
 // END EXP_TABLE
 // ===== Heat 0-5. HEAT[h] = the rule added at that level (Heat 1 is Hard: HARD_RULES lists its parts). Numbers: BAL.heat / BAL.hard =====
 const HEAT=(function(){
  const T=BAL.heat,p=x=>Math.round(x*100)+'%';
  return [
   {n:'Normal',d:'The standard dungeon.'},
-  {n:'Hard',d:'Tougher foes, scarce potions, a brood mother.'},
+  {n:'Tougher',d:'Tougher foes, scarce potions, a brood mother.'},
   {n:'Reinforced',d:'+'+T.extraFoes+' foes on every floor.'},
   {n:'Iron elites',d:'Key elites get +'+p(T.eliteHpMul-1)+' HP, +'+p(T.eliteAtkMul-1)+' attack.'},
   {n:'Weak potions',d:'Potions heal '+p(1-T.potionMul)+' less.'},
@@ -713,7 +773,7 @@ const ACH=[
  {id:'horde',n:'Hordebreaker',d:'Clear every enemy on a Horde floor.',gold:30},
  {id:'hunt',n:'Stalker Stalked',d:'Slay the stalker on a Hunted floor.',gold:30},
  {id:'daily',n:'Daily Champion',d:'Win a Daily run.',gold:40},
- {id:'hardwin',n:'Hardened',d:'Win a run on Hard.',gold:100,chk:()=>meta.hwins>=1},
+ {id:'hardwin',n:'Heat Walker',d:'Win a run at Heat 1 or higher.',gold:100,chk:()=>meta.hwins>=1},
  {id:'habit',n:'Daily Habit',d:'Play the Daily on '+BAL.ach.dailyDays+' different days.',chk:()=>meta.dlyN>=BAL.ach.dailyDays,prog:()=>Math.min(meta.dlyN,BAL.ach.dailyDays)+'/'+BAL.ach.dailyDays},
  {id:'lair',n:'Into the Lair',d:'Reach floor '+MAXF+'.',chk:()=>meta.best>=MAXF},
  {id:'slayer',n:'Slayer',d:'Slay '+BAL.ach.kills+' enemies in total.',chk:()=>meta.kills>=BAL.ach.kills,prog:()=>Math.min(meta.kills,BAL.ach.kills)+'/'+BAL.ach.kills},
@@ -1759,12 +1819,18 @@ function checkAchievements(){
 function toast(text,ms){
  toastQ.push({t:text,ms:ms||3200});if(!toastBusy)nextToast();
 }
+// a toast never covers a dialog or the map while an ability is being aimed: it waits (polling) until both are gone; a new run or the end of a run drops the queue
+let toastGen=0;
+function toastClear(){toastQ=[];toastBusy=false;toastGen++;const el=$('toast');if(el)el.style.opacity='0';}
 function nextToast(){
  const el=$('toast');if(!el)return;
- const t=toastQ.shift();if(!t){toastBusy=false;el.style.opacity='0';return;}
+ if(!toastQ.length){toastBusy=false;el.style.opacity='0';return;}
+ const gen=toastGen;
+ if(modalOpen()||armed){toastBusy=true;el.style.opacity='0';setTimeout(function(){if(gen===toastGen)nextToast();},250);return;}
+ const t=toastQ.shift();
  toastBusy=true;el.textContent=t.t;el.style.opacity='1';
  el.style.top=(performance.now()<bannerUntil&&view.mm?Math.max(56,Math.round(Math.max(view.ch*0.16,view.mm.y+view.mm.h+13)+42+8)):56)+'px';   // never touches the floor banner
- setTimeout(function(){el.style.opacity='0';setTimeout(nextToast,260);},t.ms);
+ setTimeout(function(){if(gen!==toastGen)return;el.style.opacity='0';setTimeout(function(){if(gen===toastGen)nextToast();},260);},t.ms);
 }
 
 // save.js - permanent meta save (banked gold, shop levels, unlocks), achievements, and the run autosave / Continue.
@@ -1818,12 +1884,18 @@ function cleanMeta(){
  const leg={};if(isO(meta.leg))for(const k in BAL.upg.legacy){const v=Math.floor(+meta.leg[k]);if(isFinite(v)&&v>0)leg[k]=Math.min(v,1000);}meta.leg=leg;
  meta.bestM=cl(meta.bestM,0,MAXF);meta.heat=cl(meta.heat,0,BAL.heat.max);meta.heatSel=cl(meta.heatSel,0,BAL.heat.max);
  const e=meta.exp,run=[null,null];
- for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:+r.t0,seed:Math.floor(+r.seed)>>>0,pw:+r.pw,bf:cl(r.bf,0,MAXF)};}
+ for(let i=0;i<2;i++){const r=Array.isArray(e.run)?e.run[i]:null;if(expRecOk(r))run[i]={cls:r.cls,dur:+r.dur,t0:Math.min(+r.t0,Date.now()),seed:Math.floor(+r.seed)>>>0,pw:+r.pw,bf:cl(r.bf,0,MAXF)};}
  const rp=expRepOk(e.rep)?{cls:e.rep.cls,dur:+e.rep.dur,el:+e.rep.el,delves:+e.rep.delves,floor:+e.rep.floor,kills:+e.rep.kills,deaths:+e.rep.deaths,gold:+e.rep.gold,bp:e.rep.bp||null,early:e.rep.early?1:0}:null;
  meta.exp={s2:e.s2?1:0,run:run,rep:rp};
 }
 cleanMeta();
-function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+// Another tab erased the progress (Reset): this tab still holds the old meta and run in memory and would write them straight back with its next save. It stops writing and reloads.
+let staleTab=false;
+function saveMeta(){if(staleTab)return;try{localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
+window.addEventListener('storage',function(ev){
+ if(resetting||staleTab)return;
+ if(ev.key===null||(ev.key===META_KEY&&ev.newValue===null)){staleTab=true;try{location.reload();}catch(e){}}
+});
 function checkAch(){
  let any=checkAchievements();
  for(const u of UNLOCKS)if(u.chk&&!meta.unl[u.id]&&u.chk()){
@@ -1846,7 +1918,7 @@ function idbOpen(cb){
  try{
   const rq=indexedDB.open(IDB_NAME,1);
   rq.onupgradeneeded=function(){rq.result.createObjectStore('s');};
-  rq.onsuccess=function(){idbConn=rq.result;idbConn.onclose=idbConn.onversionchange=function(){idbConn=null;};cb(idbConn);};
+  rq.onsuccess=function(){idbConn=rq.result;idbConn.onclose=function(){idbConn=null;};idbConn.onversionchange=function(){try{idbConn.close();}catch(e){}idbConn=null;};/* another tab's deleteDatabase must not be blocked by this connection */cb(idbConn);};
   rq.onerror=rq.onblocked=function(){cb(null);};
  }catch(e){cb(null);}
 }
@@ -1862,7 +1934,7 @@ function idbFlush(){
 }
 function idbPutRun(v){idbWant=v;idbFlush();}
 function save(){
- if(!G||G.over)return;if(metaDirty){saveMeta();metaDirty=false;}
+ if(!G||G.over||staleTab)return;if(metaDirty){saveMeta();metaDirty=false;}
  if(rngS)G.rs=rngS.a;G.ts=Date.now();let js;try{js=JSON.stringify(G);}catch(e){return;}
  try{localStorage.setItem(RUN_KEY,js);}catch(e){}
  idbPutRun(js);
@@ -1890,10 +1962,10 @@ function continueRun(){
   G=g;G.ver=SAVE_VER;G.stopWalk=false;rngS=G.daily?{a:G.rs>>>0}:null;
   if(!G.stats){G.stats={pots:0,dragonHit:0,legacy:1};}   // run from before records/achievements: its history is unknown, so run-history achievements are skipped
   G.mod=modOf(G.mod)?G.mod:null;G.variant=G.variant|0;G.water=Array.isArray(G.water)?G.water:[];G.cracks=Array.isArray(G.cracks)?G.cracks.filter(c=>c&&inb(c.x,c.y)):[];G.crackT=G.crackT|0;G.wade=0;G.hard=G.hard?1:0;G.heat=Math.max(0,Math.min(BAL.heat.max,Math.floor(+G.heat)||(G.hard?1:0)));G.hard=G.heat>=1?1:0;G.fz=G.fz|0;G.lsUsed=G.lsUsed|0;G.daily=typeof G.daily==='string'?G.daily:null;
-  G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;G.picks=Array.isArray(G.picks)?G.picks.filter(q=>q&&Array.isArray(q.o)&&q.o.every(i=>perkById(i))).map(q=>({l:q.l|0,o:q.o.slice()})):[];G.pending=G.picks.length;   // an older save has no stored picks: zero pending
+  G.opts=Array.isArray(G.opts)&&G.opts.length===2?G.opts.map(o=>({mod:modOf(o&&o.mod)?o.mod:null,v:(o&&o.v)|0})):null;{const had=Array.isArray(G.picks);G.picks=had?G.picks.filter(q=>q&&Array.isArray(q.o)&&q.o.every(i=>perkById(i))).map(q=>({l:q.l|0,o:q.o.slice()})):[];G.pending=had?G.picks.length:Math.max(0,Math.min(9,Math.floor(+G.pending)||0));}   // an older save has no stored picks: its pending count stays and showPerk rolls the options
   G.perks=G.perks||{};for(const k of Object.keys(G.perks))if(!PERKS.some(q=>q.id===k))delete G.perks[k];   // a removed perk (Trapfinder) is dropped silently
   G.syn=G.syn||{};G.vanish=G.vanish||0;
-  {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0,ms:Math.max(0,Math.floor(+a.ms)||0),t:Math.max(0,Math.floor(+a.t)||0)};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
+  {const a=(G.auto&&typeof G.auto==='object')?G.auto:{},wasOn=!!a.on;G.auto={on:0,used:a.used?1:0,noticed:a.noticed?1:0,t:Math.max(0,Math.floor(+a.t)||0)};autoReset();autoWas=wasOn;}   // Auto never starts acting on load: the run comes back paused
   if(!CLS[G.p.cls])G.p.cls='warrior';
   G.cd=Object.assign({},G.cd||{});for(const k of CLS[G.p.cls].kit)G.cd[k]=G.cd[k]||0;
   for(const sl of SLOTS){const it=G.p.eq[sl];if(it&&!(kindTable(sl)[it.k]))G.p.eq[sl]=null;else if(it&&it.tr&&!TR[it.tr])it.tr=null;}
@@ -2287,9 +2359,10 @@ function drawVfx(ox,oy,ts,now){
     for(let i=1;i<=4;i++){const q=Math.max(0,m-i*0.07);disc(lerp(ax,bx,q),lerp(ay,by,q),ts*0.16*(1-i*0.17),'#c08cff',0.5*(1-i*0.2));}
     if(k<0.75){disc(px,py,ts*0.22,'#e9d6ff',1);disc(px,py,ts*0.13,'#fff',1);}
     else{const q=(k-0.7)/0.3;ring(bx,by,ts*(0.2+0.4*q),'#c08cff',3,1-q);star4(bx,by,ts*0.4*(1-q*0.4),'#fff',1-q,q*2);}break;}
-   case 'shot':{const m=Math.min(1,k/0.65),px=lerp(ax,bx,m),py=lerp(ay,by,m),q=Math.max(0,m-0.12);   // the Mage's free shot: a small pale spark, clearly lighter than Bolt
-    disc(lerp(ax,bx,q),lerp(ay,by,q),ts*0.06,'#9fd8ff',0.5);
-    if(k<0.7)disc(px,py,ts*0.09,'#e6f6ff',1);else{const u=(k-0.65)/0.35;ring(bx,by,ts*(0.1+0.2*u),'#9fd8ff',2,1-u);}break;}
+   case 'shot':{const m=Math.min(1,k/0.65),px=lerp(ax,bx,m),py=lerp(ay,by,m);   // the Mage's free shot: a small pale bolt with a short trail (head 0.14 tile, Bolt's is 0.22), a ring where it lands
+    if(k<0.7){for(let i=1;i<=3;i++){const q=Math.max(0,m-i*0.08);disc(lerp(ax,bx,q),lerp(ay,by,q),ts*0.12*(1-i*0.2),'#9fd8ff',0.55*(1-i*0.22));}
+     disc(px,py,ts*0.14,'#bfe6ff',1);disc(px,py,ts*0.08,'#fff',1);}
+    else{const u=(k-0.65)/0.35;ring(bx,by,ts*(0.15+0.25*u),'#9fd8ff',3,1-u);star4(bx,by,ts*0.28*(1-u*0.4),'#e6f6ff',1-u,u*2);}break;}
    case 'knife':{const m=Math.min(1,k/0.8),px=lerp(ax,bx,m),py=lerp(ay,by,m);
     ctx.save();ctx.translate(px,py);ctx.rotate(m*12);ctx.globalAlpha=1-Math.max(0,(k-0.8)*5);ctx.drawImage(spriteBmp('knife',Math.round(ts*0.55)),-ts*0.275,-ts*0.275,ts*0.55,ts*0.55);ctx.restore();ctx.globalAlpha=1;
     if(k>0.75)star4(bx,by,ts*0.35,'#fff',1-(k-0.75)*4,0);break;}
@@ -2510,7 +2583,7 @@ function addPerk(id){
 function perkPool(){return PERKS.filter(pk=>(!pk.lock||meta.unl[pk.lock])&&(!pk.bp||bpOn(pk.id))&&(!pk.cls||pk.cls===G.p.cls)&&pc(pk.id)<pk.max);}
 function randomPerkId(){const pool=perkPool();return pool.length?pick(pool).id:null;}
 // A level-up perk choice is rolled ONCE when the level is gained and kept in G.picks ({l: level, o: [perk ids]}), so closing and reopening the dialog never rerolls.
-function rollPick(){const pool=perkPool();return pool.sort(()=>rf()-0.5).slice(0,meta.unl.pick4?4:3).map(pk=>pk.id);}
+function rollPick(){const pool=perkPool();for(let i=pool.length-1;i>0;i--){const j=Math.floor(rf()*(i+1)),t=pool[i];pool[i]=pool[j];pool[j]=t;}return pool.slice(0,meta.unl.pick4?4:3).map(pk=>pk.id);}   // Fisher-Yates: exactly pool-1 draws whatever the engine, so the Daily combat stream cannot diverge
 
 // fov.js - line of sight, field of view, breadth-first distance maps and click-to-walk path finding.
 
@@ -2742,7 +2815,7 @@ function showBranch(){
  if(!G||G.over)return;walkTok++;
  const nf=G.floor+1;if(!G.opts)G.opts=rollOpts(nf);
  const btns=G.opts.map(function(o,i){return {k:'opt'+i,html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
- btns.push({k:'stay',label:'Stay here',c:1,fn:closeModal});
+ btns.push({k:'stay',esc:1,label:'Stay here',c:1,fn:closeModal});
  showModal('Floor '+nf+': pick a path','',btns,'path');
 }
 // the one map chip: the floor modifier as a small icon; tap it for a one-line reminder (Daily / Hard show in the top bar)
@@ -3092,7 +3165,7 @@ function knock(u,dx,dy){
  return true;
 }
 function endTurn(){
- const p=G.p;
+ const p=G.p;armed=null;   // an armed ability never survives a turn that was not its own (potion, Explore, a walk step, a new floor)
  if(G.won){finish('win');return;}
  G.turn++;
  for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;
@@ -3153,14 +3226,14 @@ function showShrine(){
  ];
  if(better)opts.splice(1,0,{k:'bless',html:'<b>'+ic('star',18)+' Blessing</b><span>Safe: heal '+pct(BAL.shrine.blessHeal)+' HP, +1 defense.</span>',fn:function(){
   const h=Math.round(p.mhp*BAL.shrine.blessHeal);p.hp=Math.min(p.mhp,p.hp+h);p.def++;floatFx(p.x,p.y,'+'+h,'#6f6');done('A warm light blesses you: +1 defense.');}});
- opts.push({k:'leave',label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
+ opts.push({k:'leave',esc:1,label:'Leave',c:1,fn:function(){s.left=1;closeModal();render();}});
  showModal('Shrine','',opts,'shrine',ic('shrine',30));
 }
 function showShop(){
  if(!G||G.over||!G.merchant)return;walkTok++;
  const m=G.merchant,p=G.p;
- const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' - <span class="gold">'+it.price+' '+ic('coin',14)+'</span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
- btns.push({k:'leave',label:'Leave',c:1,fn:closeModal});
+ const btns=m.stock.map(function(it,i){return {k:'buy'+i,html:'<b>'+ic(it.ic||'perk',18)+' '+it.n+(it.sold?' (sold)':'')+' <span class="nw">- <span class="gold">'+it.price+' '+ic('coin',14)+'</span></span></b><span>'+it.d+'</span>',off:!!it.sold||p.gold<it.price,fn:function(){buy(i);}};});
+ btns.push({k:'leave',esc:1,label:'Leave',c:1,fn:closeModal});
  showModal('Merchant','<p class="sub">You have <span class="gold">'+p.gold+' '+ic('coin',14)+'</span></p>',btns,'shop',ic('merchant',30));
 }
 function buy(i){
@@ -3352,7 +3425,7 @@ const DO={
  },
  nova:function(){
   const a=BAL.ability.nova,tg=chebEnemies();spend('nova');breakVanish();
-  vfxAdd('nova',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('Nova!');
+  vfxAdd('nova',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff',true);msg('Nova!');
   const burn=BAL.offhand.tomeBurnBase+Math.floor(G.floor/BAL.offhand.tomeBurnFloorDiv);
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg(true)*a.mul*spellMul()));
@@ -3458,13 +3531,13 @@ function toggleAbility(k){
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- the Mage's free shot: a weak ranged attack on a visible foe within BAL.shot.range (also next to you: the Mage never melees). No mana, no cooldown, one turn.
-// Damage = the normal attack formula (so the weapon matters) x BAL.shot.mul; crit, sneak, lifesteal and poison weapons apply, knock-back / sweep (melee only) do not.
+// Damage = the spell attack formula (attack + gear, staff and arcana count; the weapon's melee offset does not) x BAL.shot.mul, about 40% of a Bolt at equal gear; crit, sneak, lifesteal and poison weapons apply, knock-back / sweep (melee only) do not.
 // Shield rules are the ranged ones, as for Bolt.
 function canShoot(e){return !!G&&G.p.cls==='mage'&&!!e&&!e.dead&&G.vis[ix(e.x,e.y)]&&manh(e,G.p)<=BAL.shot.range&&los(G.p.x,G.p.y,e.x,e.y,true);}
 function mageShot(e){
  if(!G||G.over||!canShoot(e))return false;
  const p=G.p;walkTok++;breakVanish();
- let dmg=playerDmg()*BAL.shot.mul;const crit=rf()<critChance();if(crit)dmg*=BAL.combat.critMul;
+ let dmg=playerDmg(true)*BAL.shot.mul*spellMul();const crit=rf()<critChance();if(crit)dmg*=BAL.combat.critMul;
  const sn=sneakMul(),unaware=!e.awake;if(sn>1&&unaware){dmg*=sn;msg('Sneak attack!');}
  dmg=Math.max(1,Math.round(dmg));
  vfxAdd('shot',p.x,p.y,e.x,e.y);sfx('shot');
@@ -3493,7 +3566,7 @@ function clsOf(p){return CLS[p.cls]||CLS.warrior;}
 function needXp(l){return BAL.xp.base+l*BAL.xp.perLevel;}
 function gainXp(n){
  const p=G.p;p.xp+=Math.round(n*p.xpMul);
- while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;{const o=rollPick();if(o.length){G.pending++;G.picks.push({l:p.lvl,o:o});}}const lg=LG[p.cls]||LG.warrior;p.mhp+=lg.hp;p.hp+=lg.hp;if(lg.atkE&&p.lvl%lg.atkE===0)p.atk++;msg('Level up! You are level '+p.lvl+'.');if(!spendNow)msg('Level up: tap the badge to pick a perk.');pulseUntil=performance.now()+700;callout(p.x,p.y,'LEVEL UP','#ffd24a');sfx('level');try{if(!rmo()){const h=$('hpbar');h.classList.remove('pulse');void h.offsetWidth;h.classList.add('pulse');}}catch(e){}}
+ while(p.xp>=needXp(p.lvl)){p.xp-=needXp(p.lvl);p.lvl++;{const o=rollPick();if(o.length){G.pending++;G.picks.push({l:p.lvl,o:o});}}const lg=LG[p.cls]||LG.warrior;p.mhp+=lg.hp;p.hp+=lg.hp;if(lg.atkE&&p.lvl%lg.atkE===0)p.atk++;msg('Level up! You are level '+p.lvl+'.');if(!spendNow&&!AUTO.on&&G.hintT!==G.turn){G.hintT=G.turn;msg('Level up: tap the badge to pick a perk.');}pulseUntil=performance.now()+700;callout(p.x,p.y,'LEVEL UP','#ffd24a');sfx('level');try{if(!rmo()){const h=$('hpbar');h.classList.remove('pulse');void h.offsetWidth;h.classList.add('pulse');}}catch(e){}}
 }
 
 // run.js - run lifecycle: starting a run, populating floors, descending, death tip and the end-of-run summary.
@@ -3527,7 +3600,7 @@ function newFloor(f,opt){
  const th=themeOf(f,G.variant),m=G.mod?modOf(G.mod):null;
  bannerText='Floor '+f+' - '+th.n;bannerUntil=performance.now()+1800;
  if(m){bannerText+=' - '+m.n;msg(m.n+': '+m.tip);}
- G.opts=null;
+ G.opts=null;G.fm={t:G.turn,a:autoTurns(G)};
  if(f+1<MAXF)G.opts=rollOpts(f+1);
  computeVis();
 }
@@ -3618,7 +3691,7 @@ function startRun(cls,opts){
  const hpB=upBonus('hp'),p={x:0,y:0,cls:cls,hp:C.hp+hpB,mhp:C.hp+hpB,atk:C.atk+upBonus('atk'),def:C.def+upBonus('def'),
   eq:{weapon:{t:'weapon',k:C.start,v:0,tr:null},armor:null,off:null,charm:null},rage:0,mana:0,mf:0,mbase:C.mana,
   xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,1+potV),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1+upBonus('xpf')/100,fireMul:1,regen:0,goldMul:1+upBonus('goldp')/100,dmgMul:1};
- G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0,ms:0,t:0},hard:hard?1:0,heat:heat,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,shrine:null,merchant:null,treasure:null,keys:0,picks:[],killer:'',fz:0,lsUsed:0};
+ G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0,t:0},hard:hard?1:0,heat:heat,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,shrine:null,merchant:null,treasure:null,keys:0,picks:[],killer:'',fz:0,lsUsed:0};
  for(const q of PAIRS){const l=upLvl(q.k);if(l>0)pairVar(q).f(p,l,G);}
  for(const k of C.kit)G.cd[k]=0;
  autoReset();
@@ -3626,8 +3699,8 @@ function startRun(cls,opts){
  p.mana=mmax();
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
  if(daily){const d=meta.dly[daily]||(meta.dly[daily]={att:0});if(!d.att)meta.dlyN++;d.att++;saveMeta();checkAch();}
- noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg(C.n+' descends'+(daily?' · Daily '+daily:heat>1?' · Heat '+heat:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
+ noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;toastClear();newFloor(1);
+ msg(C.n+' descends'+(daily?' · Daily '+daily:hard?' · Heat '+heat:'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
@@ -3653,30 +3726,37 @@ function finish(kind){
  autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
  const won=kind==='win',dead=kind==='dead',hard=!!G.hard,heat=gHeat(G),aut=!!(G.auto&&G.auto.used);
  // Auto: the time it played is paid at the idle rate; only the turns the player played themselves keep their share of the run gold
+ const hm0=heatMax();
  const rb=runBank(G,won),bonus=rb.bonus,share=rb.share,idle=rb.idle,banked=rb.banked;   // Heat multiplies run gold only: idle pay is by turns played, not by the dungeon. The HUD shows this same number
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
  const newRec=recordRun(kind,score);
- const heatUp=won&&!G.daily?heatAfterWin(heat):0,bpD=bpRunDrop(won);
+ const heatUp=won&&!G.daily?(heatAfterWin(heat)||(heatMax()>hm0?heatMax():0)):0,bpD=bpRunDrop(won),lostPicks=G.pending|0;   // the first win opens Heat 1 (heatMax counts it from meta.wins): say so
  if(won&&G.daily)earn('daily');
  saveMeta();checkAch();clearSave();
  computeVis();render();
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
- const tags=(G.daily?' &middot; '+ic('cal',16)+' Daily':'')+(hard?' &middot; '+ic('skull',16)+' '+(heat>1?'Heat '+heat:'Hard'):'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const tags=(G.daily?' &middot; '+ic('cal',16)+' Daily':'')+(hard?' &middot; '+ic('skull',16)+' Heat '+heat:'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const showEnd=function(){
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<div class="portrait">'+ic(clsOf(p).e,56)+'</div><p class="recap"><b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'</p><div class="chips3"><span>Floor <b>'+G.floor+'</b></span><span><b>'+G.turn+'</b> turns</span><span><b>'+G.kills+'</b> kills</span></div>'+
-  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>('+(heat>1?'Heat '+heat:'Hard')+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turns: idle pay '+idle+' gold'+(share<1?', plus run gold of yours':'')+'.</p>':'')+
+  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Heat '+heat+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turn'+(autoTurns(G)===1?'':'s')+': idle pay '+idle+' gold'+(share<1?', plus your share of the run gold':'')+'.</p>':'')+
   (bpD?'<p class="recap" id="bpRecap">'+ic(bpIcon(bpD),20)+' Blueprint found: <b>'+bpD.n+'</b></p>':'')+
   (heatUp?'<p class="recap" id="heatRecap">'+ic('skull',16)+' <b>Heat '+heatUp+'</b> unlocked: '+HEAT[heatUp].n+'.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (G.newAch&&G.newAch.length?'<p class="recap">'+ic('trophy',18)+' Achievement: <b>'+G.newAch.join(', ')+'</b></p>':'')+
+  (lostPicks>0?'<p class="sub" id="pickRecap">'+lostPicks+' level-up pick'+(lostPicks>1?'s':'')+' went unspent.</p>':'')+
   (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),
   [{label:'Back to title',c:1,big:1,fn:function(){closeModal();G=null;rngS=null;showTitle();}}],'end',won?ic('trophy',40):dead?ic('skull',40):'');
  $('modalBox').classList.add(dead?'dead':won?'win':'x');
+ };
+ // the lethal hit is seen first: the death card follows after BAL.ui.deathMs (input is locked meanwhile: G.over)
+ if(dead&&BAL.ui.deathMs>0)setTimeout(function(){if(G&&G.over&&$('modal').style.display==='none')showEnd();},BAL.ui.deathMs);else showEnd();
+ toastClear();
 }
 
 // Tapping the stairs: below floor 1..MAXF-2 you choose between two floors; into the dragon lair there is only one way.
@@ -3691,14 +3771,15 @@ function descend(){
 }
 function goDown(opt){
  if(!G||G.over)return;
- walkTok++;sfx('stairs');
+ walkTok++;sfx('stairs');armed=null;
+ const ft=G.turn-((G.fm&&G.fm.t)|0),fa=autoTurns(G)-((G.fm&&G.fm.a)|0),manualFloor=!AUTO.self&&!(ft>0&&fa/ft>=0.5);   // bestM counts only floors the player mostly played by hand
  G.stopWalk=false;
  if(G.mod)meta.mods[G.mod]=1;   // survived a floor of this modifier
  newFloor(G.floor+1,opt);
  const p=G.p;
  if(p.renew>0){p.hp=Math.min(p.mhp,p.hp+Math.round(p.mhp*p.renew));}
  if(G.floor===BAL.ach.noArmorFloor&&!p.eq.armor)earn('bare');
- meta.best=Math.max(meta.best,G.floor);if(!AUTO.self)meta.bestM=Math.max(meta.bestM|0,G.floor);saveMeta();checkAch();   // bestM = the deepest floor the player reached by hand: it limits how deep expeditions go
+ meta.best=Math.max(meta.best,G.floor);if(manualFloor)meta.bestM=Math.max(meta.bestM|0,G.floor);saveMeta();checkAch();   // bestM = the deepest floor the player reached by hand: it limits how deep expeditions go
  msg('Floor '+G.floor+' - '+themeOf(G.floor,G.variant).n+(G.floor===MAXF?' (dragon lair!)':'')+'.');
  save();render();
 }
@@ -3746,6 +3827,7 @@ function startWalk(path,opts){
 }
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
+ if(armed){cancelTarget();return;}   // like Wait: with an ability armed the bar button only cancels
  const p=G.p;
  if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
  const dz=dangerSet();
@@ -3788,6 +3870,20 @@ const cz=crackSet();
  if(goal<0){
   // go to stairs if seen
   for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. To the stairs.');startWalk(pa);return;}}
+  // the only way on is blocked by a foe the search cannot pass (asleep in the dark on a seen tile, or in plain sight): walk up to it and say so
+  {const q=[[p.x,p.y]],pv=new Map([[ix(p.x,p.y),-1]]);let g4=-1;
+   for(let i=0;i<q.length&&g4<0;i++){const [x,y]=q[i];
+    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+     if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||cz.has(k)||dz.has(k))continue;
+     pv.set(k,ix(x,y));q.push([nx,ny]);
+     if(!G.exp[k]||G.map[k]===3||loot.has(k)||G.map[k]===2){g4=k;break;}}}
+   if(g4>=0){
+    const full=[];let k=g4;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
+    const i=full.findIndex(t=>enemyAt(t[0],t[1]));
+    if(i>=0){const e=enemyAt(full[i][0],full[i][1]);
+     msg(G.vis[ix(e.x,e.y)]?'The '+EN[e.t].n+' blocks the only way on. Deal with it first.':'A foe blocks the way on. Walk up and deal with it.');
+     if(i>0)startWalk(full.slice(0,i),{explore:true});else render();return;}
+   }}
   msg('Nothing left to explore.');render();return;
  }
  const path=[];let k=goal;while(k!==ix(p.x,p.y)){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
@@ -3821,7 +3917,7 @@ function onTap(tx,ty){
    const k=armed;tapMark={x:tx,y:ty,t:performance.now()};
    if((tx===p.x&&ty===p.y)||targetTiles(k).some(t=>t[0]===tx&&t[1]===ty))useAbility(k);else cancelTarget();
    render();return;}
-  if(tx===p.x&&ty===p.y){cancelTarget();return;}
+  if(tx===p.x&&ty===p.y&&!targetTiles(armed).some(t=>t[0]===tx&&t[1]===ty)){cancelTarget();return;}   // your own tile casts only when it is lit (Smoke, Fireball)
   tapMark={x:tx,y:ty,t:performance.now()};
   useAbility(armed,tx,ty);
   render();return;
@@ -3928,22 +4024,25 @@ function modalBlocked(e){
  if(!modalGrace||!e||!e.isTrusted)return false;
  return performance.now()-modalAt<modalGrace||(e.detail>0&&lastDown<modalAt);
 }
-function showModal(title,html,buttons,kind,icon){
+function showModal(title,html,buttons,kind,icon,opt){
  const wasOpen=$('modal').style.display!=='none';
- modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]?BAL.ui.modalGraceMs:0;
- armed=null;if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
+ const keepIdx=wasOpen&&$('modalBox').contains(document.activeElement)?dlgButtons($('modalBox')).indexOf(document.activeElement):-1;   // a dialog rebuilt in place (the merchant after a purchase) keeps the focused row
+ modalAt=performance.now();modalGrace=!wasOpen&&GRACE_KINDS[kind]&&!(opt&&opt.nograce)?BAL.ui.modalGraceMs:0;
+ armed=null;{const tt=$('toast');if(tt)tt.style.opacity='0';}if(G&&G.p)updateBar();const b=$('modalBox');b.innerHTML='';b.dataset.kind=kind||'';b.classList.remove('dead','win','reset');
  const h=document.createElement('h2');if(icon){const s=document.createElement('span');s.className='mic';s.innerHTML=icon;h.appendChild(s);}h.appendChild(document.createTextNode(title));b.appendChild(h);
  if(html){const d=document.createElement('div');d.innerHTML=html;d.style.display='flex';d.style.flexDirection='column';d.style.gap='8px';b.appendChild(d);}
  for(const bt of buttons){
-  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;
+  const el=document.createElement('button');if(bt.c)el.className='c';if(bt.cls)el.classList.add(bt.cls);if(bt.k)el.dataset.k=bt.k;if(bt.esc)el.dataset.esc='1';if(bt.def)el.dataset.def='1';
   el.innerHTML=bt.html||bt.label;if(bt.off)el.disabled=true;if(bt.big){el.style.minHeight='60px';el.style.fontSize='18px';}
   el.addEventListener('click',function(e){e.stopPropagation();if(modalBlocked(e))return;bt.fn(el);});
   b.appendChild(el);
  }
  $('modal').style.alignItems=kind==='help'?'flex-start':'';   // an open section must not move the headings under the finger
  $('modal').style.display='flex';
+ if(keepIdx>=0){const bs=dlgButtons(b);(bs[Math.min(keepIdx,bs.length-1)]||bs[0]||b).focus();}else focusFirst(b);
 }
-function closeModal(){$('modal').style.display='none';if(G&&G.p)render();}
+function closeModal(){{const a=document.activeElement;if(a&&a!==document.body&&$('modalBox').contains(a))a.blur();}   // focus leaves with the dialog at once (a hidden button must not keep taking Enter / Space)
+ $('modal').style.display='none';if(G&&G.p)render();if($('title').style.display!=='none')focusFirst($('titleBox'));}
 function perkTags(pk){
  let t='';
  if(pk.cls)t+='<em class="tag act">'+CLS[pk.cls].n.toUpperCase()+'</em>';
@@ -3958,7 +4057,7 @@ const PERK_CAT={might:'o',vamp:'o',keen:'o',venom:'o',chain:'o',blood:'o',berser
 const CAT_COL={o:'#ff8a3a',d:'#3f86ff',u:'#b38bff'};
 function perkChip(id,px){const c=CAT_COL[PERK_CAT[id]||'u'];return '<span class="chp" style="border-color:'+c+';background:'+c+'26">'+ic(CARD_IC[id]||'perk',px||28)+'</span>';}
 function cardHtml(id,inner){return (CARD_IC[id]&&PERK_CAT[id]!==undefined||PERKS.some(p=>p.id===id)?perkChip(id):'<span class="chp">'+ic(CARD_IC[id]||'perk',28)+'</span>')+'<span class="ct">'+inner+'</span>';}
-function showPerk(){
+function showPerk(manual){
  if(!G||G.pending<=0)return;
  if(!Array.isArray(G.picks))G.picks=[];
  while(G.picks.length<G.pending){const o=rollPick();if(!o.length){G.pending=G.picks.length;break;}G.picks.push({l:G.p.lvl,o:o});}   // a pending count set from outside (tests) gets its options rolled here
@@ -3971,8 +4070,8 @@ function showPerk(){
   const c=pc(pk.id),lv=pk.max>1?(c>0?' Lv '+c+'→'+(c+1):' (max '+pk.max+')'):'';
   return {k:pk.id,html:cardHtml(pk.id,'<b>'+pk.n+lv+perkTags(pk)+'</b><span>'+pk.d+'</span>'),cls:'hasic',fn:function(){
    addPerk(pk.id);G.picks.shift();G.pending=G.picks.length;closeModal();save();render();
-   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk();else afterModals();
-  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){closeModal();});}},{k:'later',label:'Later',c:1,fn:closeModal}]),'perk');
+   if(G.pending>0&&(spendNow||AUTO.on||!modalOpen()))showPerk(true);else afterModals();
+  }};}).concat(spendNow||AUTO.on?[]:[{k:'equipment',label:ic('equip',20)+' Equipment',c:1,fn:function(){showEquip(function(){showPerk(true);});}},{k:'later',esc:1,label:'Later',c:1,fn:closeModal}]),'perk',null,{nograce:!!manual});
 }
 // equipment card: icon + name, then one short line of what it does
 function slotLines(sl){
@@ -3997,12 +4096,12 @@ function showEquip(back){
  showModal('Equipment',gearHtml(),[
   {k:'abil',label:'Abilities',c:1,fn:function(){showAbilities(again);}},
   {k:'perks',label:'Perks',c:1,fn:function(){showPerks(again);}},
-  {label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+  {esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showAbilities(back){
  const C=clsOf(G.p);
  let h='';for(const k of C.kit){const a=ABIL[k];h+='<div class="pl"><b>'+ic(a.e,22)+' '+a.n+'</b> <small>('+abCost(k)+')<br>'+abilityDesc(k)+'</small></div>';}
- showModal(C.n,h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'',ic(C.e,30));
+ showModal(C.n,h,[{esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'',ic(C.e,30));
 }
 function showPerks(back){
  let h='';const own=PERKS.filter(pk=>pc(pk.id)>0);
@@ -4013,13 +4112,13 @@ function showPerks(back){
   const on=pc(s.a)&&pc(s.b);
   h+='<div class="pl'+(on?'':' dim')+'"><b>'+(on?'★ ':'')+s.n+'</b> <small>('+perkById(s.a).n+' + '+perkById(s.b).n+')<br>'+s.d+'</small></div>';
  }
- showModal('Perks',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
+ showModal('Perks',h,[{esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}]);
 }
 function showMenu(){
  if(!G||G.over)return;walkTok++;
  const arm={v:false},armAuto={v:false};
  showModal('Menu','',[
-  {html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
+  {esc:1,html:ic('check',20)+' Resume',c:1,big:1,fn:closeModal},
   {k:'auto',label:ic('auto',20)+' Auto play',c:1,fn:function(el){
    // the cost is stated BEFORE the first activation: the first tap only says it, the second starts (no alert / confirm)
    if(!(G.auto&&G.auto.used)&&!armAuto.v){armAuto.v=true;el.innerHTML=ic('auto',20)+' Pays '+autoRateText()+', not run gold. Tap again';return;}
@@ -4048,9 +4147,8 @@ function showGear(){
    const old=equipItem(it);
    if(worthKeeping(old)){const on=gearName(old);it.k=old.k;it.v=old.v;it.tr=old.tr||null;it.skip=1;msg('Equipped '+nn+'. You drop your '+on+'.');}
    else{G.items=G.items.filter(o=>o!==it);msg('Equipped '+nn+'.');}
-   closeModal();save();render();
-   if(G.pending>0)showPerk();}},
-  {k:'leave',label:'Leave',c:1,big:1,fn:function(){it.skip=1;msg('Left the '+nn+'. Tap yourself to see it again.');closeModal();render();}}
+   closeModal();save();render();}},   // a postponed perk pick stays postponed: Equip never reopens it
+  {k:'leave',esc:1,label:'Leave',c:1,big:1,fn:function(){it.skip=1;msg('Left the '+nn+'. Tap yourself to see it again.');closeModal();render();}}
  ],'gear');
 }
 
@@ -4063,12 +4161,13 @@ function showHelp(back){
  // essentials first (about 100 words), everything else folded away
  let h='<div class="hess">'+
   '<p><b>Tap</b> a tile to walk, an enemy to attack, yourself to wait.</p>'+
-  '<p><b>Hold</b> (or right-click) a foe, a tile or yourself to inspect it. Tap to close.</p>'+
-  '<p><b>Abilities:</b> tap one, then a lit tile. Self ones (Cleave, Nova, Brace, Vanish): tap again to use. Dim ones say why.</p>'+
+  '<p><b>Hold</b> (or right-click) a foe, tile or yourself to inspect. Tap to close.</p>'+
+  '<p><b>Aimed abilities:</b> tap one, then a lit tile to cast. The button says Cancel. Dim ones say why.</p>'+
+  '<p><b>Cleave, Nova, Brace, Vanish:</b> tap again, yourself or a lit tile to use. The button says Use. Wait cancels.</p>'+
   '<p><b>Red tiles</b> hit next turn: step off. Walking onto danger needs a second tap.</p>'+
-  '<p><b>Explore</b> finds new ground, then the stairs. <b>Items</b> holds potion, flames, teleport. The menu has Auto, perks and sound.</p></div>'+
+  '<p><b>Explore</b> finds ground, then the stairs. <b>Items</b> holds potion, flames, teleport. The menu has Auto, perks, sound.</p></div>'+
   sec('Buttons and bars',
-   r('ab_bash','Ability row','Four class abilities. Tap again to cancel aiming.')+
+   r('ab_bash','Ability row','Four class abilities. A dim one says why it cannot be used.')+
    r('bag','Items','Potion (heals '+pct(P.healFrac)+' HP), Flames (burns all in sight), Teleport (random far spot).')+
    r('compass','Explore','Stops when an enemy appears or danger shows.')+
    r('down','Stairs','Lit up when you stand on ▼.')+
@@ -4078,7 +4177,7 @@ function showHelp(back){
   sec('Keyboard','<p class="sub">Arrows or WASD move and attack. 1-4 abilities (again to use). Space wait, E explore, I items, Q potion, P perk, Enter stairs, Esc cancel or menu. Right-click inspects.</p>')+
   sec('Fighting',
    r('guard','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them or hit from behind.')+
-   r('ab_bolt','Mage shot','Tap a foe within '+BAL.shot.range+' tiles: free weak shot.')+
+   (!G||G.over||G.p.cls==='mage'?r('ab_bolt','Mage shot','Tap a foe within '+BAL.shot.range+' tiles, or move toward it in line: a free shot, about 40% of a Bolt.'):'')+
    r('ab_cleave','Straight lines','Melee and Bash go up, down, left, right. Cleave and Nova also reach diagonals. Foes cannot strike diagonally either.')+
    r('ab_bash','Knockback','Pushing a foe into a wall, door or unit adds damage.')+
    r('door','Doors','Fight in doorways so one foe reaches you.')+
@@ -4093,11 +4192,11 @@ function showHelp(back){
    r('map','Minimap dots','You white, stairs gold, foes red, elite orange, shrine and merchant cyan.'))+
   sec('Modes',
    r('auto','Auto','Menu, Auto play ('+(1000/BAL.auto.tickMs)+' turns/s at 1×). Any tap takes over. Earns idle pay, not run gold.')+
-   r('cal','Daily','Same dungeon for everyone today. Never Hard.')+
-   r('skull','Heat','Win to unlock Heat 1 (Hard), then win at each Heat to unlock the next. Harder dungeon, more gold, rare blueprints.')+
+   r('cal','Daily','Same dungeon for everyone today. No Heat.')+
+   r('skull','Heat','Win to unlock Heat 1, then win at each Heat to unlock the next. Harder dungeon, more gold, rare blueprints.')+
    r('map','Expeditions','Send a hero away for 30 min to 8 h. It returns with gold and blueprints.')+
    r('cart','Upgrades','Spend gold on levels and blueprints on the title screen.')+
-   r('snd','Sound','Off by default. menu or More.'));
+   r('snd','Sound','Off by default. Switch it in the menu or under More.'));
  if(G&&!G.over){
   const C=clsOf(G.p);let k2='';
   for(const k of C.kit){const a=ABIL[k];k2+=r(a.e,a.n+' <small>('+abCost(k)+')</small>',abilityDesc(k));}
@@ -4107,7 +4206,7 @@ function showHelp(back){
   for(const c of Object.keys(CLS)){const C=CLS[c];k2+=r(C.e,C.n,classBlurb(c)+'<br>'+C.kit.map(k=>ic(ABIL[k].e,16)+' '+ABIL[k].n+': '+abilityDesc(k)).join('<br>'));}
   h+=sec('Classes',k2);
  }
- showModal('Controls',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'help');
+ showModal('Controls',h,[{esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'help');
 }
 
 // title.js - title screen, class picker, permanent-upgrade shop and unlock list.
@@ -4119,16 +4218,16 @@ function showClassDetails(k,mode){
  for(const a of C.kit)h+='<div class="pl"><b>'+ic(ABIL[a].e,22)+' '+ABIL[a].n+'</b> <small>('+abCost(a)+')<br>'+abilityDesc(a)+'</small></div>';
  showModal(C.n,h,[
   {k:'pick',label:'Play '+C.n,c:1,big:1,fn:function(){closeModal();startRun(k,mode);}},
-  {label:'Back',c:1,fn:closeModal}
+  {esc:1,label:'Back',c:1,fn:closeModal}
  ],'classinfo',ic(C.e,34));
 }
 function showClassPicker(mode){
  mode=mode||{};
- const t=$('titleBox');t.innerHTML='';
+ const t=$('titleBox');t.innerHTML='';t.className='box';
  const h=document.createElement('h1');h.textContent=mode.daily?'Daily: pick a class':'Pick a class';t.appendChild(h);
  if(mode.daily){const p=document.createElement('p');p.className='sub';p.textContent='Same dungeon for everyone today. Normal difficulty.';t.appendChild(p);}
  else if(heatMax()>=1){
-  // Heat lives here, next to the choice it changes: 0 = normal, 1 = Hard, each next one adds a rule. A level opens by winning at the one below.
+  // Heat lives here, next to the choice it changes: 0 = normal, 1 = tougher, each next one adds a rule. A level opens by winning at the one below.
   const lb=document.createElement('p');lb.id='heatLbl';lb.className='sub';lb.innerHTML='<b>Heat</b>: a harder dungeon pays more gold.';t.appendChild(lb);
   const row=document.createElement('div');row.id='heatRow';row.className='heat';
   const hs=heatSel(),p=document.createElement('div');p.id='heatInfo';p.className='sub';
@@ -4145,11 +4244,11 @@ function showClassPicker(mode){
   // every rule that is active at the selected level, one short line each
   let hh='<b>Heat '+hs+(hs?' · '+HEAT[hs].n:' · Normal')+'</b>, gold ×'+heatGold(hs);
   if(!hs)hh+='<br>The standard dungeon.';
-  else{hh+='<br>Hard: '+HARD_RULES.slice(0,3).map(r=>r.n.toLowerCase()).join(', ')+'.';for(let i=2;i<=hs;i++)hh+='<br>'+HEAT[i].n+': '+HEAT[i].d;}
+  else{hh+='<br>Heat 1: '+HARD_RULES.slice(0,3).map(r=>r.n.toLowerCase()).join(', ')+'.';for(let i=2;i<=hs;i++)hh+='<br>'+HEAT[i].n+': '+HEAT[i].d;}
   if(heatMax()<BAL.heat.max)hh+='<br><em>Locked: win a run at Heat '+heatMax()+' for Heat '+(heatMax()+1)+'.</em>';
   p.innerHTML=hh;t.appendChild(p);
  }
- for(const k of Object.keys(CLS)){
+ for(const k of ['warrior','rogue','mage']){   // the cheaper unlock first
   const C=CLS[k],open=k==='warrior'||!!meta.unl[k],row=document.createElement('div');row.className='cls';
   const b=document.createElement('button');b.className='clsmain';
   if(open){
@@ -4164,12 +4263,12 @@ function showClassPicker(mode){
   }
   t.appendChild(row);
  }
- const bk=document.createElement('button');bk.className='c';bk.textContent='Back';bk.addEventListener('click',showTitle);t.appendChild(bk);
+ const bk=document.createElement('button');bk.className='c';bk.textContent='Back';bk.dataset.esc='1';bk.addEventListener('click',showTitle);t.appendChild(bk);
 }
-function hideTitle(){$('title').style.display='none';}
+function hideTitle(){{const a=document.activeElement;if(a&&a!==document.body&&$('titleBox').contains(a))a.blur();}$('title').style.display='none';}
 // Title screen: Continue / New run dominate; Daily and Upgrades beside "More" (Records, Achievements, Sound, Controls).
 function showTitle(keep){
- const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';
+ const t=$('titleBox'),st=keep?t.scrollTop:0;t.innerHTML='';t.className='box home';document.body.classList.remove('inrun');inRunCls=false;
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('div',titleLogo(),'logo');add('h1','Depths of Emberfall');
  add('p','Descend '+MAXF+' floors. Slay the dragon.','sub');
@@ -4210,7 +4309,7 @@ function expPillTick(){
 }
 // the rarely used screens
 function showMore(){
- const t=$('titleBox');t.innerHTML='';
+ const t=$('titleBox');t.innerHTML='';t.className='box';
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','More');
  const row=(id,html,fn)=>{const b=add('button',html,'c');b.id=id;b.addEventListener('click',fn);return b;};
@@ -4219,12 +4318,12 @@ function showMore(){
  row('btnControls',ic('info',20)+' Controls',function(){showHelp(closeModal);});
  const sb=row('btnSound',ic('snd',20)+' '+soundLabel(),function(){toggleSound();sb.innerHTML=ic('snd',20)+' '+soundLabel();});
  const rb=row('btnReset',ic('x',20)+' Reset all progress',showResetAsk);rb.classList.add('danger');rb.style.marginTop='10px';
- const bk=add('button','Back','c');bk.addEventListener('click',function(){showTitle();});
+ const bk=add('button','Back','c');bk.dataset.esc='1';bk.addEventListener('click',function(){showTitle();});
 }
 // reset: two deliberate steps. Step 1 asks (Cancel is the big default), step 2 asks again with the red button at the TOP and Cancel at the bottom.
 function showResetAsk(){
- showModal('Reset all progress?','<p class="sub">Gold, upgrades, blueprints, records, settings and your saved run are lost.</p>',[
-  {k:'cancel',label:'Cancel',c:1,cls:'keep',fn:closeModal},
+ showModal('Reset all progress?','<p class="sub">Gold, upgrades, blueprints, unlocked classes and Heat, records, achievements, settings, running expeditions and your saved run are lost.</p>',[
+  {k:'cancel',esc:1,def:1,label:'Cancel',c:1,cls:'keep',fn:closeModal},
   {k:'reset1',label:'Erase everything...',c:1,cls:'danger',fn:function(){closeModal();showResetSure();}}
  ],'reset');
  $('modalBox').classList.add('reset');
@@ -4232,9 +4331,9 @@ function showResetAsk(){
 function showResetSure(){
  showModal('Really erase everything?','<p class="sub">This cannot be undone.</p>',[
   {k:'reset2',label:'Yes, erase all progress',c:1,cls:'danger',fn:function(el){
-   el.disabled=true;
+   for(const b of $('modalBox').querySelectorAll('button'))b.disabled=true;   // no Cancel while the erase runs
    wipeAll(function(){closeModal();noticeOld=false;showTitle();});}},
-  {k:'cancel',label:'Cancel',c:1,cls:'keep',fn:closeModal}
+  {k:'cancel',esc:1,def:1,label:'Cancel',c:1,cls:'keep',fn:closeModal}
  ],'reset');
  $('modalBox').classList.add('reset');
 }
@@ -4247,7 +4346,7 @@ function shopTabs(t,tab){
 }
 function showUpgrades(tab){
  tab=tab==='bp'?'bp':'upg';
- const t=$('titleBox'),st=t.dataset.tab===tab?t.scrollTop:0;t.innerHTML='';t.dataset.tab=tab;
+ const t=$('titleBox'),st=t.dataset.tab===tab?t.scrollTop:0;t.innerHTML='';t.className='box';t.dataset.tab=tab;
  const add=(tag,html,cls)=>{const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;};
  add('h1','Upgrades');
  shopTabs(t,tab);
@@ -4257,7 +4356,7 @@ function showUpgrades(tab){
  add('h2','Boosts').style.fontSize='16px';
  for(const u of UPG){
   const lv=upLvl(u.k),mx=upMax(u),c=upNext(u),maxed=lv>=mx;
-  const b=add('button',cardHtml(u.k,'<b>'+u.n+' '+lv+'/'+mx+'</b><span>'+upText(u)+(maxed?'':' · <span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>'),'hasic');
+  const b=add('button',cardHtml(u.k,'<b>'+u.n+' '+lv+'/'+mx+'</b><span>'+upText(u)+(maxed?'':' <span class="nw">· <span class="gold">'+c+' '+ic('coin',13)+'</span></span>')+'</span>'),'hasic');
   b.dataset.up=u.k;b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(upBuy(u.k))showUpgrades('upg');});
  }
@@ -4266,7 +4365,7 @@ function showUpgrades(tab){
   const lv=upLvl(q.k),mx=q.max,c=upNext(q),maxed=lv>=mx,va=pairVar(q),other=q.v[meta.pv[q.k]===1?0:1],fee=pairFee(q);
   const row=add('div','','pair');row.dataset.pair=q.k;
   const b=document.createElement('button');b.className='hasic';b.dataset.up=q.k;
-  b.innerHTML=cardHtml(q.k,'<b>'+q.n+': '+va.n+' '+lv+'/'+mx+'</b><span>'+upText(q)+(maxed?'':' · <span class="gold">'+c+' '+ic('coin',13)+'</span>')+'</span>');
+  b.innerHTML=cardHtml(q.k,'<b>'+q.n+': '+va.n+' '+lv+'/'+mx+'</b><span>'+upText(q)+(maxed?'':' <span class="nw">· <span class="gold">'+c+' '+ic('coin',13)+'</span></span>')+'</span>');
   b.style.minHeight='64px';b.disabled=maxed||meta.gold<c;
   b.addEventListener('click',function(){if(upBuy(q.k))showUpgrades('upg');});
   row.appendChild(b);
@@ -4289,7 +4388,7 @@ function showUpgrades(tab){
   if(!have&&!u.ach)b.addEventListener('click',function(){if(meta.unl[u.id]||meta.gold<u.cost)return;meta.gold-=u.cost;meta.unl[u.id]=1;saveMeta();showUpgrades('upg');});
  }
  }
- const bk=add('button','Back','c');bk.id='btnBack';bk.addEventListener('click',showTitle);
+ const bk=add('button','Back','c');bk.id='btnBack';bk.dataset.esc='1';bk.addEventListener('click',showTitle);
  t.scrollTop=st;
 }
 
@@ -4310,11 +4409,11 @@ function titleLogo(){
 // screens.js - the Records and Achievements screens (opened from the title; drawn into the title box).
 
 function screenFrame(title){
- const t=$('titleBox');t.innerHTML='';
+ const t=$('titleBox');t.innerHTML='';t.className='box';
  const h=document.createElement('h1');h.textContent=title;t.appendChild(h);
  return t;
 }
-function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.addEventListener('click',function(){showMore();});t.appendChild(b);}
+function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.dataset.esc='1';b.addEventListener('click',function(){showMore();});t.appendChild(b);}
 function recLine(r){
  if(!r||!r.runs)return '<span style="color:#8f8da8">No runs yet</span>';
  return 'Floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest <b>'+(r.fast?r.fast+'t':'-')+'</b> &middot; Score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> '+r.awins+'/'+r.aruns:'');
@@ -4322,7 +4421,7 @@ function recLine(r){
 function showRecords(){
  const t=screenFrame('Records'),add=(html,style)=>{const d=document.createElement('div');d.className='pl';d.innerHTML=html;if(style)d.style.cssText=style;t.appendChild(d);return d;};
  const wr=meta.runs?Math.round(100*(meta.wins/Math.max(1,meta.runs))):0;
- add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Heat 1+ wins <b>'+meta.hwins+'</b><br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
+ add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) '+(heatMax()>=1?' &middot; Heat 1+ wins <b>'+meta.hwins+'</b>':'')+'<br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
  for(const k of Object.keys(CLS)){
   const C=CLS[k],n=recGet(k,0),h=recGet(k,1);
   add('<b>'+ic(C.e,22)+' '+C.n+'</b><br><small>'+recLine(n)+'</small>'+(h.runs?'<br><small>'+ic('skull',14)+' Heat 1+: '+recLine(h)+'</small>':''),'border:1px solid #3a3f64;border-radius:10px;padding:8px');
@@ -4363,7 +4462,7 @@ function expScreen(title,name){
  return t;
 }
 function expAdd(t,tag,html,cls){const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;}
-function expBack(t,fn,label){const b=expAdd(t,'button',label||'Back','c');b.id='btnBack';b.addEventListener('click',function(){expLeave();(fn||showTitle)();});return b;}
+function expBack(t,fn,label){const b=expAdd(t,'button',label||'Back','c');b.id='btnBack';b.dataset.esc='1';b.addEventListener('click',function(){expLeave();(fn||showTitle)();});return b;}
 // the list of slots: an empty slot sends a hero, a running one counts down (Recall pays the part done), a finished one is collected
 function showExpeditions(){
  if(meta.exp.rep){showExpReport(meta.exp.rep);return;}
@@ -4438,7 +4537,7 @@ function bpTab(t,add){
  const list=BPS.filter(b=>bpState(b.id)>=1).sort((a,b)=>bpState(a.id)-bpState(b.id)||'cbr'.indexOf(a.tier)-'cbr'.indexOf(b.tier));
  for(const b of list){
   const st=bpState(b.id),cost=BAL.bp.cost[b.tier];
-  const inner='<b>'+b.n+'</b><span class="bpk">'+bpKind(b)+'</span><span>'+bpDesc(b)+(st===2?' · <span style="color:#6fd08c">Bought</span>':' · <span class="gold">'+cost+' '+ic('coin',13)+'</span>')+'</span>';
+  const inner='<b>'+b.n+'</b><span class="bpk">'+bpKind(b)+'</span><span>'+bpDesc(b)+(st===2?' · <span style="color:#6fd08c">Bought</span>':' <span class="nw">· <span class="gold">'+cost+' '+ic('coin',13)+'</span></span>')+'</span>';
   const el=add('button','<span class="chp">'+ic(bpIcon(b),28)+'</span><span class="ct">'+inner+'</span>','hasic');
   el.dataset.bp=b.id;el.dataset.state=st;
   if(st===2){el.disabled=true;el.style.opacity='.85';el.style.borderColor='#2a8a5a';}
@@ -4464,11 +4563,11 @@ const BTNS=[
   if(n<=0){msg('No items.');render();return;}
   armed=null;setTray(true);render();}},
  {id:'b_exp',fn:explore},
- {id:'b_wait',fn:act(wait)},
+ {id:'b_wait',fn:act(function(){if(armed){cancelTarget();return;}wait();})},   // armed: Wait is a cancel, no turn spent
  {id:'b_down',fn:act(descend)}
 ];
 const TRAYBTNS=[{id:'b_pot',fn:act(drink)},{id:'b_fire',fn:act(fireball)},{id:'b_tele',fn:act(teleport)}];
-const KEYS={b_items:'I',b_exp:'E',b_wait:'Space',b_down:'Enter',b_pot:'Q'};
+const KEYS={b_items:'I',b_exp:'E',b_wait:'␣',b_down:'↵',b_pot:'Q'};   // Space / Enter as one-glyph chips, so they never reach the icon
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.dataset.key=KEYS[b.id];el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;if(KEYS[b.id])el.dataset.key=KEYS[b.id];el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
 function trayOpen(){return $('tray').style.display!=='none';}
@@ -4487,7 +4586,7 @@ for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.d
 $('menuBtn').dataset.key='Esc';$('gearBtn').innerHTML=ic('equip',28);$('menuBtn').innerHTML=ic('menu',26);
 for(const el of document.querySelectorAll('[data-slot]'))el.innerHTML=ic(el.dataset.slot==='stop'?'x':'auto',16);
 // the Equipment button doubles as the level-up badge: with a pick pending it opens the perk choice (which has an Equipment button of its own)
-function gearOrPick(){if(!G||G.over)return;walkTok++;if(modalOpen())return;if(G.pending>0)showPerk();else showEquip(closeModal);}
+function gearOrPick(){if(!G||G.over)return;walkTok++;if(modalOpen())return;if(G.pending>0)showPerk(true);else showEquip(closeModal);}
 $('gearBtn').addEventListener('click',gearOrPick);$('gearBtn').dataset.key='P';
 {const bd=document.createElement('i');bd.id='perkBadge';bd.className='bd';bd.style.display='none';$('gearBtn').appendChild(bd);}
 function bset(id,icn,lab,badge,dis){
@@ -4534,6 +4633,7 @@ function updateBar(){
 }
 // only touch the DOM when the markup changes
 function setH(el,h){if(el._h!==h){el._h=h;el.innerHTML=h;}}
+let inRunCls=false;
 function updateHud(){
  if(!G)return;const p=G.p;
  $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
@@ -4544,11 +4644,33 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';setH(rt,'Mana '+Math.floor(p.mana||0)+'/'+m);}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';setH(rt,ic('knife',16)+' Knives '+(G.knives||0)+'/'+m);}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+(G.auto&&G.auto.used?runBank(G,G.won).banked:p.gold)+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
+ setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+p.gold+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
  {const n=G.pending|0,b=$('perkBadge'),t=n>0?String(n):'';if(b._t!==t){b._t=t;b.textContent=t;b.style.display=t?'':'none';$('gearBtn').classList.toggle('pick',n>0);$('gearBtn').setAttribute('aria-label',n>0?'Pick a perk ('+n+' waiting)':'Equipment');}}
- autoUi();
+ autoUi();sightUpdate();
+ {const ir=!G.over;if(ir!==inRunCls){inRunCls=ir;document.body.classList.toggle('inrun',ir);}}
 }
+// the wide side panel's "In sight" list: every visible foe by distance (icon, name, HP bar); a click inspects it and rings it on the map
+let hlFoe=null;
+function sightUpdate(){
+ if(!isBig())return;
+ const el=$('sightList'),vis=G.over?[]:G.enemies.filter(e=>!e.dead&&e.hp>0&&G.vis[ix(e.x,e.y)]).sort((a,b)=>manh(a,G.p)-manh(b,G.p));
+ let h='';
+ if(!vis.length)h='<div class="none">Nothing in sight.</div>';
+ else{
+  for(const e of vis.slice(0,6)){const d=EN[e.t];
+   h+='<button class="srow" data-id="'+e.id+'" aria-label="'+d.n+' '+e.hp+' of '+e.mhp+' HP">'+ic(d.e,24)+'<span class="sn">'+(e.elite&&e.name?e.name:d.n)+(e.awake?'':' (asleep)')+'</span><span class="sh"><i style="width:'+Math.max(0,Math.min(100,100*e.hp/e.mhp))+'%"></i></span><span class="sv">'+e.hp+'</span></button>';}
+  if(vis.length>6)h+='<div class="none">+'+(vis.length-6)+' more</div>';
+ }
+ if(el._h!==h){el._h=h;el.innerHTML=h;}
+}
+function sightFoe(ev){const b=ev.target.closest&&ev.target.closest('button.srow');return b&&G?G.enemies.find(e=>e.id===+b.dataset.id):null;}
+$('sightList').addEventListener('click',function(ev){
+ const e=sightFoe(ev);if(!e||!G||G.over||modalOpen())return;
+ hlFoe={id:e.id,until:performance.now()+2500};showInspect(e.x,e.y);render();
+});
+$('sightList').addEventListener('mouseover',function(ev){const e=sightFoe(ev);if(e&&G){hlFoe={id:e.id,until:1e12};render();}});
+$('sightList').addEventListener('mouseleave',function(){if(hlFoe&&hlFoe.until>1e11){hlFoe=null;if(G)render();}});
 function renderLog(){
  if(!G)return;const l=G.log.slice(-LOGN);
  $('log').innerHTML=l.map(t=>'<div></div>').join('');
@@ -4576,21 +4698,36 @@ function kbUsed(){if(!document.body.classList.contains('kb')){let touch=false;tr
 // first real key press shows the key hints (never on a touch-first device)
 document.addEventListener('keydown',function(ev){if(ev.isTrusted&&!/^(Shift|Control|Alt|Meta|CapsLock)$/.test(ev.key))kbUsed();},true);
 // a mouse click leaves the button focused; Space / Enter would then press it a second time
-document.addEventListener('click',function(ev){if(ev.detail>0&&ev.target&&ev.target.closest){const b=ev.target.closest('button');if(b&&b.blur)setTimeout(function(){b.blur();},0);}},true);
-function topBack(box){return [...box.querySelectorAll('button')].reverse().find(x=>!x.disabled&&/^(back|resume|close|leave|got it|cancel|keep|later)/i.test(x.textContent.trim()));}
-function keyModal(ev){
- const m=$('modal'),box=$('modalBox'),k=box.dataset.kind;
- if(ev.key==='Escape'){if(k==='end')return;const b=topBack(box);if(b){ev.preventDefault();b.click();}return;}
- if(ev.key==='Enter'&&!ev.repeat){
-  const bs=[...box.querySelectorAll('button')].filter(x=>!x.disabled);
-  const one=bs.length===1?bs[0]:null,menu=k==='menu'?bs[0]:null;
-  const b=one||menu;if(b){ev.preventDefault();b.click();}
- }
+document.addEventListener('click',function(ev){if(ev.detail>0&&ev.target&&ev.target.closest){const b=ev.target.closest('button');if(b&&b.blur)b.blur();}},true);   // at once (capture phase): the press itself is already decided by the event target, and a Space / Enter a moment later must not press the button again
+// ---- dialogs by keyboard. The top dialog (a modal, else the title-side screen) owns every key: Tab / arrows move a gold focus ring between its enabled buttons
+// (focus never leaves the dialog), Enter presses the focused one, Esc presses the one marked data-esc (Back, Leave, Later, Stay here, Cancel...; the end card has none).
+function dlgRoot(){return $('modal').style.display!=='none'?$('modalBox'):$('title').style.display!=='none'?$('titleBox'):null;}
+function dlgButtons(root){return [...root.querySelectorAll('button')].filter(b=>!b.disabled&&b.getClientRects().length>0);}
+function focusFirst(root){
+ if(!document.body.classList.contains('kb'))return;   // the ring only appears for keyboard users (the first real key press sets body.kb)
+ const bs=dlgButtons(root),d=bs.find(b=>b.dataset.def)||bs[0];
+ if(d){try{d.focus({preventScroll:true});}catch(e){d.focus();}}
 }
-function keyTitle(ev){
- if(ev.key!=='Escape')return;
- const t=$('titleBox'),b=[...t.querySelectorAll('button')].reverse().find(x=>!x.disabled&&/^back/i.test(x.textContent.trim()));
- if(b){ev.preventDefault();b.click();}
+function dlgKey(ev,root){
+ const k=ev.key,bs=dlgButtons(root),ae=document.activeElement,i=bs.indexOf(ae);
+ if(k==='Escape'){
+  if(root===$('modalBox')&&root.dataset.kind==='end')return;
+  const b=[...root.querySelectorAll('button[data-esc]')].reverse().find(x=>!x.disabled);
+  if(b){ev.preventDefault();b.click();}return;}
+ if(k==='Tab'||k==='ArrowDown'||k==='ArrowUp'||k==='ArrowLeft'||k==='ArrowRight'){
+  ev.preventDefault();if(!bs.length)return;
+  const back=k==='ArrowUp'||k==='ArrowLeft'||(k==='Tab'&&ev.shiftKey);
+  const n=i<0?(back?bs.length-1:0):(i+(back?-1:1)+bs.length)%bs.length;
+  bs[n].focus();return;}
+ if(k==='Enter'||k===' '){
+  if(ev.repeat){ev.preventDefault();return;}   // a held key never presses a second dialog's button
+  if(ae&&ae.tagName==='BUTTON'&&root.contains(ae)){
+   // the key press itself clicks the focused button (a trusted click: the open-grace of an event dialog applies to it); a disabled / hidden one is ignored
+   return;}
+  const b=bs.find(x=>x.dataset.def)||bs[0];
+  if(b&&!(root===$('modalBox')&&performance.now()-modalAt<modalGrace)){ev.preventDefault();b.click();}
+  else ev.preventDefault();
+ }
 }
 // the key form of a tap on an adjacent tile: a red tile / cracking tile needs a second, separate key press (held-key repeats never confirm)
 function keyStep(dx,dy,ev){
@@ -4598,6 +4735,10 @@ function keyStep(dx,dy,ev){
  if(ev.repeat&&now-lastKeyAct<90)return;
  lastKeyAct=now;
  if(!inb(nx,ny))return;
+ if(p.cls==='mage'){   // the Mage's key form of a tap on a foe in range: the first visible foe in line that way is shot instead of walked up to
+  for(let k=1;k<=BAL.shot.range;k++){const x=p.x+dx*k,y=p.y+dy*k;if(!inb(x,y)||!walkable(x,y))break;
+   const e=enemyAt(x,y);if(e){if(canShoot(e)){if(insp)clearInspect();mageShot(e);return;}break;}}
+ }
  const e=enemyAt(nx,ny);
  if(!(e&&G.vis[ix(nx,ny)])){
   const k=ix(nx,ny),pr=perilAt(k);
@@ -4614,7 +4755,8 @@ function keyStep(dx,dy,ev){
 }
 // aiming: an arrow key fires at the nearest target in a straight line that way
 function keyAim(dx,dy){
- const p=G.p,A=ABIL[armed];if(!A||A.tg==='tile'||A.tg==='self')return;
+ const p=G.p,A=ABIL[armed];if(!A||A.tg==='tile')return;
+ if(A.tg==='self'){msg('Enter or '+(kit().indexOf(armed)+1)+' to use, Esc to cancel.');render();return;}
  const tg=view.tg||targetTiles(armed);let best=null,bd=1e9;
  for(const t of tg){const ox=t[0]-p.x,oy=t[1]-p.y;
   if((dx&&oy===0&&Math.sign(ox)===dx)||(dy&&ox===0&&Math.sign(oy)===dy)){const d=Math.abs(ox)+Math.abs(oy);if(d<bd){bd=d;best=t;}}}
@@ -4624,9 +4766,8 @@ function keyAim(dx,dy){
 document.addEventListener('keydown',function(ev){
  if(ev.ctrlKey||ev.metaKey||ev.altKey)return;
  const tg=ev.target&&ev.target.tagName;
+ {const root=dlgRoot();if(root){dlgKey(ev,root);return;}}
  if((ev.key==='Enter'||ev.key===' ')&&tg==='BUTTON')return;   // a Tab-focused button does its own press
- if($('modal').style.display!=='none'){keyModal(ev);return;}
- if($('title').style.display!=='none'){keyTitle(ev);return;}
  if(!G||G.over)return;
  const k=ev.key.length===1?ev.key.toLowerCase():ev.key;let d=null;
  if(k==='Escape'){
@@ -4641,7 +4782,7 @@ document.addEventListener('keydown',function(ev){
  else if(k==='q'){if(!ev.repeat){walkTok++;drink();}return;}
  else if(k==='p'){if(!ev.repeat)gearOrPick();return;}
  else if(k==='i'){if(!ev.repeat)$('b_items').click();return;}
- else if(k==='>'||k==='Enter'){ev.preventDefault();if(ev.repeat)return;walkTok++;if(armed&&ABIL[armed].tg==='self'){useAbility(armed);return;}if(G.map[ix(G.p.x,G.p.y)]===2)descend();return;}
+ else if(k==='>'||k==='Enter'){ev.preventDefault();if(ev.repeat)return;walkTok++;if(armed){if(ABIL[armed].tg==='self')useAbility(armed);else{msg(ABIL[armed].n+': pick a lit tile, or Esc to cancel.');render();}return;}if(G.map[ix(G.p.x,G.p.y)]===2)descend();return;}
  if(d){
   ev.preventDefault();walkTok++;
   if(armed){if(!ev.repeat)keyAim(d[0],d[1]);return;}
@@ -4649,7 +4790,22 @@ document.addEventListener('keydown',function(ev){
 });
 $('menuBtn').addEventListener('click',showMenu);
 // a tap on any button also dismisses the inspect card (the button still does its job)
-document.addEventListener('click',function(ev){if(insp&&ev.target!==cv)clearInspect();});
+document.addEventListener('click',function(ev){if(insp&&ev.target!==cv&&!(ev.target.closest&&ev.target.closest('#sightList')))clearInspect();});
+
+// while a dialog or title screen is up the game underneath is inert (no Tab stop, no focus behind it)
+function syncInert(){$('app').inert=$('modal').style.display!=='none'||$('title').style.display!=='none';}
+for(const id of ['modal','title'])new MutationObserver(syncInert).observe($(id),{attributes:true,attributeFilter:['style']});
+syncInert();
+// a title-side screen that is rebuilt (a new screen, or the same one after a purchase) hands the focus back: the same row when it is the same screen, else the first button
+{let lastIdx=0,lastH='';
+ document.addEventListener('focusin',function(ev){const t=$('titleBox');if(t.contains(ev.target))lastIdx=dlgButtons(t).indexOf(ev.target);});
+ new MutationObserver(function(){
+  const t=$('titleBox');if($('title').style.display==='none'||$('modal').style.display!=='none'||!document.body.classList.contains('kb')||t.contains(document.activeElement))return;
+  const bs=dlgButtons(t);if(!bs.length)return;
+  const h=(t.querySelector('h1')||{}).textContent||'',n=h===lastH?Math.max(0,Math.min(lastIdx,bs.length-1)):0;lastH=h;
+  try{bs[n].focus({preventScroll:true});}catch(e){bs[n].focus();}
+ }).observe($('titleBox'),{childList:true});
+}
 
 // inspect.js - long-press / right-click inspect card (enemy, yourself, shrine, item) drawn on the canvas; press-and-hold detection.
 
@@ -4792,7 +4948,7 @@ const AUTO_SPEED_KEY='dcr_auto_speed',RANGED=['cultist','archer','warlock'];
 const AUTO={on:false,tm:null,pick:null,speed:1,self:false,uiKey:'',ignore:new Set(),shopped:{},bad:new Set(),uses:{},uses8:{},ticks:0,modals:0,idle:0,mrun:0,hold:0,lastProg:0,pf:0,pexp:0,hp:1e9,kills:0,err:null,lastStop:''};
 try{const s=+localStorage.getItem(AUTO_SPEED_KEY);if(BAL.auto.speeds.indexOf(s)>=0)AUTO.speed=s;}catch(e){}
 // what the player is told about Auto's pay: gold per hour (the 30-minute expedition rate at the current upgrade power; Heat does not change it)
-function autoRateText(){return '~'+Math.max(1,Math.round(autoPerTurn()*1000))+' gold per 1000 turns';}
+function autoRateText(){return '~'+Math.max(1,Math.round(autoPerTurn()*600000/BAL.auto.tickMs))+' gold per 10 min at 1×';}
 function autoDelay(flash){return Math.max(15,(flash?BAL.auto.flashMs:BAL.auto.tickMs)/AUTO.speed);}
 // exactly one pending timer, ever: scheduling always cancels the previous one
 function autoSchedule(ms){if(AUTO.tm)clearTimeout(AUTO.tm);AUTO.tm=setTimeout(autoTick,ms);}
@@ -4833,6 +4989,7 @@ function autoSpeedCycle(){
 // the top-bar strip (indicator, speed, stop; shown only while Auto runs) and the thin amber frame (called from updateHud, so it follows every render)
 function autoUi(){
  const on=!!G&&!G.over&&!!(G.auto&&G.auto.on),key=(on?1:0)+'|'+AUTO.speed;
+ if(on){const ap=$('autoPay'),t='+'+runBank(G,false).idle+' pay';if(ap&&ap._t!==t){ap._t=t;ap.textContent=t;}}   // Auto's idle pay so far, separate from the gold purse in the stats row
  if(key===AUTO.uiKey)return;AUTO.uiKey=key;
  $('autoBox').style.display=on?'flex':'none';
  $('autoBtn').setAttribute('aria-pressed',on?'true':'false');
@@ -4861,7 +5018,7 @@ function autoTick(){
  if(!G||G.over||!G.auto||!G.auto.on){autoStop(null,true);return;}
  if(document.hidden){autoStop('Page hidden: Auto paused.');return;}
  let r='off';
- {const now=performance.now();if(G.auto)G.auto.ms=(G.auto.ms|0)+Math.round(Math.min(now-(AUTO.lastT||now),4*BAL.auto.flashMs));AUTO.lastT=now;}   // real time played, one slow tick (a throttled page) never counts more than 4 flash delays
+ AUTO.lastT=performance.now();
  try{r=autoStep(false);}catch(e){AUTO.err=String(e&&e.stack||e);autoStop('Auto stopped: internal error.');return;}
  if(AUTO.on)autoSchedule(autoDelay(r==='flash'));
 }
@@ -4872,7 +5029,6 @@ function autoStep(sync){
  AUTO.self=true;
  try{
   G.auto.used=1;AUTO.ticks++;
-  if(sync)G.auto.ms=(G.auto.ms|0)+Math.round(autoDelay(false));   // simulator / tests: virtual time, as if the timer ran at the current speed
   const t0=AUTO.t0=G.turn;
   try{
    if($('modal').style.display!=='none')return autoModal(sync);
@@ -5250,15 +5406,16 @@ function drawMini(){
 // render.js - canvas sizing and the main render() pass: tiles (pre-rendered, blitted), sprites (pre-rendered, blitted), effects overlays, fog, banner.
 
 // wide layout (side panel) is decided by CSS; the log shows more lines there
-const wideMq=window.matchMedia?window.matchMedia('(min-width:960px) and (min-height:500px) and (min-aspect-ratio:11/10)'):null;
+const wideMq=window.matchMedia?window.matchMedia('(min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null,bigMq=window.matchMedia?window.matchMedia('(min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null;
 function isWide(){return !!(wideMq&&wideMq.matches);}
+function isBig(){return !!(bigMq&&bigMq.matches);}
 // base tile size: about 11.5 tiles across the short side, never below 28 and never above BAL.ui.camMaxTs (sprites stay crisp, big screens show more map instead)
 function baseTs(){return Math.min(BAL.ui.camMaxTs,Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5)));}
 function resize(){
  const box=$('cv'),r=box.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
  view.cw=Math.max(50,r.width);view.ch=Math.max(50,r.height);view.dpr=dpr;
  cv.width=Math.round(view.cw*dpr);cv.height=Math.round(view.ch*dpr);
- LOGN=isWide()?9:3;
+ LOGN=isWide()?30:3;   // the wide log is as tall as the free height: it shows as many lines as fit (the oldest are cut)
  render();
 }
 if(window.ResizeObserver)new ResizeObserver(resize).observe($('cv'));
@@ -5712,6 +5869,11 @@ function render(){
   ctx.strokeStyle='#ffc93c';ctx.lineWidth=3;ctx.setLineDash([6,4]);rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;
   drawSpr('warn',px+ts*0.14,py+ts*0.12,ts*0.72,'');more=true;
  }
+ if(hlFoe){   // the In sight list picked this foe: a ring round its tile
+  const he=G.enemies.find(e=>e.id===hlFoe.id);
+  if(he&&!he.dead&&G.vis[ix(he.x,he.y)]&&now<hlFoe.until){const px=ox+he.x*ts,py=oy+he.y*ts;ctx.strokeStyle='#ffe9a8';ctx.lineWidth=3;rrect(px+1.5,py+1.5,ts-3,ts-3,8);ctx.stroke();ctx.lineWidth=1;if(hlFoe.until<1e11)more=true;}
+  else if(!he||he.dead||now>=hlFoe.until)hlFoe=null;
+ }
  if(insp&&(insp.turn!==G.turn||insp.f!==G.floor))insp=null;
  drawInspect(ox,oy,ts);
  if(now<bannerUntil&&!G.over){
@@ -5742,11 +5904,13 @@ window.__dbg=function(){return G;};
 window.__dbg.setSpendNow=function(v){spendNow=!!v;};
 window.__dbg.grant=function(id){const r=addPerk(id);if(G)render();return r;};
 window.__dbg.fn={showPerk:showPerk,onTap:onTap,render:render,frameSight:frameSight,genFloor:genFloor,newFloor:newFloor,startRun:startRun,makeEnemy:makeEnemy,enemiesAct:enemiesAct,endTurn:endTurn,tryMove:tryMove,knock:knock,explore:explore,dangerSet:function(){const s=dangerSet();for(const k of crackSet())s.add(k);return Array.from(s);},goDown:goDown,rollOpts:rollOpts,crackTick:crackTick,buildFloor:buildFloor,computeVis:computeVis,descend:descend,save:save,bfsPath:bfsPath,hurtPlayer:hurtPlayer,hurtEnemy:hurtEnemy,use:useAbility,whyNot:whyNot,targetTiles:targetTiles,reachOk:reachOk,reachAttack:reachAttack,playerAttack:playerAttack,toggleAbility:toggleAbility,canShoot:canShoot,shoot:function(x,y){const e=enemyAt(x,y);return !!e&&mageShot(e);},summonWhelps:summonWhelps,bossPhase:bossPhase,dim:{W:W,H:H,MAXF:MAXF}};
-window.__dbg.api={gainXp:gainXp,vt:function(){const n=performance.now();return {pflash:flashes.p?flashes.p-n:null,labels:fx.map(f=>({text:f.text,c:!!f.c,at:f.t-n,x:f.x,y:f.y}))};},floatFx:floatFx,labelBoxes:function(T){return fx.filter(f=>!f.c&&T>=f.t&&T<f.t+f.d).map(f=>{const p=lblPos(f,T),w=lblW(f.text,f.sz,f.k),h=f.sz*(f.k==='n'?1.15:1.5);return {text:f.text,k:f.k,l:p[0]-w/2,r:p[0]+w/2,t:p[1]-h/2,b:p[1]+h/2};});},flash:function(){return {full:flashFull,amt:flashAmt,on:flashUntil>performance.now()};},sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt};
+window.__dbg.api={perkPool:perkPool,needXp:needXp,gainXp:gainXp,vt:function(){const n=performance.now();return {pflash:flashes.p?flashes.p-n:null,labels:fx.map(f=>({text:f.text,c:!!f.c,at:f.t-n,x:f.x,y:f.y}))};},floatFx:floatFx,labelBoxes:function(T){return fx.filter(f=>!f.c&&T>=f.t&&T<f.t+f.d).map(f=>{const p=lblPos(f,T),w=lblW(f.text,f.sz,f.k),h=f.sz*(f.k==='n'?1.15:1.5);return {text:f.text,k:f.k,l:p[0]-w/2,r:p[0]+w/2,t:p[1]-h/2,b:p[1]+h/2};});},flash:function(){return {full:flashFull,amt:flashAmt,on:flashUntil>performance.now()};},sfx:sfx,toggleSound:toggleSound,deathTip:deathTip,fxState:function(){return {puffs:puffs.length,flashes:Object.keys(flashes).length,shake:shakeUntil>performance.now(),pulse:pulseUntil>performance.now(),AC:!!AC,step:!!stepAnim,fx:fx.length};},finish:finish,UNLOCKS:UNLOCKS,checkAch:checkAch,showTitle:showTitle,afterModals:afterModals,showShrine:showShrine,showShop:showShop,buy:buy,stairsOk:stairsOk,themeOf:themeOf,meta:function(){return meta;},saveMeta:saveMeta,stepEffects:stepEffects,killEnemy:killEnemy,merchantAt:merchantAt};
 window.__dbg.mods={MODS:MODS,ACH:ACH,HARD_RULES:HARD_RULES,showBranch:showBranch,earn:earn,checkAchievements:checkAchievements,scoreOf:scoreOf,recordRun:recordRun,recOf:recOf,hardUnlocked:hardUnlocked,hardOn:hardOn,todayKey:todayKey,toast:toast,showRecords:showRecords,showAchievements:showAchievements,showDailyPicker:function(){showClassPicker({daily:true});},waterSet:function(){return Array.from(waterSet());},hashStr:hashStr,setForce:function(id){dbgForce=id||null;}};
 window.__dbg.auto={state:function(){return AUTO;},start:function(sync){return autoStart(!!sync);},stop:function(why){autoStop(why||'stopped');},toggle:autoToggle,speed:autoSpeedCycle,step:function(){return autoStep(true);},tick:autoTick,
  runSync:function(cap){cap=cap||12000;let n=0;while(AUTO.on&&G&&!G.over&&n++<cap)autoStep(true);return n;},timers:function(){return AUTO.tm?1:0;},choose:autoChoose,gearScore:autoGearScore,watch:autoWatch};
 window.__dbg.insp=function(){return insp;};window.__dbg.view=function(){return view;};window.__dbg.callout=callout;window.__dbg.callouts=function(){const n=performance.now();return fx.filter(f=>f.c&&n-f.t<f.d).map(f=>f.text);};window.__dbg.banner=function(){return bannerUntil>performance.now();};window.__dbg.guard=function(){return guard;};window.__dbg.lowHp=function(){return hpLow;};
+window.__dbg.walking=function(){return !!dest;};   // a tap-walk / Explore is in progress (tests poll this instead of sleeping)
+window.__dbg.hl=function(){return hlFoe;};
 window.__dbg.perkIds=PERKS.map(p=>p.id);
 window.__dbg.traits=Object.keys(TR);
 window.__dbg.tables={BAL:BAL,EN:EN,CLS:CLS,ABIL:ABIL,WP:WP,ARM:ARM,OFF:OFF,CH:CH,PERKS:PERKS,SYN:SYN,TR:TR};

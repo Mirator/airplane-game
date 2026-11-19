@@ -42,7 +42,7 @@ describe('arm, then use', { concurrency: CONC }, () => {
         assert.match(await page.locator(btn).innerText(), /Use/);
         const tg = await page.evaluate(() => window.__dbg.view().tg); assert.ok(tg && tg.length >= 1);
         if (foe) assert.notEqual(await pix(page, 1, 1), before, 'the area is drawn on the map');
-        const h0 = await page.locator(btn).evaluate((b) => b.innerHTML); await page.waitForTimeout(150); assert.equal(await page.locator(btn).evaluate((b) => b.innerHTML), h0, 'button markup not rewritten');
+        await page.locator(btn).evaluate((b) => { window.__fc = b.firstChild; }); await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))); assert.equal(await page.locator(btn).evaluate((b) => b.firstChild === window.__fc), true, 'button markup not rewritten (same child node after several frames)');
         const used = async (s2) => { assert.ok(s2.turn > s0.turn, 'used a turn'); assert.deepEqual(s2.armed, []); };
         // 1: the button again
         await quiet(page); await page.click(btn); await page.waitForTimeout(100); await used(await S(page));

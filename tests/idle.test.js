@@ -434,7 +434,7 @@ describe('idle', { concurrency: CONC }, () => {
         out.rows = D.idle.HEAT.map((x) => x.n); out.gold = [0, 1, 2, 3, 4, 5].map(I.heatGold);
         return out;
       });
-      assert.equal(r.start, 0); assert.equal(r.w0, null); assert.equal(r.afterW0, 1, 'a first win unlocks Heat 1 (as Hard was)'); assert.equal(r.afterW0b, 1);
+      assert.equal(r.start, 0); assert.match(r.w0, /Heat 1 unlocked/, 'the first win announces Heat 1'); assert.equal(r.afterW0, 1, 'a first win unlocks Heat 1 (as Hard was)'); assert.equal(r.afterW0b, 1);
       assert.match(r.w1, /Heat 2/); assert.equal(r.afterW1, 2); assert.equal(r.dly, null); assert.equal(r.afterDaily, 2);
       assert.deepEqual(r.max, [3, 4, 5, 5]); assert.equal(r.w5, null); assert.equal(r.final, 5);
       assert.equal(r.clamp, 2, 'the selection never exceeds what is unlocked'); assert.deepEqual(r.hard, { off: false, on: true, un: true });

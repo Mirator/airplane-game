@@ -1,15 +1,16 @@
 // render.js - canvas sizing and the main render() pass: tiles (pre-rendered, blitted), sprites (pre-rendered, blitted), effects overlays, fog, banner.
 
 // wide layout (side panel) is decided by CSS; the log shows more lines there
-const wideMq=window.matchMedia?window.matchMedia('(min-width:960px) and (min-height:500px) and (min-aspect-ratio:11/10)'):null;
+const wideMq=window.matchMedia?window.matchMedia('(min-width:640px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null,bigMq=window.matchMedia?window.matchMedia('(min-width:960px) and (min-height:480px) and (min-aspect-ratio:11/10)'):null;
 function isWide(){return !!(wideMq&&wideMq.matches);}
+function isBig(){return !!(bigMq&&bigMq.matches);}
 // base tile size: about 11.5 tiles across the short side, never below 28 and never above BAL.ui.camMaxTs (sprites stay crisp, big screens show more map instead)
 function baseTs(){return Math.min(BAL.ui.camMaxTs,Math.max(28,Math.floor(Math.min(view.cw,view.ch)/11.5)));}
 function resize(){
  const box=$('cv'),r=box.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
  view.cw=Math.max(50,r.width);view.ch=Math.max(50,r.height);view.dpr=dpr;
  cv.width=Math.round(view.cw*dpr);cv.height=Math.round(view.ch*dpr);
- LOGN=isWide()?9:3;
+ LOGN=isWide()?30:3;   // the wide log is as tall as the free height: it shows as many lines as fit (the oldest are cut)
  render();
 }
 if(window.ResizeObserver)new ResizeObserver(resize).observe($('cv'));
@@ -462,6 +463,11 @@ function render(){
   ctx.fillStyle='rgba(255,200,40,'+(0.16+0.16*pu)+')';rrect(px+1,py+1,ts-2,ts-2,6);ctx.fill();
   ctx.strokeStyle='#ffc93c';ctx.lineWidth=3;ctx.setLineDash([6,4]);rrect(px+2,py+2,ts-4,ts-4,6);ctx.stroke();ctx.setLineDash([]);ctx.lineWidth=1;
   drawSpr('warn',px+ts*0.14,py+ts*0.12,ts*0.72,'');more=true;
+ }
+ if(hlFoe){   // the In sight list picked this foe: a ring round its tile
+  const he=G.enemies.find(e=>e.id===hlFoe.id);
+  if(he&&!he.dead&&G.vis[ix(he.x,he.y)]&&now<hlFoe.until){const px=ox+he.x*ts,py=oy+he.y*ts;ctx.strokeStyle='#ffe9a8';ctx.lineWidth=3;rrect(px+1.5,py+1.5,ts-3,ts-3,8);ctx.stroke();ctx.lineWidth=1;if(hlFoe.until<1e11)more=true;}
+  else if(!he||he.dead||now>=hlFoe.until)hlFoe=null;
  }
  if(insp&&(insp.turn!==G.turn||insp.f!==G.floor))insp=null;
  drawInspect(ox,oy,ts);

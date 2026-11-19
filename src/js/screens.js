@@ -1,11 +1,11 @@
 // screens.js - the Records and Achievements screens (opened from the title; drawn into the title box).
 
 function screenFrame(title){
- const t=$('titleBox');t.innerHTML='';
+ const t=$('titleBox');t.innerHTML='';t.className='box';
  const h=document.createElement('h1');h.textContent=title;t.appendChild(h);
  return t;
 }
-function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.addEventListener('click',function(){showMore();});t.appendChild(b);}
+function backBtn(t){const b=document.createElement('button');b.className='c';b.textContent='Back';b.id='btnBack';b.dataset.esc='1';b.addEventListener('click',function(){showMore();});t.appendChild(b);}
 function recLine(r){
  if(!r||!r.runs)return '<span style="color:#8f8da8">No runs yet</span>';
  return 'Floor <b>'+(r.best||'-')+'</b> &middot; Wins <b>'+r.wins+'</b>/'+r.runs+' &middot; Fastest <b>'+(r.fast?r.fast+'t':'-')+'</b> &middot; Score <b>'+(r.score||'-')+'</b>'+(r.aruns?' &middot; <em class="tag act">Auto</em> '+r.awins+'/'+r.aruns:'');
@@ -13,7 +13,7 @@ function recLine(r){
 function showRecords(){
  const t=screenFrame('Records'),add=(html,style)=>{const d=document.createElement('div');d.className='pl';d.innerHTML=html;if(style)d.style.cssText=style;t.appendChild(d);return d;};
  const wr=meta.runs?Math.round(100*(meta.wins/Math.max(1,meta.runs))):0;
- add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) &middot; Heat 1+ wins <b>'+meta.hwins+'</b><br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
+ add('<b>Totals</b><br>Runs <b>'+meta.runs+'</b> &middot; Wins <b>'+meta.wins+'</b> ('+wr+'%) '+(heatMax()>=1?' &middot; Heat 1+ wins <b>'+meta.hwins+'</b>':'')+'<br>Streak <b>'+meta.streak+'</b> (best '+meta.bstreak+')'+(meta.aruns?' &middot; <em class="tag act">Auto</em> runs <b>'+meta.aruns+'</b>':''),'border:1px solid #4b5080;border-radius:10px;padding:8px');
  for(const k of Object.keys(CLS)){
   const C=CLS[k],n=recGet(k,0),h=recGet(k,1);
   add('<b>'+ic(C.e,22)+' '+C.n+'</b><br><small>'+recLine(n)+'</small>'+(h.runs?'<br><small>'+ic('skull',14)+' Heat 1+: '+recLine(h)+'</small>':''),'border:1px solid #3a3f64;border-radius:10px;padding:8px');

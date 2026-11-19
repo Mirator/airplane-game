@@ -122,15 +122,17 @@ describe('P1-2 stale attack taps', { concurrency: CONC }, () => {
       await arena(page, ['.......', '#.#####', '#.#####', '#@.....', '#.#####'], 4, 6);   // one rat to kill, more foes in view behind it that do not come forward
       await page.evaluate(() => { const G = window.__dbg(), p = G.p; const a = window.__dbg.fn.makeEnemy('rat', p.x + 1, p.y, 1), b = window.__dbg.fn.makeEnemy('rat', p.x + 4, p.y, 1), c = window.__dbg.fn.makeEnemy('rat', p.x + 5, p.y, 1); for (const e of [a, b, c]) { e.hp = e.mhp = 1; e.atk = 1; } a.awake = true; b.awake = c.awake = true; b.stun = c.stun = 99; G.enemies = [a, b, c]; window.__dbg.fn.computeVis(); });
       await quiet(page);
+      await page.evaluate(() => { window.__dbg.tables.BAL.ui.burstMs = 600000; });   // the burst window is stretched, so the pace of the taps (a loaded machine) cannot matter
       const s0 = await st(page), p1 = await pt(page, s0.x + 1, s0.y);
-      for (let i = 0; i < 6; i++) { await page.mouse.click(p1.x, p1.y); await page.waitForTimeout(200); }   // 1.2 s of tapping: longer than the 600 ms window
+      for (let i = 0; i < 6; i++) { await page.mouse.click(p1.x, p1.y); await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); }
       const s1 = await st(page);
       assert.equal(s1.x, s0.x, 'the hero never left its tile'); assert.equal(s1.y, s0.y);
       // the burst ended: after the window a tap on that empty tile is an ordinary walk
       await page.evaluate(() => { const G = window.__dbg(); G.enemies = []; window.__dbg.fn.computeVis(); });
-      await page.waitForTimeout(900);
+      await page.evaluate(() => { window.__dbg.tables.BAL.ui.burstMs = 1; window.__t0 = performance.now(); });
+      await page.waitForFunction(() => performance.now() - window.__t0 > 5);
       const p2 = await pt(page, s0.x + 1, s0.y);
-      await page.mouse.click(p2.x, p2.y); await page.waitForTimeout(200);
+      await page.mouse.click(p2.x, p2.y); await page.waitForFunction(() => !window.__dbg.walking());
       assert.equal((await st(page)).x, s0.x + 1, 'a later tap walks immediately');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
@@ -182,11 +184,12 @@ describe('P1-3 dialogs ignore taps at once', { concurrency: CONC }, () => {
   it('a level-up card ignores real taps for ~400 ms after it appears, then works', async () => {
     const { page, ctx, errors } = await fresh('warrior', 77, { grace: true });
     try {
-      const box = await page.evaluate(() => { const G = window.__dbg(); G.pending = 1; window.__dbg.fn.showPerk(); const r = document.querySelector('#modalBox button').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+      await page.evaluate(() => { window.__dbg.tables.BAL.ui.modalGraceMs = 3000; });   // stretched: a click right after the card opens is inside it however slow the machine
+      const box = await page.evaluate(() => { window.__t0 = performance.now(); const G = window.__dbg(); G.pending = 1; window.__dbg.fn.showPerk(); const r = document.querySelector('#modalBox button').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);   // immediately: the finger that was walking
       assert.equal((await st(page)).pending, 1, 'still pending: the early tap picked nothing');
       assert.equal(await page.locator('#modal').isVisible(), true);
-      await page.waitForTimeout(500);
+      await page.waitForFunction(() => performance.now() - window.__t0 > 3100);
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
       assert.equal((await st(page)).pending, 0, 'a tap after the grace picks');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
@@ -219,6 +222,7 @@ describe('P1-3 dialogs ignore taps at once', { concurrency: CONC }, () => {
       await page.locator('#modalBox button', { hasText: /Resume/ }).click();
       assert.equal(await page.locator('#modal').isVisible(), false, 'Resume works immediately');
       await page.evaluate(() => { const G = window.__dbg(); G.p.hp = 0; window.__dbg.fn.endTurn(); });
+      await page.waitForFunction(() => document.getElementById('modalBox').dataset.kind === 'end');
       assert.equal(await page.evaluate(() => document.getElementById('modalBox').dataset.kind), 'end');
       await page.locator('#modalBox button').first().click({ trial: false, timeout: 3000 }).catch(() => {});
       assert.equal(await page.locator('#title').isVisible() && true, await page.locator('#title').isVisible());

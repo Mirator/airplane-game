@@ -41,6 +41,7 @@ function startWalk(path,opts){
 }
 function explore(){
  if(!G||G.over||modalOpen())return;walkTok++;
+ if(armed){cancelTarget();return;}   // like Wait: with an ability armed the bar button only cancels
  const p=G.p;
  if(G.enemies.some(e=>e.awake&&G.vis[ix(e.x,e.y)])){msg('Enemy in sight. Tap it, or Wait.');frameSight();render();return;}
  const dz=dangerSet();
@@ -83,6 +84,20 @@ const cz=crackSet();
  if(goal<0){
   // go to stairs if seen
   for(let k=0;k<W*H;k++)if(G.map[k]===2&&G.seen[k]){const pa=bfsPath(p.x,p.y,k%W,Math.floor(k/W));if(pa&&pa.length){msg('Explored. To the stairs.');startWalk(pa);return;}}
+  // the only way on is blocked by a foe the search cannot pass (asleep in the dark on a seen tile, or in plain sight): walk up to it and say so
+  {const q=[[p.x,p.y]],pv=new Map([[ix(p.x,p.y),-1]]);let g4=-1;
+   for(let i=0;i<q.length&&g4<0;i++){const [x,y]=q[i];
+    for(const [dx,dy] of DIRS){const nx=x+dx,ny=y+dy,k=ix(nx,ny);
+     if(!inb(nx,ny)||pv.has(k)||!G.seen[k]||G.map[k]===0||G.map[k]===5||merchantAt(nx,ny)||cz.has(k)||dz.has(k))continue;
+     pv.set(k,ix(x,y));q.push([nx,ny]);
+     if(!G.exp[k]||G.map[k]===3||loot.has(k)||G.map[k]===2){g4=k;break;}}}
+   if(g4>=0){
+    const full=[];let k=g4;while(k!==ix(p.x,p.y)){full.push([k%W,Math.floor(k/W)]);k=pv.get(k);}full.reverse();
+    const i=full.findIndex(t=>enemyAt(t[0],t[1]));
+    if(i>=0){const e=enemyAt(full[i][0],full[i][1]);
+     msg(G.vis[ix(e.x,e.y)]?'The '+EN[e.t].n+' blocks the only way on. Deal with it first.':'A foe blocks the way on. Walk up and deal with it.');
+     if(i>0)startWalk(full.slice(0,i),{explore:true});else render();return;}
+   }}
   msg('Nothing left to explore.');render();return;
  }
  const path=[];let k=goal;while(k!==ix(p.x,p.y)){path.push([k%W,Math.floor(k/W)]);k=prev.get(k);}
@@ -116,7 +131,7 @@ function onTap(tx,ty){
    const k=armed;tapMark={x:tx,y:ty,t:performance.now()};
    if((tx===p.x&&ty===p.y)||targetTiles(k).some(t=>t[0]===tx&&t[1]===ty))useAbility(k);else cancelTarget();
    render();return;}
-  if(tx===p.x&&ty===p.y){cancelTarget();return;}
+  if(tx===p.x&&ty===p.y&&!targetTiles(armed).some(t=>t[0]===tx&&t[1]===ty)){cancelTarget();return;}   // your own tile casts only when it is lit (Smoke, Fireball)
   tapMark={x:tx,y:ty,t:performance.now()};
   useAbility(armed,tx,ty);
   render();return;

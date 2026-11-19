@@ -111,7 +111,7 @@ function showBranch(){
  if(!G||G.over)return;walkTok++;
  const nf=G.floor+1;if(!G.opts)G.opts=rollOpts(nf);
  const btns=G.opts.map(function(o,i){return {k:'opt'+i,html:optHtml(nf,o),fn:function(){closeModal();goDown(o);}};});
- btns.push({k:'stay',label:'Stay here',c:1,fn:closeModal});
+ btns.push({k:'stay',esc:1,label:'Stay here',c:1,fn:closeModal});
  showModal('Floor '+nf+': pick a path','',btns,'path');
 }
 // the one map chip: the floor modifier as a small icon; tap it for a one-line reminder (Daily / Hard show in the top bar)

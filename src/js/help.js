@@ -7,12 +7,13 @@ function showHelp(back){
  // essentials first (about 100 words), everything else folded away
  let h='<div class="hess">'+
   '<p><b>Tap</b> a tile to walk, an enemy to attack, yourself to wait.</p>'+
-  '<p><b>Hold</b> (or right-click) a foe, a tile or yourself to inspect it. Tap to close.</p>'+
-  '<p><b>Abilities:</b> tap one, then a lit tile. Self ones (Cleave, Nova, Brace, Vanish): tap again to use. Dim ones say why.</p>'+
+  '<p><b>Hold</b> (or right-click) a foe, tile or yourself to inspect. Tap to close.</p>'+
+  '<p><b>Aimed abilities:</b> tap one, then a lit tile to cast. The button says Cancel. Dim ones say why.</p>'+
+  '<p><b>Cleave, Nova, Brace, Vanish:</b> tap again, yourself or a lit tile to use. The button says Use. Wait cancels.</p>'+
   '<p><b>Red tiles</b> hit next turn: step off. Walking onto danger needs a second tap.</p>'+
-  '<p><b>Explore</b> finds new ground, then the stairs. <b>Items</b> holds potion, flames, teleport. The menu has Auto, perks and sound.</p></div>'+
+  '<p><b>Explore</b> finds ground, then the stairs. <b>Items</b> holds potion, flames, teleport. The menu has Auto, perks, sound.</p></div>'+
   sec('Buttons and bars',
-   r('ab_bash','Ability row','Four class abilities. Tap again to cancel aiming.')+
+   r('ab_bash','Ability row','Four class abilities. A dim one says why it cannot be used.')+
    r('bag','Items','Potion (heals '+pct(P.healFrac)+' HP), Flames (burns all in sight), Teleport (random far spot).')+
    r('compass','Explore','Stops when an enemy appears or danger shows.')+
    r('down','Stairs','Lit up when you stand on ▼.')+
@@ -22,7 +23,7 @@ function showHelp(back){
   sec('Keyboard','<p class="sub">Arrows or WASD move and attack. 1-4 abilities (again to use). Space wait, E explore, I items, Q potion, P perk, Enter stairs, Esc cancel or menu. Right-click inspects.</p>')+
   sec('Fighting',
    r('guard','Guards','Take '+pct(BAL.weapon.shieldFront)+' from the front. Stun them or hit from behind.')+
-   r('ab_bolt','Mage shot','Tap a foe within '+BAL.shot.range+' tiles: free weak shot.')+
+   (!G||G.over||G.p.cls==='mage'?r('ab_bolt','Mage shot','Tap a foe within '+BAL.shot.range+' tiles, or move toward it in line: a free shot, about 40% of a Bolt.'):'')+
    r('ab_cleave','Straight lines','Melee and Bash go up, down, left, right. Cleave and Nova also reach diagonals. Foes cannot strike diagonally either.')+
    r('ab_bash','Knockback','Pushing a foe into a wall, door or unit adds damage.')+
    r('door','Doors','Fight in doorways so one foe reaches you.')+
@@ -37,11 +38,11 @@ function showHelp(back){
    r('map','Minimap dots','You white, stairs gold, foes red, elite orange, shrine and merchant cyan.'))+
   sec('Modes',
    r('auto','Auto','Menu, Auto play ('+(1000/BAL.auto.tickMs)+' turns/s at 1×). Any tap takes over. Earns idle pay, not run gold.')+
-   r('cal','Daily','Same dungeon for everyone today. Never Hard.')+
-   r('skull','Heat','Win to unlock Heat 1 (Hard), then win at each Heat to unlock the next. Harder dungeon, more gold, rare blueprints.')+
+   r('cal','Daily','Same dungeon for everyone today. No Heat.')+
+   r('skull','Heat','Win to unlock Heat 1, then win at each Heat to unlock the next. Harder dungeon, more gold, rare blueprints.')+
    r('map','Expeditions','Send a hero away for 30 min to 8 h. It returns with gold and blueprints.')+
    r('cart','Upgrades','Spend gold on levels and blueprints on the title screen.')+
-   r('snd','Sound','Off by default. menu or More.'));
+   r('snd','Sound','Off by default. Switch it in the menu or under More.'));
  if(G&&!G.over){
   const C=clsOf(G.p);let k2='';
   for(const k of C.kit){const a=ABIL[k];k2+=r(a.e,a.n+' <small>('+abCost(k)+')</small>',abilityDesc(k));}
@@ -51,5 +52,5 @@ function showHelp(back){
   for(const c of Object.keys(CLS)){const C=CLS[c];k2+=r(C.e,C.n,classBlurb(c)+'<br>'+C.kit.map(k=>ic(ABIL[k].e,16)+' '+ABIL[k].n+': '+abilityDesc(k)).join('<br>'));}
   h+=sec('Classes',k2);
  }
- showModal('Controls',h,[{label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'help');
+ showModal('Controls',h,[{esc:1,label:'Back',c:1,big:1,fn:function(){if(back)back();else closeModal();}}],'help');
 }

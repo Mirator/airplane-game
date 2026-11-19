@@ -372,7 +372,7 @@ describe('features', { concurrency: CONC }, () => {
         out.hardWin = bank('win', 100, 1);
         const g = { floor: 3, kills: 5, p: { lvl: 2 }, turn: 300 };
         out.scoreNormal = D.mods.scoreOf({ ...g, hard: 0 }, true); out.scoreHard = D.mods.scoreOf({ ...g, hard: 1 }, true);
-        out.want = { win: 100 + B.run.winBonus, hardWin: Math.round((100 + B.run.winBonus) * B.hard.goldMul), hardMul: B.hard.scoreMul };
+        out.want = { win: 100 + B.run.winBonus, hardWin: Math.round((100 + B.run.winBonus) * B.heat.goldMul[1]), hardMul: B.heat.scoreMul[1] };
         return out;
       });
       assert.equal(r.abandon, 100, 'an abandoned run banks all its gold');
@@ -416,7 +416,7 @@ describe('features', { concurrency: CONC }, () => {
       assert.equal(st.length, 6); assert.deepEqual(st.map((x) => x.d), [false, false, true, true, true, true], 'a win has unlocked Heat 1 only');
       assert.ok(st.every((x) => x.h >= 44 && x.w >= 44), 'tap targets: ' + JSON.stringify(st));
       await b.page.locator('#heatRow button[data-heat="1"]').click();
-      assert.match(await b.page.locator('#heatInfo').textContent(), /Heat 1 · Hard/);
+      assert.match(await b.page.locator('#heatInfo').textContent(), /Heat 1 · Tougher/);
       await reload(b.page);
       await b.page.locator('#btnNew').click();
       assert.match(await b.page.locator('#heatRow button.on').textContent(), /1/, 'the choice is kept');

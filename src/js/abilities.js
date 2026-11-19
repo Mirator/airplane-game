@@ -176,7 +176,7 @@ const DO={
  },
  nova:function(){
   const a=BAL.ability.nova,tg=chebEnemies();spend('nova');breakVanish();
-  vfxAdd('nova',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff');msg('Nova!');
+  vfxAdd('nova',G.p.x,G.p.y);floatFx(G.p.x,G.p.y,'NOVA','#9fe8ff',true);msg('Nova!');
   const burn=BAL.offhand.tomeBurnBase+Math.floor(G.floor/BAL.offhand.tomeBurnFloorDiv);
   for(const e of tg){
    const dmg=Math.max(1,Math.round(playerDmg(true)*a.mul*spellMul()));
@@ -282,13 +282,13 @@ function toggleAbility(k){
 }
 function cancelTarget(){if(armed){armed=null;msg('Cancelled.');}render();}
 // ---- the Mage's free shot: a weak ranged attack on a visible foe within BAL.shot.range (also next to you: the Mage never melees). No mana, no cooldown, one turn.
-// Damage = the normal attack formula (so the weapon matters) x BAL.shot.mul; crit, sneak, lifesteal and poison weapons apply, knock-back / sweep (melee only) do not.
+// Damage = the spell attack formula (attack + gear, staff and arcana count; the weapon's melee offset does not) x BAL.shot.mul, about 40% of a Bolt at equal gear; crit, sneak, lifesteal and poison weapons apply, knock-back / sweep (melee only) do not.
 // Shield rules are the ranged ones, as for Bolt.
 function canShoot(e){return !!G&&G.p.cls==='mage'&&!!e&&!e.dead&&G.vis[ix(e.x,e.y)]&&manh(e,G.p)<=BAL.shot.range&&los(G.p.x,G.p.y,e.x,e.y,true);}
 function mageShot(e){
  if(!G||G.over||!canShoot(e))return false;
  const p=G.p;walkTok++;breakVanish();
- let dmg=playerDmg()*BAL.shot.mul;const crit=rf()<critChance();if(crit)dmg*=BAL.combat.critMul;
+ let dmg=playerDmg(true)*BAL.shot.mul*spellMul();const crit=rf()<critChance();if(crit)dmg*=BAL.combat.critMul;
  const sn=sneakMul(),unaware=!e.awake;if(sn>1&&unaware){dmg*=sn;msg('Sneak attack!');}
  dmg=Math.max(1,Math.round(dmg));
  vfxAdd('shot',p.x,p.y,e.x,e.y);sfx('shot');

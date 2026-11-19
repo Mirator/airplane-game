@@ -29,7 +29,7 @@ function newFloor(f,opt){
  const th=themeOf(f,G.variant),m=G.mod?modOf(G.mod):null;
  bannerText='Floor '+f+' - '+th.n;bannerUntil=performance.now()+1800;
  if(m){bannerText+=' - '+m.n;msg(m.n+': '+m.tip);}
- G.opts=null;
+ G.opts=null;G.fm={t:G.turn,a:autoTurns(G)};
  if(f+1<MAXF)G.opts=rollOpts(f+1);
  computeVis();
 }
@@ -120,7 +120,7 @@ function startRun(cls,opts){
  const hpB=upBonus('hp'),p={x:0,y:0,cls:cls,hp:C.hp+hpB,mhp:C.hp+hpB,atk:C.atk+upBonus('atk'),def:C.def+upBonus('def'),
   eq:{weapon:{t:'weapon',k:C.start,v:0,tr:null},armor:null,off:null,charm:null},rage:0,mana:0,mf:0,mbase:C.mana,
   xp:0,lvl:1,gold:0,potCap:Math.max(BAL.player.potCap,1+potV),life:0,crit:C.crit,renew:0,thorns:0,dodge:0,xpMul:1+upBonus('xpf')/100,fireMul:1,regen:0,goldMul:1+upBonus('goldp')/100,dmgMul:1};
- G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0,ms:0,t:0},hard:hard?1:0,heat:heat,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,shrine:null,merchant:null,treasure:null,keys:0,picks:[],killer:'',fz:0,lsUsed:0};
+ G={ver:SAVE_VER,auto:{on:0,used:0,noticed:0,t:0},hard:hard?1:0,heat:heat,daily:daily,rs:0,mod:null,variant:0,opts:null,water:[],cracks:[],crackT:0,wade:0,stats:{pots:0,dragonHit:0},floor:1,p,inv:{pot:startPots,fire:C.fire,tele:0},enemies:[],items:[],log:[],turn:0,nid:1,pending:0,kills:0,over:false,won:false,stopWalk:false,perks:{},cd:{},syn:{},bl:0,ssUsed:0,swUsed:0,flask:0,vanish:0,brace:null,smoke:[],knives:cls==='rogue'?BAL.ability.knife.max:0,shrine:null,merchant:null,treasure:null,keys:0,picks:[],killer:'',fz:0,lsUsed:0};
  for(const q of PAIRS){const l=upLvl(q.k);if(l>0)pairVar(q).f(p,l,G);}
  for(const k of C.kit)G.cd[k]=0;
  autoReset();
@@ -128,8 +128,8 @@ function startRun(cls,opts){
  p.mana=mmax();
  if(meta.unl.scroll){const k=rf()<BAL.meta.startScrollFireChance?'fire':'tele';G.inv[k]++;}
  if(daily){const d=meta.dly[daily]||(meta.dly[daily]={att:0});if(!d.att)meta.dlyN++;d.att++;saveMeta();checkAch();}
- noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;newFloor(1);
- msg(C.n+' descends'+(daily?' · Daily '+daily:heat>1?' · Heat '+heat:hard?' · Hard':'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
+ noticeOld=false;gearQ=null;armed=null;dest=null;tapMark=null;bigMap=false;toastClear();newFloor(1);
+ msg(C.n+' descends'+(daily?' · Daily '+daily:hard?' · Heat '+heat:'')+'.');if(meta.unl.scroll)msg('Starting scroll: '+(G.inv.fire>C.fire?'Flames.':'Teleport.'));
  hideTitle();closeModal();save();render();
  if(!meta.seenHelp){meta.seenHelp=1;saveMeta();showHelp(closeModal);}
 }
@@ -155,30 +155,37 @@ function finish(kind){
  autoStop(null,true);G.over=true;armed=null;gearQ=null;const p=G.p;walkTok++;
  const won=kind==='win',dead=kind==='dead',hard=!!G.hard,heat=gHeat(G),aut=!!(G.auto&&G.auto.used);
  // Auto: the time it played is paid at the idle rate; only the turns the player played themselves keep their share of the run gold
+ const hm0=heatMax();
  const rb=runBank(G,won),bonus=rb.bonus,share=rb.share,idle=rb.idle,banked=rb.banked;   // Heat multiplies run gold only: idle pay is by turns played, not by the dungeon. The HUD shows this same number
  G.stats.win=won?1:0;
  const score=scoreOf(G,won);
  meta.gold+=banked;if(won)meta.wins++;meta.best=Math.max(meta.best,G.floor);
  const newRec=recordRun(kind,score);
- const heatUp=won&&!G.daily?heatAfterWin(heat):0,bpD=bpRunDrop(won);
+ const heatUp=won&&!G.daily?(heatAfterWin(heat)||(heatMax()>hm0?heatMax():0)):0,bpD=bpRunDrop(won),lostPicks=G.pending|0;   // the first win opens Heat 1 (heatMax counts it from meta.wins): say so
  if(won&&G.daily)earn('daily');
  saveMeta();checkAch();clearSave();
  computeVis();render();
  if(dead){sfx('death');buzz([80,40,120]);}else if(won)sfx('win');
  const kl=G.killer||'unknown causes',killTxt=/^(a |an |poison|your )/.test(kl)?kl:'the '+kl;
- const tags=(G.daily?' &middot; '+ic('cal',16)+' Daily':'')+(hard?' &middot; '+ic('skull',16)+' '+(heat>1?'Heat '+heat:'Hard'):'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const tags=(G.daily?' &middot; '+ic('cal',16)+' Daily':'')+(hard?' &middot; '+ic('skull',16)+' Heat '+heat:'')+(aut?' &middot; <em class="tag act">Auto</em>':'');
+ const showEnd=function(){
  showModal((dead?'You Died':won?'Victory!':'Run Ended'),
   '<p class="sub">'+(won?'The dragon falls.':dead?'Killed by <b>'+killTxt+'</b>.':'You left the dungeon.')+'</p>'+
   '<div class="portrait">'+ic(clsOf(p).e,56)+'</div><p class="recap"><b>'+clsOf(p).n+'</b> Lv '+p.lvl+tags+'</p><div class="chips3"><span>Floor <b>'+G.floor+'</b></span><span><b>'+G.turn+'</b> turns</span><span><b>'+G.kills+'</b> kills</span></div>'+
-  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>('+(heat>1?'Heat '+heat:'Hard')+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
-  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turns: idle pay '+idle+' gold'+(share<1?', plus run gold of yours':'')+'.</p>':'')+
+  '<p class="recap">Gold <span class="gold">+'+banked+'</span>'+(bonus?' <small>(incl. '+BAL.run.winBonus+' win bonus)</small>':'')+(hard?' <small>(Heat '+heat+' ×'+heatGold(heat)+')</small>':'')+' &middot; Score <b class="gold" id="scoreTxt">'+score+'</b>'+(newRec.length?'<br><b style="color:#8fe39a">NEW RECORD: '+newRec.join(', ')+'</b>':'')+'</p>'+
+  (aut?'<p id="autoRecap" class="sub">'+ic('auto',16)+' Auto played '+autoTurns(G)+' turn'+(autoTurns(G)===1?'':'s')+': idle pay '+idle+' gold'+(share<1?', plus your share of the run gold':'')+'.</p>':'')+
   (bpD?'<p class="recap" id="bpRecap">'+ic(bpIcon(bpD),20)+' Blueprint found: <b>'+bpD.n+'</b></p>':'')+
   (heatUp?'<p class="recap" id="heatRecap">'+ic('skull',16)+' <b>Heat '+heatUp+'</b> unlocked: '+HEAT[heatUp].n+'.</p>':'')+
   (G.newUnl&&G.newUnl.length?'<p class="recap">New unlock: <b>'+G.newUnl.join(', ')+'</b></p>':'')+
   (G.newAch&&G.newAch.length?'<p class="recap">'+ic('trophy',18)+' Achievement: <b>'+G.newAch.join(', ')+'</b></p>':'')+
+  (lostPicks>0?'<p class="sub" id="pickRecap">'+lostPicks+' level-up pick'+(lostPicks>1?'s':'')+' went unspent.</p>':'')+
   (dead?'<p class="sub tip"><b>Tip:</b> '+deathTip()+'</p>':''),
   [{label:'Back to title',c:1,big:1,fn:function(){closeModal();G=null;rngS=null;showTitle();}}],'end',won?ic('trophy',40):dead?ic('skull',40):'');
  $('modalBox').classList.add(dead?'dead':won?'win':'x');
+ };
+ // the lethal hit is seen first: the death card follows after BAL.ui.deathMs (input is locked meanwhile: G.over)
+ if(dead&&BAL.ui.deathMs>0)setTimeout(function(){if(G&&G.over&&$('modal').style.display==='none')showEnd();},BAL.ui.deathMs);else showEnd();
+ toastClear();
 }
 
 // Tapping the stairs: below floor 1..MAXF-2 you choose between two floors; into the dragon lair there is only one way.
@@ -193,14 +200,15 @@ function descend(){
 }
 function goDown(opt){
  if(!G||G.over)return;
- walkTok++;sfx('stairs');
+ walkTok++;sfx('stairs');armed=null;
+ const ft=G.turn-((G.fm&&G.fm.t)|0),fa=autoTurns(G)-((G.fm&&G.fm.a)|0),manualFloor=!AUTO.self&&!(ft>0&&fa/ft>=0.5);   // bestM counts only floors the player mostly played by hand
  G.stopWalk=false;
  if(G.mod)meta.mods[G.mod]=1;   // survived a floor of this modifier
  newFloor(G.floor+1,opt);
  const p=G.p;
  if(p.renew>0){p.hp=Math.min(p.mhp,p.hp+Math.round(p.mhp*p.renew));}
  if(G.floor===BAL.ach.noArmorFloor&&!p.eq.armor)earn('bare');
- meta.best=Math.max(meta.best,G.floor);if(!AUTO.self)meta.bestM=Math.max(meta.bestM|0,G.floor);saveMeta();checkAch();   // bestM = the deepest floor the player reached by hand: it limits how deep expeditions go
+ meta.best=Math.max(meta.best,G.floor);if(manualFloor)meta.bestM=Math.max(meta.bestM|0,G.floor);saveMeta();checkAch();   // bestM = the deepest floor the player reached by hand: it limits how deep expeditions go
  msg('Floor '+G.floor+' - '+themeOf(G.floor,G.variant).n+(G.floor===MAXF?' (dragon lair!)':'')+'.');
  save();render();
 }

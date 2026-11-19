@@ -161,10 +161,10 @@ describe('ui', { concurrency: CONC }, () => {
       assert.equal(await page.evaluate(() => document.getElementById('modal').style.display), 'none');
       assert.equal(await page.evaluate(() => !!window.__dbg()), false, 'no run started by looking at details');
       // the Heat picker is on this screen
-      await page.locator('#heatRow button[data-heat="1"]').click(); assert.match(await page.locator('#heatInfo').textContent(), /Hard/);
+      await page.locator('#heatRow button[data-heat="1"]').click(); assert.match(await page.locator('#heatInfo').textContent(), /Tougher/);
       await page.locator('#heatRow button[data-heat="0"]').click(); assert.match(await page.locator('#heatInfo').textContent(), /Heat 0/);
       // each class starts via its card
-      for (const [i, c] of ['warrior', 'mage', 'rogue'].entries()) {
+      for (const [i, c] of ['warrior', 'rogue', 'mage'].entries()) {
         if (i > 0) { await page.evaluate(() => { window.__dbg.api.finish('abandon'); document.getElementById('modalBox').querySelector('button').click(); }); await page.locator('#btnNew').click(); }
         await page.locator('#titleBox .clsmain').nth(i).click();
         await page.waitForFunction(() => !!window.__dbg() && document.getElementById('title').style.display === 'none');

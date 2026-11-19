@@ -19,21 +19,36 @@ function kbUsed(){if(!document.body.classList.contains('kb')){let touch=false;tr
 // first real key press shows the key hints (never on a touch-first device)
 document.addEventListener('keydown',function(ev){if(ev.isTrusted&&!/^(Shift|Control|Alt|Meta|CapsLock)$/.test(ev.key))kbUsed();},true);
 // a mouse click leaves the button focused; Space / Enter would then press it a second time
-document.addEventListener('click',function(ev){if(ev.detail>0&&ev.target&&ev.target.closest){const b=ev.target.closest('button');if(b&&b.blur)setTimeout(function(){b.blur();},0);}},true);
-function topBack(box){return [...box.querySelectorAll('button')].reverse().find(x=>!x.disabled&&/^(back|resume|close|leave|got it|cancel|keep|later)/i.test(x.textContent.trim()));}
-function keyModal(ev){
- const m=$('modal'),box=$('modalBox'),k=box.dataset.kind;
- if(ev.key==='Escape'){if(k==='end')return;const b=topBack(box);if(b){ev.preventDefault();b.click();}return;}
- if(ev.key==='Enter'&&!ev.repeat){
-  const bs=[...box.querySelectorAll('button')].filter(x=>!x.disabled);
-  const one=bs.length===1?bs[0]:null,menu=k==='menu'?bs[0]:null;
-  const b=one||menu;if(b){ev.preventDefault();b.click();}
- }
+document.addEventListener('click',function(ev){if(ev.detail>0&&ev.target&&ev.target.closest){const b=ev.target.closest('button');if(b&&b.blur)b.blur();}},true);   // at once (capture phase): the press itself is already decided by the event target, and a Space / Enter a moment later must not press the button again
+// ---- dialogs by keyboard. The top dialog (a modal, else the title-side screen) owns every key: Tab / arrows move a gold focus ring between its enabled buttons
+// (focus never leaves the dialog), Enter presses the focused one, Esc presses the one marked data-esc (Back, Leave, Later, Stay here, Cancel...; the end card has none).
+function dlgRoot(){return $('modal').style.display!=='none'?$('modalBox'):$('title').style.display!=='none'?$('titleBox'):null;}
+function dlgButtons(root){return [...root.querySelectorAll('button')].filter(b=>!b.disabled&&b.getClientRects().length>0);}
+function focusFirst(root){
+ if(!document.body.classList.contains('kb'))return;   // the ring only appears for keyboard users (the first real key press sets body.kb)
+ const bs=dlgButtons(root),d=bs.find(b=>b.dataset.def)||bs[0];
+ if(d){try{d.focus({preventScroll:true});}catch(e){d.focus();}}
 }
-function keyTitle(ev){
- if(ev.key!=='Escape')return;
- const t=$('titleBox'),b=[...t.querySelectorAll('button')].reverse().find(x=>!x.disabled&&/^back/i.test(x.textContent.trim()));
- if(b){ev.preventDefault();b.click();}
+function dlgKey(ev,root){
+ const k=ev.key,bs=dlgButtons(root),ae=document.activeElement,i=bs.indexOf(ae);
+ if(k==='Escape'){
+  if(root===$('modalBox')&&root.dataset.kind==='end')return;
+  const b=[...root.querySelectorAll('button[data-esc]')].reverse().find(x=>!x.disabled);
+  if(b){ev.preventDefault();b.click();}return;}
+ if(k==='Tab'||k==='ArrowDown'||k==='ArrowUp'||k==='ArrowLeft'||k==='ArrowRight'){
+  ev.preventDefault();if(!bs.length)return;
+  const back=k==='ArrowUp'||k==='ArrowLeft'||(k==='Tab'&&ev.shiftKey);
+  const n=i<0?(back?bs.length-1:0):(i+(back?-1:1)+bs.length)%bs.length;
+  bs[n].focus();return;}
+ if(k==='Enter'||k===' '){
+  if(ev.repeat){ev.preventDefault();return;}   // a held key never presses a second dialog's button
+  if(ae&&ae.tagName==='BUTTON'&&root.contains(ae)){
+   // the key press itself clicks the focused button (a trusted click: the open-grace of an event dialog applies to it); a disabled / hidden one is ignored
+   return;}
+  const b=bs.find(x=>x.dataset.def)||bs[0];
+  if(b&&!(root===$('modalBox')&&performance.now()-modalAt<modalGrace)){ev.preventDefault();b.click();}
+  else ev.preventDefault();
+ }
 }
 // the key form of a tap on an adjacent tile: a red tile / cracking tile needs a second, separate key press (held-key repeats never confirm)
 function keyStep(dx,dy,ev){
@@ -41,6 +56,10 @@ function keyStep(dx,dy,ev){
  if(ev.repeat&&now-lastKeyAct<90)return;
  lastKeyAct=now;
  if(!inb(nx,ny))return;
+ if(p.cls==='mage'){   // the Mage's key form of a tap on a foe in range: the first visible foe in line that way is shot instead of walked up to
+  for(let k=1;k<=BAL.shot.range;k++){const x=p.x+dx*k,y=p.y+dy*k;if(!inb(x,y)||!walkable(x,y))break;
+   const e=enemyAt(x,y);if(e){if(canShoot(e)){if(insp)clearInspect();mageShot(e);return;}break;}}
+ }
  const e=enemyAt(nx,ny);
  if(!(e&&G.vis[ix(nx,ny)])){
   const k=ix(nx,ny),pr=perilAt(k);
@@ -57,7 +76,8 @@ function keyStep(dx,dy,ev){
 }
 // aiming: an arrow key fires at the nearest target in a straight line that way
 function keyAim(dx,dy){
- const p=G.p,A=ABIL[armed];if(!A||A.tg==='tile'||A.tg==='self')return;
+ const p=G.p,A=ABIL[armed];if(!A||A.tg==='tile')return;
+ if(A.tg==='self'){msg('Enter or '+(kit().indexOf(armed)+1)+' to use, Esc to cancel.');render();return;}
  const tg=view.tg||targetTiles(armed);let best=null,bd=1e9;
  for(const t of tg){const ox=t[0]-p.x,oy=t[1]-p.y;
   if((dx&&oy===0&&Math.sign(ox)===dx)||(dy&&ox===0&&Math.sign(oy)===dy)){const d=Math.abs(ox)+Math.abs(oy);if(d<bd){bd=d;best=t;}}}
@@ -67,9 +87,8 @@ function keyAim(dx,dy){
 document.addEventListener('keydown',function(ev){
  if(ev.ctrlKey||ev.metaKey||ev.altKey)return;
  const tg=ev.target&&ev.target.tagName;
+ {const root=dlgRoot();if(root){dlgKey(ev,root);return;}}
  if((ev.key==='Enter'||ev.key===' ')&&tg==='BUTTON')return;   // a Tab-focused button does its own press
- if($('modal').style.display!=='none'){keyModal(ev);return;}
- if($('title').style.display!=='none'){keyTitle(ev);return;}
  if(!G||G.over)return;
  const k=ev.key.length===1?ev.key.toLowerCase():ev.key;let d=null;
  if(k==='Escape'){
@@ -84,7 +103,7 @@ document.addEventListener('keydown',function(ev){
  else if(k==='q'){if(!ev.repeat){walkTok++;drink();}return;}
  else if(k==='p'){if(!ev.repeat)gearOrPick();return;}
  else if(k==='i'){if(!ev.repeat)$('b_items').click();return;}
- else if(k==='>'||k==='Enter'){ev.preventDefault();if(ev.repeat)return;walkTok++;if(armed&&ABIL[armed].tg==='self'){useAbility(armed);return;}if(G.map[ix(G.p.x,G.p.y)]===2)descend();return;}
+ else if(k==='>'||k==='Enter'){ev.preventDefault();if(ev.repeat)return;walkTok++;if(armed){if(ABIL[armed].tg==='self')useAbility(armed);else{msg(ABIL[armed].n+': pick a lit tile, or Esc to cancel.');render();}return;}if(G.map[ix(G.p.x,G.p.y)]===2)descend();return;}
  if(d){
   ev.preventDefault();walkTok++;
   if(armed){if(!ev.repeat)keyAim(d[0],d[1]);return;}
@@ -92,4 +111,19 @@ document.addEventListener('keydown',function(ev){
 });
 $('menuBtn').addEventListener('click',showMenu);
 // a tap on any button also dismisses the inspect card (the button still does its job)
-document.addEventListener('click',function(ev){if(insp&&ev.target!==cv)clearInspect();});
+document.addEventListener('click',function(ev){if(insp&&ev.target!==cv&&!(ev.target.closest&&ev.target.closest('#sightList')))clearInspect();});
+
+// while a dialog or title screen is up the game underneath is inert (no Tab stop, no focus behind it)
+function syncInert(){$('app').inert=$('modal').style.display!=='none'||$('title').style.display!=='none';}
+for(const id of ['modal','title'])new MutationObserver(syncInert).observe($(id),{attributes:true,attributeFilter:['style']});
+syncInert();
+// a title-side screen that is rebuilt (a new screen, or the same one after a purchase) hands the focus back: the same row when it is the same screen, else the first button
+{let lastIdx=0,lastH='';
+ document.addEventListener('focusin',function(ev){const t=$('titleBox');if(t.contains(ev.target))lastIdx=dlgButtons(t).indexOf(ev.target);});
+ new MutationObserver(function(){
+  const t=$('titleBox');if($('title').style.display==='none'||$('modal').style.display!=='none'||!document.body.classList.contains('kb')||t.contains(document.activeElement))return;
+  const bs=dlgButtons(t);if(!bs.length)return;
+  const h=(t.querySelector('h1')||{}).textContent||'',n=h===lastH?Math.max(0,Math.min(lastIdx,bs.length-1)):0;lastH=h;
+  try{bs[n].focus({preventScroll:true});}catch(e){bs[n].focus();}
+ }).observe($('titleBox'),{childList:true});
+}

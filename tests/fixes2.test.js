@@ -79,7 +79,7 @@ describe('playtest bugs and clarity', { concurrency: CONC }, () => {
       await arena(page, room(14, 5, [1, 2]), 4, 6);
       await page.evaluate(() => { const G = window.__dbg(); G.items.push({ x: G.p.x + 8, y: G.p.y, t: 'gold', v: 5 }, { x: G.p.x + 10, y: G.p.y, t: 'potion', v: 0 }); G.inv.pot = 0; window.__dbg.fn.computeVis(); });
       await quiet(page);
-      for (let i = 0; i < 4 && (await page.evaluate(() => window.__dbg().items.length)) > 0; i++) { await page.click('#b_exp'); await page.waitForTimeout(900); }
+      for (let i = 0; i < 4 && (await page.evaluate(() => window.__dbg().items.length)) > 0; i++) { await page.click('#b_exp'); await page.waitForFunction(() => !window.__dbg.walking()); }
       assert.equal(await page.evaluate(() => window.__dbg().items.length), 0, 'both piles were picked up by Explore');
       await page.click('#b_exp');
       assert.match((await st(page)).log, /Nothing left|stairs/);
@@ -98,6 +98,7 @@ describe('playtest bugs and clarity', { concurrency: CONC }, () => {
       await page.keyboard.press('Escape'); await page.waitForTimeout(60);
       assert.equal(await page.locator('#modal').isVisible(), false, 'a perk pick can be put off with Esc'); assert.equal(await page.evaluate(() => window.__dbg().pending), 1, 'and stays pending');
       await page.evaluate(() => { window.__dbg().pending = 0; document.getElementById('modal').style.display = 'none'; const G = window.__dbg(); G.p.hp = 0; window.__dbg.fn.endTurn(); });
+      await page.waitForFunction(() => document.getElementById('modalBox').dataset.kind === 'end');
       assert.equal(await page.evaluate(() => document.getElementById('modalBox').dataset.kind), 'end');
       await page.keyboard.press('Escape'); await page.waitForTimeout(60);
       assert.equal(await page.locator('#modal').isVisible(), true, 'the end-of-run screen is not dismissed by Escape either');
@@ -140,14 +141,14 @@ describe('playtest bugs and clarity', { concurrency: CONC }, () => {
       await page.click('#menuBtn');
       await page.locator('#modalBox button[data-k="auto"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.auto.state().on), false, 'not started yet');
-      assert.match(await page.locator('#modalBox button[data-k="auto"]').textContent(), /pays ~\d+ gold per 1000 turns, not run gold/i);
+      assert.match(await page.locator('#modalBox button[data-k="auto"]').textContent(), /pays ~\d+ gold per 10 min at 1×, not run gold/i);
       await page.locator('#modalBox button[data-k="auto"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.auto.state().on), true, 'started by the second tap');
       await page.evaluate(() => window.__dbg.auto.stop());
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
   it('P2-21: a phone turned sideways shows a rotate hint over the game, loses nothing, and the game is back upright', async () => {
-    const { page, ctx, errors } = await fresh('warrior', 89);
+    const { page, ctx, errors } = await fresh('warrior', 89, { touch: true });
     try {
       const s0 = await st(page);
       await page.setViewportSize({ width: 844, height: 390 }); await page.waitForTimeout(150);

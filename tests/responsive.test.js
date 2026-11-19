@@ -56,24 +56,24 @@ describe('layout at every size', { concurrency: CONC }, () => {
         for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) assert.equal(inter(rs[keys[i]], rs[keys[j]]) < 1, true, keys[i] + ' overlaps ' + keys[j]);
         const cvr = await rect(page, '#cv');
         for (const sel of ['#hud', '#bar', '#bar2', '#logw']) assert.ok(inter(await rect(page, sel), cvr) < 1, sel + ' must not cover the map');
-        const wide = w >= 960 && h >= 500 && w / h >= 1.1;
+        const wide = w >= 640 && h >= 480 && w / h >= 1.1;   // landscape side-panel layout
         if (wide) { const b = await rect(page, '#bar'); assert.ok(cvr.r <= b.l + 0.5, 'side panel: map left of the buttons'); assert.ok(cvr.w > w * 0.6, 'map uses the space'); }
         else assert.ok(cvr.w >= Math.min(w, 900) - 1, 'portrait: map spans the column');
         const c = await page.evaluate(() => { const c = document.getElementById('c'), r = c.getBoundingClientRect(), v = window.__dbg.view(); return { bw: c.width, bh: c.height, cw: r.width, ch: r.height, dpr: devicePixelRatio, ts: v.ts, sx: document.documentElement.scrollWidth, sy: document.documentElement.scrollHeight }; });
         assert.ok(Math.abs(c.bw - c.cw * c.dpr) <= 1 && Math.abs(c.bh - c.ch * c.dpr) <= 1, 'canvas backing = css x dpr ' + JSON.stringify(c));
-        assert.ok(c.ts >= 28 && c.ts <= 52, 'tile size sane ' + c.ts);
+        assert.ok(c.ts >= 28 && c.ts <= 64, 'tile size sane ' + c.ts);
         assert.ok(c.sx <= w && c.sy <= h, 'no page scroll');
         // the hero is on the map and the foe tile center is really over the canvas
         const p = await pt(page, g.p.x, g.p.y), q = await pt(page, g.p.x + 2, g.p.y);
         for (const z of [p, q]) assert.equal(await page.evaluate(([x, y]) => document.elementFromPoint(x, y).id, [z.x, z.y]), 'c');
         // menus: title, upgrades, a modal; boxes centered, inside the viewport, last button reachable
         await page.click('#menuBtn'); await settle(page, 60);
-        let b = await rect(page, '#modalBox'); assert.ok(b.l >= 0 && b.r <= w && b.t >= 0 && b.b <= h && b.w <= 540, 'modal box fits ' + JSON.stringify(b));
+        let b = await rect(page, '#modalBox'); assert.ok(b.l >= 0 && b.r <= w && b.t >= 0 && b.b <= h && b.w <= (w >= 1700 ? 720 : w >= 1180 ? 640 : 540), 'modal box fits ' + JSON.stringify(b));
         assert.ok(Math.abs((b.l + b.r) / 2 - w / 2) <= 2, 'modal centered');
         await page.evaluate(() => { document.getElementById('modal').style.display = 'none'; window.__dbg.api.showTitle(); });
         for (const [sel, name] of [['#titleBox', 'title'], ['', 'upgrades']]) {
           if (!sel) { await page.click('#btnUpg'); await settle(page, 60); }
-          const t = await rect(page, '#titleBox'); assert.ok(t.l >= 0 && t.r <= w && t.t >= 0 && t.b <= h && t.w <= 540, name + ' box fits ' + JSON.stringify(t));
+          const t = await rect(page, '#titleBox'); assert.ok(t.l >= 0 && t.r <= w && t.t >= 0 && t.b <= h && t.w <= (w >= 1700 ? 1200 : w >= 1180 ? 1020 : 540), name + ' box fits ' + JSON.stringify(t));
           assert.ok(Math.abs((t.l + t.r) / 2 - w / 2) <= 2, name + ' centered');
           const sc = await page.evaluate(() => { const e = document.getElementById('titleBox'); const bs = [...e.querySelectorAll('button')].filter((x) => x.offsetParent); const last = bs[bs.length - 1].getBoundingClientRect(); return { last: last.bottom, scrolls: e.scrollHeight > e.clientHeight, ov: document.getElementById('title').scrollWidth > innerWidth }; });
           assert.ok((sc.last <= h + 0.5 || sc.scrolls) && !sc.ov, name + ' last button reachable (fits or scrolls)');
@@ -82,11 +82,27 @@ describe('layout at every size', { concurrency: CONC }, () => {
     });
   }
   it('rotate overlay only for small landscape phones', async () => {
-    const { page, ctx, errors } = await dprPage(390, 844, 1);
-    try {
+    const t = await dprPage(390, 844, 1, { hasTouch: true, isMobile: true });
+    try {   // a touch phone in a run: the hint only below 500 px tall
+      await startWarrior(t.page);
       for (const [w, h, want] of [[844, 390, true], [932, 430, true], [1180, 820, false], [820, 1180, false], [1024, 600, false], [390, 844, false]]) {
+        await t.page.setViewportSize({ width: w, height: h }); await settle(t.page, 80);
+        assert.equal(await t.page.locator('#rot').isVisible(), want, 'touch ' + w + 'x' + h);
+      }
+      await t.page.setViewportSize({ width: 390, height: 844 }); await t.page.evaluate(() => { window.__dbg.api.finish('abandon'); document.querySelector('#modalBox button').click(); });
+      await t.page.setViewportSize({ width: 844, height: 390 }); await settle(t.page, 80);
+      assert.equal(await t.page.locator('#rot').isVisible(), false, 'the title screens are not covered');
+    } finally { assert.deepEqual(t.errors, []); await t.ctx.close(); }
+    const { page, ctx, errors } = await dprPage(1366, 768, 1);
+    try {   // a mouse window, however short, is never covered; landscape windows >= 480 tall get the side panel
+      await startWarrior(page);
+      for (const [w, h] of [[1000, 499], [1024, 480], [900, 600], [700, 450]]) {
         await page.setViewportSize({ width: w, height: h }); await settle(page, 80);
-        assert.equal(await page.locator('#rot').isVisible(), want, w + 'x' + h);
+        assert.equal(await page.locator('#rot').isVisible(), false, 'mouse ' + w + 'x' + h);
+        if (h >= 480 && w >= 640) {
+          const c = await rect(page, '#cv'), b = await rect(page, '#bar');
+          assert.ok(c.r <= b.l + 0.5 && c.h >= h - 2, 'side panel layout at ' + w + 'x' + h + ' ' + JSON.stringify([c, b]));
+        }
       }
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
   });
@@ -203,7 +219,7 @@ describe('mouse and keyboard', { concurrency: CONC }, () => {
       assert.equal(await hint('b_wait'), 'none', 'hidden before a key');
       const h0 = await page.evaluate(() => document.getElementById('b_wait').innerHTML);
       await page.keyboard.press('ArrowUp'); await settle(page, 50);
-      assert.equal(await hint('b_wait'), '"Space"'); assert.equal(await hint('a_0'), '"1"'); assert.equal(await hint('menuBtn'), '"Esc"');
+      assert.equal(await hint('b_wait'), '"␣"'); assert.equal(await hint('a_0'), '"1"'); assert.equal(await hint('menuBtn'), '"Esc"');
       assert.equal(await page.evaluate(() => document.getElementById('b_wait').innerHTML), h0, 'markup untouched');
     } finally { assert.deepEqual(errors, []); await ctx.close(); }
     const t = await dprPage(820, 1180, 2, { hasTouch: true, isMobile: true });

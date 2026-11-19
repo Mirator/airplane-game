@@ -139,9 +139,10 @@ function drawVfx(ox,oy,ts,now){
     for(let i=1;i<=4;i++){const q=Math.max(0,m-i*0.07);disc(lerp(ax,bx,q),lerp(ay,by,q),ts*0.16*(1-i*0.17),'#c08cff',0.5*(1-i*0.2));}
     if(k<0.75){disc(px,py,ts*0.22,'#e9d6ff',1);disc(px,py,ts*0.13,'#fff',1);}
     else{const q=(k-0.7)/0.3;ring(bx,by,ts*(0.2+0.4*q),'#c08cff',3,1-q);star4(bx,by,ts*0.4*(1-q*0.4),'#fff',1-q,q*2);}break;}
-   case 'shot':{const m=Math.min(1,k/0.65),px=lerp(ax,bx,m),py=lerp(ay,by,m),q=Math.max(0,m-0.12);   // the Mage's free shot: a small pale spark, clearly lighter than Bolt
-    disc(lerp(ax,bx,q),lerp(ay,by,q),ts*0.06,'#9fd8ff',0.5);
-    if(k<0.7)disc(px,py,ts*0.09,'#e6f6ff',1);else{const u=(k-0.65)/0.35;ring(bx,by,ts*(0.1+0.2*u),'#9fd8ff',2,1-u);}break;}
+   case 'shot':{const m=Math.min(1,k/0.65),px=lerp(ax,bx,m),py=lerp(ay,by,m);   // the Mage's free shot: a small pale bolt with a short trail (head 0.14 tile, Bolt's is 0.22), a ring where it lands
+    if(k<0.7){for(let i=1;i<=3;i++){const q=Math.max(0,m-i*0.08);disc(lerp(ax,bx,q),lerp(ay,by,q),ts*0.12*(1-i*0.2),'#9fd8ff',0.55*(1-i*0.22));}
+     disc(px,py,ts*0.14,'#bfe6ff',1);disc(px,py,ts*0.08,'#fff',1);}
+    else{const u=(k-0.65)/0.35;ring(bx,by,ts*(0.15+0.25*u),'#9fd8ff',3,1-u);star4(bx,by,ts*0.28*(1-u*0.4),'#e6f6ff',1-u,u*2);}break;}
    case 'knife':{const m=Math.min(1,k/0.8),px=lerp(ax,bx,m),py=lerp(ay,by,m);
     ctx.save();ctx.translate(px,py);ctx.rotate(m*12);ctx.globalAlpha=1-Math.max(0,(k-0.8)*5);ctx.drawImage(spriteBmp('knife',Math.round(ts*0.55)),-ts*0.275,-ts*0.275,ts*0.55,ts*0.55);ctx.restore();ctx.globalAlpha=1;
     if(k>0.75)star4(bx,by,ts*0.35,'#fff',1-(k-0.75)*4,0);break;}

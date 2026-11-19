@@ -177,7 +177,7 @@ function knock(u,dx,dy){
  return true;
 }
 function endTurn(){
- const p=G.p;
+ const p=G.p;armed=null;   // an armed ability never survives a turn that was not its own (potion, Explore, a walk step, a new floor)
  if(G.won){finish('win');return;}
  G.turn++;
  for(const k in G.cd)if(G.cd[k]>0)G.cd[k]--;

@@ -44,7 +44,7 @@ describe('fix3: expedition economy', { concurrency: CONC }, () => {
       assert.ok(r.tab.b1 >= 60 && r.tab.b1 <= 120 && r.tab.b2 >= 60 && r.tab.b2 <= 120, 'brand-new player 60-120 per 8 h: ' + JSON.stringify(r.tab));
       assert.ok(r.tab.b4mid >= 400 && r.tab.b4mid <= 600, 'best floor 4, mid upgrades: ' + r.tab.b4mid);
       assert.ok(r.tab.b8heavy >= 1000 && r.tab.b8heavy <= 1400, 'dragon reached, heavy upgrades: ' + r.tab.b8heavy);
-      assert.ok(r.tab.b8max >= 1500 && r.tab.b8max <= 2000, 'maxed: ' + r.tab.b8max);
+      assert.ok(r.tab.b8max >= 1400 && r.tab.b8max <= 2000, 'maxed: ' + r.tab.b8max);
       assert.ok(r.tab.b8fresh < r.tab.b8heavy && r.tab.b4heavy > r.tab.b4mid, 'more upgrades, more gold');
       assert.ok(r.rate[0] > r.rate[1] && r.rate[1] > r.rate[2], '30 min is the best rate per hour: ' + r.rate); assert.ok(r.tot[0] < r.tot[1] && r.tot[1] < r.tot[2], '8 h the best total');
       assert.ok(Math.abs(r.mean / r.est4 - 1) < 0.1, 'real outcomes average the shown estimate: ' + r.mean + ' vs ' + r.est4); assert.ok(r.deep <= 4, 'floors <= gate: ' + r.deep);
@@ -73,17 +73,16 @@ describe('fix3: expedition economy', { concurrency: CONC }, () => {
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
       await page.waitForSelector('#expGate');
       assert.match(await txt(page, '#expGate'), /Heroes go as deep as you have: floor 3\./); assert.ok((await txt(page, '#expGate')).length <= 55);
-      await page.waitForTimeout(60);
+      await page.evaluate(() => { window.__t0 = performance.now(); window.__dbg.tables.BAL.ui.modalGraceMs = 4000; });   // a wide window: human-speed taps cannot fall outside it on a loaded machine
       const d30 = await page.locator('[data-dur="30"]').boundingBox();
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);   // same spot as the first tap
       await page.mouse.click(d30.x + 20, d30.y + 20);                          // and right on the 30 min button
-      await page.waitForTimeout(80);
       assert.equal(await page.evaluate(() => window.__dbg.api.meta().exp.run[0]), null, 'nothing was dispatched by a hurried second tap');
       assert.equal(await page.locator('#btnBack').count(), 1, 'still on the send screen');
       const est = await page.evaluate(() => [window.__dbg.idle.expEstimate('mage', 30, 0, 3), window.__dbg.idle.expEstimate('mage', 480, 0, 3)]);
       assert.match(await txt(page, '[data-dur="30"]'), new RegExp('about ' + est[0]));
       assert.match(await txt(page, '[data-dur="480"]'), new RegExp('about ' + est[1]));
-      await page.waitForTimeout(450);
+      await page.waitForFunction(() => performance.now() - window.__t0 > 4100);   // the grace is over (page clock, no upper bound)
       await page.locator('[data-dur="30"]').click();
       assert.equal(await page.evaluate(() => window.__dbg.api.meta().exp.run[0].dur), 30, 'a deliberate tap after the grace sends');
       assert.equal(await page.evaluate(() => window.__dbg.api.meta().exp.run[0].bf), 3, 'the gate is stored');
@@ -95,11 +94,14 @@ describe('fix3: expedition economy', { concurrency: CONC }, () => {
       assert.match(body, /Recalled before the first delve/); assert.doesNotMatch(body, /Too short/); assert.doesNotMatch(body, /Deaths/); assert.match(body, /Delves/);
       await page.locator('#btnDone').click(); await page.locator('#btnBack').click();
       // the title pill: a trip with ~60.5 s left says 2m, then 1m without leaving the screen
-      await page.evaluate(() => { const m = window.__dbg.api.meta(); m.exp.run[0] = { cls: 'warrior', dur: 30, t0: Date.now() - 30 * 60000 + 60500, seed: 1, pw: 0, bf: 1 }; m.exp.run[1] = null; window.__dbg.api.showTitle(); });
+      // the page clock is faked and moved by hand: 90 s left reads 2m, 55 s left reads 1m, no real-time margin anywhere
+      await page.clock.install({ time: Date.now() });
+      await page.evaluate(() => { const m = window.__dbg.api.meta(); m.exp.run[0] = { cls: 'warrior', dur: 30, t0: Date.now() - 30 * 60000 + 90000, seed: 1, pw: 0, bf: 1 }; m.exp.run[1] = null; window.__dbg.api.showTitle(); });
       assert.match(await txt(page, '#btnExp .pill'), /^2m$/);
-      await page.waitForFunction(() => /^1m$/.test(document.querySelector('#btnExp .pill').textContent), null, { timeout: 4000 });
-      await page.evaluate(() => { window.__dbg.api.meta().exp.run[0].t0 = Date.now() - 30 * 60000 + 1500; });   // 1.5 s to go
-      await page.waitForFunction(() => /Ready/.test(document.querySelector('#btnExp .pill').textContent), null, { timeout: 4000 });
+      await page.clock.runFor(35000);
+      assert.match(await txt(page, '#btnExp .pill'), /^1m$/, 'the pill follows the clock without leaving the screen');
+      await page.clock.runFor(56000);
+      assert.match(await txt(page, '#btnExp .pill'), /Ready/);
       assert.deepEqual(errors, []);
     } finally { await ctx.close(); }
   });
@@ -129,7 +131,7 @@ describe('fix3: shop, Heat, blueprints', { concurrency: CONC }, () => {
         return { rows, pairs, pot, gold, lens: [...document.querySelectorAll('#titleBox button, #titleBox .pdesc')].map((e) => e.innerText.split('\n').slice(1).join(' ')).filter((x) => x.length > 0).map((x) => x.length) };
       });
       for (const x of r.rows) { assert.equal(x.bad, null, 'card text == real gain: ' + JSON.stringify(x.bad)); for (let i = 1; i < x.steps.length; i++) assert.ok(x.steps[i] <= x.steps[i - 1], x.k + ' gains never go up again: ' + x.steps); assert.ok(x.steps.every((g) => g >= 1 && Number.isInteger(g)), x.k + ' whole steps: ' + x.steps); }
-      assert.deepEqual(r.rows.find((x) => x.k === 'hp').steps, [8, 8, 8, 8, 8, 5, 5, 5]);
+      assert.deepEqual(r.rows.find((x) => x.k === 'hp').steps, [8, 8, 8, 8, 8, 4, 4, 4]);
       const mainOf = (k) => r.pairs.find((p) => p.k === k);
       assert.match(mainOf('edge').main, /Keen \+2% crit per level/); assert.match(mainOf('edge').other, /Swap: Vicious \+2% damage per level/);
       assert.match(mainOf('vigor').main, /Regrowth .*HP healed per floor per level/); assert.match(mainOf('vigor').other, /Lifedrinker/);
@@ -170,7 +172,7 @@ describe('fix3: shop, Heat, blueprints', { concurrency: CONC }, () => {
       assert.equal(await page.locator('#heatRow button.on').count(), 1);
       // selected 2 (3 is locked and was clamped): Hard rules + Reinforced
       const info = await txt(page, '#heatInfo');
-      assert.match(info, /Heat 2 · Reinforced/); assert.match(info, /Hard: tougher foes, scarce potions, brood mother/i); assert.match(info, /Reinforced: \+2 foes/); assert.doesNotMatch(info, /Iron elites:/, 'Heat 3 rules are not active at Heat 2');
+      assert.match(info, /Heat 2 · Reinforced/); assert.match(info, /Heat 1: tougher foes, scarce potions, brood mother/i); assert.match(info, /Reinforced: \+2 foes/); assert.doesNotMatch(info, /Iron elites:/, 'Heat 3 rules are not active at Heat 2');
       assert.match(info, /×1\.75/); assert.match(info, /win a run at Heat 2 for Heat 3/i);
       // a lock is tappable and says why; nothing else changes
       const locks = page.locator('#heatRow button.locked');
@@ -248,11 +250,11 @@ describe('fix3: Explore and the floor', { concurrency: CONC }, () => {
       await arena(page, ['#########################', '#@.....................?#', '#########################']);
       await page.evaluate(() => { const G = window.__dbg(); G.cracks = [{ x: G.p.x + 4, y: G.p.y, t: 99 }]; });
       const a = await last(page);
-      await page.evaluate(() => window.__dbg.fn.explore()); await page.waitForTimeout(700);
+      await page.evaluate(() => window.__dbg.fn.explore()); await page.waitForFunction(() => !window.__dbg.walking());
       const b = await last(page);
       assert.match(b.log, /cracking ahead/i, 'the log says why: ' + b.log); assert.doesNotMatch(b.log, /Nothing left/);
       assert.equal(b.x, a.x + 3, 'walked up to the crack and stopped in front of it');
-      await page.evaluate(() => window.__dbg.fn.explore()); await page.waitForTimeout(100);
+      await page.evaluate(() => window.__dbg.fn.explore()); await page.waitForFunction(() => !window.__dbg.walking());
       assert.match((await last(page)).log, /cracking ahead/i, 'asking again says the same, nothing is spent');
       // no crack, nothing unexplored: the old message
       await arena(page, ['#######', '#@....#', '#######']);
@@ -265,7 +267,7 @@ describe('fix3: Explore and the floor', { concurrency: CONC }, () => {
       const dr = await page.evaluate(() => { const G = window.__dbg(); return { items: G.items.map((i) => [i.k, i.skip | 0, i.x, i.y]), eq: G.p.eq.weapon.k, px: G.p.x }; });
       assert.equal(dr.eq, 'axe'); assert.equal(dr.items.length, 1, 'the sword lies where we stand'); assert.equal(dr.items[0][0], 'sword'); assert.equal(dr.items[0][1], 1, 'marked skip: Explore ignores it');
       await page.evaluate(() => { window.__dbg.fn.tryMove(2, 0); }); await page.evaluate(() => window.__dbg.fn.tryMove(1, 0));
-      for (let i = 0; i < 3; i++) { await page.evaluate(() => window.__dbg.fn.explore()); await page.waitForTimeout(150); }
+      for (let i = 0; i < 3; i++) { await page.evaluate(() => window.__dbg.fn.explore()); await page.waitForFunction(() => !window.__dbg.walking()); }
       const e = await last(page);
       assert.equal(e.modal, 'none', 'no gear card came back'); assert.match(e.log, /Nothing left/, 'Explore does not walk back to the dropped item: ' + e.log);
       assert.deepEqual(errors, []);

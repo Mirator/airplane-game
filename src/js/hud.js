@@ -11,11 +11,11 @@ const BTNS=[
   if(n<=0){msg('No items.');render();return;}
   armed=null;setTray(true);render();}},
  {id:'b_exp',fn:explore},
- {id:'b_wait',fn:act(wait)},
+ {id:'b_wait',fn:act(function(){if(armed){cancelTarget();return;}wait();})},   // armed: Wait is a cancel, no turn spent
  {id:'b_down',fn:act(descend)}
 ];
 const TRAYBTNS=[{id:'b_pot',fn:act(drink)},{id:'b_fire',fn:act(fireball)},{id:'b_tele',fn:act(teleport)}];
-const KEYS={b_items:'I',b_exp:'E',b_wait:'Space',b_down:'Enter',b_pot:'Q'};
+const KEYS={b_items:'I',b_exp:'E',b_wait:'␣',b_down:'↵',b_pot:'Q'};   // Space / Enter as one-glyph chips, so they never reach the icon
 for(const b of BTNS){const el=document.createElement('button');el.id=b.id;el.dataset.key=KEYS[b.id];el.addEventListener('click',b.fn);$('bar').appendChild(el);}
 for(const b of TRAYBTNS){const el=document.createElement('button');el.id=b.id;if(KEYS[b.id])el.dataset.key=KEYS[b.id];el.addEventListener('click',function(){setTray(false);b.fn();});$('tray').appendChild(el);}
 function trayOpen(){return $('tray').style.display!=='none';}
@@ -34,7 +34,7 @@ for(let i=0;i<4;i++){const el=document.createElement('button');el.id='a_'+i;el.d
 $('menuBtn').dataset.key='Esc';$('gearBtn').innerHTML=ic('equip',28);$('menuBtn').innerHTML=ic('menu',26);
 for(const el of document.querySelectorAll('[data-slot]'))el.innerHTML=ic(el.dataset.slot==='stop'?'x':'auto',16);
 // the Equipment button doubles as the level-up badge: with a pick pending it opens the perk choice (which has an Equipment button of its own)
-function gearOrPick(){if(!G||G.over)return;walkTok++;if(modalOpen())return;if(G.pending>0)showPerk();else showEquip(closeModal);}
+function gearOrPick(){if(!G||G.over)return;walkTok++;if(modalOpen())return;if(G.pending>0)showPerk(true);else showEquip(closeModal);}
 $('gearBtn').addEventListener('click',gearOrPick);$('gearBtn').dataset.key='P';
 {const bd=document.createElement('i');bd.id='perkBadge';bd.className='bd';bd.style.display='none';$('gearBtn').appendChild(bd);}
 function bset(id,icn,lab,badge,dis){
@@ -81,6 +81,7 @@ function updateBar(){
 }
 // only touch the DOM when the markup changes
 function setH(el,h){if(el._h!==h){el._h=h;el.innerHTML=h;}}
+let inRunCls=false;
 function updateHud(){
  if(!G)return;const p=G.p;
  $('hpfill').style.width=Math.max(0,100*p.hp/p.mhp)+'%';
@@ -91,11 +92,33 @@ function updateHud(){
  else if(p.cls==='mage'){const m=mmax();rb.className='res mana';rf.style.width=Math.min(100,100*(p.mana||0)/m)+'%';setH(rt,'Mana '+Math.floor(p.mana||0)+'/'+m);}
  else{const m=maxKnives();rb.className='res knives';rf.style.width=Math.min(100,100*(G.knives||0)/m)+'%';setH(rt,ic('knife',16)+' Knives '+(G.knives||0)+'/'+m);}
  $('xpfill').style.width=(100*p.xp/needXp(p.lvl))+'%';
- setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+(G.auto&&G.auto.used?runBank(G,G.won).banked:p.gold)+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
+ setH($('stats'),'<span>'+ic('keep',16)+' '+G.floor+'/'+MAXF+'</span><span>Lv '+p.lvl+'</span><span>'+ic('coin',16)+' '+p.gold+'</span>'+(G.keys>0?'<span>'+ic('key',16)+' '+G.keys+'</span>':'')+(G.daily?'<span title="Daily">'+ic('cal',16)+'</span>':'')+(G.hard?'<span title="Heat">'+ic('skull',16)+' Heat '+Math.max(1,G.heat|0)+'</span>':'')+(G.bl?'<span>'+ic('bloodlust',16)+'</span>':'')+(G.vanish>0?'<span>'+ic('ab_vanish',16)+' '+G.vanish+'</span>':'')+(G.brace?'<span>'+ic('ab_brace',16)+' '+G.brace.hits+'</span>':''));
  {const ch=modChipHtml();if(ch!==chipHtml){chipHtml=ch;$('chips').innerHTML=ch;}}
  {const n=G.pending|0,b=$('perkBadge'),t=n>0?String(n):'';if(b._t!==t){b._t=t;b.textContent=t;b.style.display=t?'':'none';$('gearBtn').classList.toggle('pick',n>0);$('gearBtn').setAttribute('aria-label',n>0?'Pick a perk ('+n+' waiting)':'Equipment');}}
- autoUi();
+ autoUi();sightUpdate();
+ {const ir=!G.over;if(ir!==inRunCls){inRunCls=ir;document.body.classList.toggle('inrun',ir);}}
 }
+// the wide side panel's "In sight" list: every visible foe by distance (icon, name, HP bar); a click inspects it and rings it on the map
+let hlFoe=null;
+function sightUpdate(){
+ if(!isBig())return;
+ const el=$('sightList'),vis=G.over?[]:G.enemies.filter(e=>!e.dead&&e.hp>0&&G.vis[ix(e.x,e.y)]).sort((a,b)=>manh(a,G.p)-manh(b,G.p));
+ let h='';
+ if(!vis.length)h='<div class="none">Nothing in sight.</div>';
+ else{
+  for(const e of vis.slice(0,6)){const d=EN[e.t];
+   h+='<button class="srow" data-id="'+e.id+'" aria-label="'+d.n+' '+e.hp+' of '+e.mhp+' HP">'+ic(d.e,24)+'<span class="sn">'+(e.elite&&e.name?e.name:d.n)+(e.awake?'':' (asleep)')+'</span><span class="sh"><i style="width:'+Math.max(0,Math.min(100,100*e.hp/e.mhp))+'%"></i></span><span class="sv">'+e.hp+'</span></button>';}
+  if(vis.length>6)h+='<div class="none">+'+(vis.length-6)+' more</div>';
+ }
+ if(el._h!==h){el._h=h;el.innerHTML=h;}
+}
+function sightFoe(ev){const b=ev.target.closest&&ev.target.closest('button.srow');return b&&G?G.enemies.find(e=>e.id===+b.dataset.id):null;}
+$('sightList').addEventListener('click',function(ev){
+ const e=sightFoe(ev);if(!e||!G||G.over||modalOpen())return;
+ hlFoe={id:e.id,until:performance.now()+2500};showInspect(e.x,e.y);render();
+});
+$('sightList').addEventListener('mouseover',function(ev){const e=sightFoe(ev);if(e&&G){hlFoe={id:e.id,until:1e12};render();}});
+$('sightList').addEventListener('mouseleave',function(){if(hlFoe&&hlFoe.until>1e11){hlFoe=null;if(G)render();}});
 function renderLog(){
  if(!G)return;const l=G.log.slice(-LOGN);
  $('log').innerHTML=l.map(t=>'<div></div>').join('');

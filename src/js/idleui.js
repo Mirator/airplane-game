@@ -10,7 +10,7 @@ function expScreen(title,name){
  return t;
 }
 function expAdd(t,tag,html,cls){const e=document.createElement(tag);e.innerHTML=html;if(cls)e.className=cls;t.appendChild(e);return e;}
-function expBack(t,fn,label){const b=expAdd(t,'button',label||'Back','c');b.id='btnBack';b.addEventListener('click',function(){expLeave();(fn||showTitle)();});return b;}
+function expBack(t,fn,label){const b=expAdd(t,'button',label||'Back','c');b.id='btnBack';b.dataset.esc='1';b.addEventListener('click',function(){expLeave();(fn||showTitle)();});return b;}
 // the list of slots: an empty slot sends a hero, a running one counts down (Recall pays the part done), a finished one is collected
 function showExpeditions(){
  if(meta.exp.rep){showExpReport(meta.exp.rep);return;}
@@ -85,7 +85,7 @@ function bpTab(t,add){
  const list=BPS.filter(b=>bpState(b.id)>=1).sort((a,b)=>bpState(a.id)-bpState(b.id)||'cbr'.indexOf(a.tier)-'cbr'.indexOf(b.tier));
  for(const b of list){
   const st=bpState(b.id),cost=BAL.bp.cost[b.tier];
-  const inner='<b>'+b.n+'</b><span class="bpk">'+bpKind(b)+'</span><span>'+bpDesc(b)+(st===2?' · <span style="color:#6fd08c">Bought</span>':' · <span class="gold">'+cost+' '+ic('coin',13)+'</span>')+'</span>';
+  const inner='<b>'+b.n+'</b><span class="bpk">'+bpKind(b)+'</span><span>'+bpDesc(b)+(st===2?' · <span style="color:#6fd08c">Bought</span>':' <span class="nw">· <span class="gold">'+cost+' '+ic('coin',13)+'</span></span>')+'</span>';
   const el=add('button','<span class="chp">'+ic(bpIcon(b),28)+'</span><span class="ct">'+inner+'</span>','hasic');
   el.dataset.bp=b.id;el.dataset.state=st;
   if(st===2){el.disabled=true;el.style.opacity='.85';el.style.borderColor='#2a8a5a';}

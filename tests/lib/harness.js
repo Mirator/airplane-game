@@ -46,9 +46,9 @@ const RESTORE = () => {
 // requested at 10 per second instead of 60 (pass {frames: 'full'} to newPage to opt out).
 const SLOW_FRAMES = () => { window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 100); };
 // A dialog that opens because of a game event ignores real taps for BAL.ui.modalGraceMs (so a finger still tapping the map cannot pick a perk by
-// accident). Almost every test taps dialog buttons right after they open, so the harness sets the grace to 0; the tests of the grace itself
+// accident), and the death card waits BAL.ui.deathMs after the lethal hit (also 0 here). Almost every test taps dialog buttons right after they open, so the harness sets the grace to 0; the tests of the grace itself
 // (fixes.test.js) pass {grace: true} to newPage and run with the real value.
-const noGrace = (page) => page.evaluate(() => { try { window.__dbg.tables.BAL.ui.modalGraceMs = 0; } catch (e) { /* no game yet */ } });
+const noGrace = (page) => page.evaluate(() => { try { window.__dbg.tables.BAL.ui.modalGraceMs = 0; window.__dbg.tables.BAL.ui.deathMs = 0; } catch (e) { /* no game yet */ } });
 async function reload(page) {
   await page.evaluate(() => { window.name = '__ls:' + JSON.stringify(Object.entries(localStorage)); });
   await page.reload();
@@ -101,7 +101,7 @@ async function openRun(browser, cls, opts) {
   return r;
 }
 // Auto lives in the menu now: open it and tap "Auto play" (the stop / speed buttons are in the top bar while it runs)
-// (the first tap in a run only states the half-gold cost, the second starts it)
+// (the first tap in a run states the idle pay per 10 min and the second starts it)
 const autoOn = async (page) => { await page.click('#menuBtn'); const b = page.locator('#modalBox button[data-k="auto"]'); await b.click(); if (await page.locator('#modal').isVisible()) await b.click(); };
 const closeModal = (page) => page.evaluate(() => { document.getElementById('modal').style.display = 'none'; });
 // Auto normally decides once per 250 ms; tests that only need "Auto is running" shorten that (the rule under test is unchanged)
