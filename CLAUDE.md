@@ -38,6 +38,23 @@ Balance gets its own pass after several features: tune on a subset (1 class, 50 
 table (3 classes x 4 levels x 2 seeds x 100 runs), then `tests/calibrate.js` once. Cells within 5 points of a band are reported
 as misses, not re-tuned. Bands: fresh 4-9% per class, mid(800) 10-25%, heavy(3000) 40-50%, maxed 60-70%, no class >1.5x another.
 
+## Keeping it fast and cheap
+
+- **One review loop, then stop.** Ship when the review finds nothing that blocks play or loses progress. Remaining "clearly wrong"
+  and polish findings go to `BACKLOG.md` (one line each: id, viewport, what, file:line), not into another review loop. A second
+  loop is a special occasion: ask the owner first.
+- **Screenshots are expensive.** Reviews check layout through page measurements first (bounding boxes, overlap, text clipped,
+  canvas backing size) and LOOK at no more than 15 images per review, 10 per fix pass. Do not save hundreds of frames.
+- **Iterate on one test file** (`node tests/run.js <name>`); run the whole suite once at the end, then `npm run release-check` once.
+- **Requirements up front.** Do not add items to an agent that is already running; queue them as the next release.
+- **At most one scheduled check-in per long job.** Agents keep a PROGRESS.md so a restart costs time, not work.
+- **Implementing agents commit and push their own work in progress** on the session's branch at every PROGRESS.md checkpoint
+  where the suite is green (message starts with "WIP:"). This keeps the tree clean so the environment's commit-reminder hook
+  does not cost the main session a turn each time. Never commit while a mutation run or a half-applied edit is in flight.
+- **Fresh session per feature.** These rules, README.md, BACKLOG.md and TIMELINE.tsv are the hand-over; anything a new session
+  needs must be written there, not left in a conversation.
+- Reports to the owner: lead with what changed for the player and what is unverified; no per-finding lists unless asked.
+
 ## Standing rules
 
 - Estimates: quote the measured time of the closest earlier stage from TIMELINE.tsv, not a guess.
