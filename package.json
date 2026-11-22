@@ -4,6 +4,8 @@
     "test": "node tests/run.js",
     "sim": "node tests/sim.js",
     "mutate": "node tests/mutate.js",
+    "mutate:fast": "node tests/mutate.js --fast --jobs 3",
+    "mutate:new": "node tests/mutate.js --new",
     "release-check": "node build.js && node tests/run.js && node tests/sim.js --runs 30 --seed 1 --levels heavy=3000"
   }
 }

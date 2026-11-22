@@ -12,6 +12,10 @@
 //                                        otherwise it is reported as FLAKY and counted as NOT killed - a flaky failure proves nothing)
 //   node tests/mutate.js --recheck R.json  re-run only the mutations R.json (from --json) recorded as KILLED, and only the test files that
 //                                        killed them; one that no longer fails is reported FLAKY (used to audit a first run)
+//   node tests/mutate.js --fast          per mutation run ONLY the test file(s) that killed it last time (tests/mutate-map.json, written by
+//                                        every normal run); if they now pass, fall back to the whole suite for that mutation. ~10x faster.
+//                                        Use with --jobs 3. Answers "did a change weaken the tests?"; a kill here is not re-confirmed.
+//   node tests/mutate.js --new           only mutations that have no entry in the kill map yet (the ones added since the last run)
 //   node tests/mutate.js --tests DIR     use the tests/ folder of another checkout (e.g. an older version of the suite) with this src/
 //
 // Safety: the real src/, build.js and index.html are only READ. Every mutation is applied in a temporary copy of the repo
@@ -419,6 +423,13 @@ process.on('exit', cleanup);
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { cleanup(); process.exit(130); });
 process.on('uncaughtException', (e) => { console.error(e); cleanup(); process.exit(2); });
 
+// kill map: id -> test files (without .test.js) that killed the mutation in the last normal run. Committed; updated after every mutation.
+const MAP_FILE = path.join(__dirname, 'mutate-map.json');
+let KMAP = {}; try { KMAP = JSON.parse(fs.readFileSync(MAP_FILE, 'utf8')); } catch (e) { KMAP = {}; }
+const FAST = has('--fast'), ONLY_NEW = has('--new'), HAD = new Set(Object.keys(KMAP));
+function saveMap() { const o = {}; for (const k of Object.keys(KMAP).sort()) o[k] = KMAP[k]; fs.writeFileSync(MAP_FILE, JSON.stringify(o, null, 0).replace(/\],/g, '],\n') + '\n'); }
+const killFiles = (fails) => [...new Set(fails.map((f) => f.split(' :: ')[0]).filter((f) => /\.test\.js$/.test(f)))].map((f) => f.replace('.test.js', ''));
+
 const RECHECK = arg('--recheck') ? Object.fromEntries(JSON.parse(fs.readFileSync(arg('--recheck'), 'utf8')).filter((r) => r.status === 'KILLED').map((r) => [r.id, [...new Set(r.by.map((b) => b.split(' :: ')[0]).filter((f) => /\.test\.js$/.test(f)).map((f) => f.replace('.test.js', '')))]])) : null;
 
 async function runOne(dir, m, all) {
@@ -435,12 +446,21 @@ async function runOne(dir, m, all) {
       const res = await runSuite(dir, false, RECHECK[m.id]);
       return { status: res.code === 0 ? 'FLAKY' : 'KILLED', by: res.fails, ms: Date.now() - t0, note: res.code === 0 ? 'killing test(s) pass on the re-run' : '' };
     }
+    if (FAST && KMAP[m.id] && KMAP[m.id].length) {            // fast path: only the file(s) that caught it before
+      const quick = await runSuite(dir, false, KMAP[m.id]);
+      if (quick.code !== 0) return { status: 'KILLED', by: quick.fails, ms: Date.now() - t0, note: '', fast: true };
+    }
     const res = await runSuite(dir, all);
     let status = res.code === 0 ? 'SURVIVED' : 'KILLED', note = res.code !== 0 && !res.fails.length ? res.out.split('\n').slice(-5).join(' | ') : '';
     if (status === 'KILLED' && !has('--no-confirm')) {      // a kill must reproduce: run just the failing file(s) once more
-      const files = [...new Set(res.fails.map((f) => f.split(' :: ')[0]).filter((f) => /\.test\.js$/.test(f)))].map((f) => f.replace('.test.js', ''));
+      const files = killFiles(res.fails);
       const again = await runSuite(dir, false, files);
       if (again.code === 0) { status = 'FLAKY'; note = 'failed once (' + files.join(',') + ') but passed on the re-run'; }
+    }
+    if (TESTS_DIR === __dirname) {                              // remember who caught it (or that nobody did)
+      const kf = status === 'KILLED' ? killFiles(res.fails) : [];
+      if (kf.length) KMAP[m.id] = kf; else delete KMAP[m.id];
+      saveMap();
     }
     return { status, by: res.fails, ms: Date.now() - t0, note };
   } finally {
@@ -455,10 +475,11 @@ async function main() {
   if (has('--check')) { console.log('all ' + MUTATIONS.length + ' mutations apply cleanly'); return; }
 
   const only = (arg('--only') || '').split(',').filter(Boolean);
-  const list = MUTATIONS.filter((m) => (!only.length || only.some((o) => o === m.id || o === m.area)) && (!RECHECK || RECHECK[m.id]));
+  const list = MUTATIONS.filter((m) => (!only.length || only.some((o) => o === m.id || o === m.area)) && (!RECHECK || RECHECK[m.id]) && (!ONLY_NEW || !HAD.has(m.id)));
+  if (!list.length) { console.log('no mutations selected' + (ONLY_NEW ? ' (every mutation is already in the kill map)' : '')); return; }
   const all = has('--all'), jobs = Math.max(1, +arg('--jobs') || 1);
   const before = fingerprint(), t0 = Date.now();
-  console.log('running ' + list.length + ' mutations' + (all ? ' (full suite each)' : ' (stop at first failure)') + ', ' + jobs + ' at a time');
+  console.log('running ' + list.length + ' mutations' + (all ? ' (full suite each)' : FAST ? ' (fast: mapped test files first)' : ' (stop at first failure)') + ', ' + jobs + ' at a time');
 
   const results = new Array(list.length);
   let next = 0;

@@ -95,6 +95,9 @@ All of `src/js/` is concatenated into **one IIFE**, so every file shares one sco
 ```
 node build.js          # regenerate index.html
 node tests/run.js      # (or npm test) the whole suite, about 50 s on 4 cores (213 tests; ~0.3 CPU-s of every test is just opening a page); non-zero exit on failure
+npm run mutate:new     # only mutations not yet in tests/mutate-map.json (the ones a feature just added), ~1 min each
+npm run mutate:fast    # every mutation, but only against the test file(s) that caught it last time (kill map); falls back to the whole suite when they pass
+                       # process rules, testing tiers and the timeline stamps (tests/stamp.js -> TIMELINE.tsv) are in CLAUDE.md
 npm run mutate         # mutation check of the suite: implants 305 realistic bugs one at a time (the MX* entries cover the fix pass), about 3.5 h on 4 cores
 node tests/sim.js      # slow balance simulator (not part of npm test), e.g. --runs 50 --seed 1
 ```
